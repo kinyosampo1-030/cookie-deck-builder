@@ -26,7 +26,9 @@ import {
   Pencil,
   Star,
   Youtube,
-  FileJson, // 新增圖示
+  FileJson,
+  WifiOff,
+  CheckCircle, // 新增打勾圖示
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -216,7 +218,6 @@ const Toast = ({ message, onClose }) => {
   );
 };
 
-// --- 批次匯入 Modal ---
 const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
   const [jsonInput, setJsonInput] = useState("");
 
@@ -1057,7 +1058,7 @@ const CardItem = ({
                 </button>
               )}
 
-              {/* 這裡修改了 ID 的顯示樣式：字體變大、加粗、背景更清晰 */}
+              {/* ID 樣式優化：字體放大、加粗、背景清晰 */}
               {!compact && (
                 <span className="text-xs md:text-xl font-mono font-black bg-white/80 px-2 rounded border border-current/20 whitespace-nowrap ml-1 shadow-sm">
                   {card.id}
@@ -1172,6 +1173,8 @@ export default function App() {
     color: "ALL",
     level: "ALL",
     series: "ALL",
+    showExtra: false, // 新增：EXTRA 篩選
+    showFlip: false, // 新增：FLIP 篩選
   });
   const [toastMsg, setToastMsg] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -1444,8 +1447,18 @@ export default function App() {
         const matchLevel =
           filters.level === "ALL" || card.level === filters.level;
 
+        // 新增篩選邏輯
+        const matchExtra = filters.showExtra ? card.isExtra : true;
+        const matchFlip = filters.showFlip ? card.isFlip : true;
+
         return (
-          matchSearch && matchType && matchColor && matchSeries && matchLevel
+          matchSearch &&
+          matchType &&
+          matchColor &&
+          matchSeries &&
+          matchLevel &&
+          matchExtra &&
+          matchFlip
         );
       }),
     [filters, allCards]
@@ -1454,6 +1467,13 @@ export default function App() {
   const groupedMainDeck = useMemo(() => groupCards(deck.main), [deck.main]);
   const groupedExtraDeck = useMemo(() => groupCards(deck.extra), [deck.extra]);
   const flipCount = getFlipCount();
+
+  // 計算非 FLIP 的餅乾卡數量
+  const nonFlipCookieCount = useMemo(() => {
+    return deck.main.filter(
+      (c) => c.type === CARD_TYPES.COOKIE && c.isFlip === false
+    ).length;
+  }, [deck.main]);
 
   if (!user)
     return (
@@ -1640,6 +1660,35 @@ export default function App() {
                 </select>
               </div>
             </div>
+            {/* 新增：快速篩選 Checkbox (樣式優化) */}
+            <div className="flex gap-3 mt-2 pl-1">
+              <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
+                <input
+                  type="checkbox"
+                  className="hidden peer"
+                  checked={filters.showExtra}
+                  onChange={(e) =>
+                    setFilters({ ...filters, showExtra: e.target.checked })
+                  }
+                />
+                <span className="text-[10px] uppercase tracking-wider bg-purple-200 text-purple-900 px-2 py-1 rounded border border-purple-300 peer-checked:ring-2 peer-checked:ring-purple-500 opacity-60 peer-checked:opacity-100 font-bold select-none">
+                  [EXTRA] 篩選
+                </span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
+                <input
+                  type="checkbox"
+                  className="hidden peer"
+                  checked={filters.showFlip}
+                  onChange={(e) =>
+                    setFilters({ ...filters, showFlip: e.target.checked })
+                  }
+                />
+                <span className="text-[10px] bg-slate-800 text-white px-2 py-1 rounded font-bold tracking-wider peer-checked:ring-2 peer-checked:ring-slate-500 opacity-60 peer-checked:opacity-100 select-none">
+                  [FLIP] 篩選
+                </span>
+              </label>
+            </div>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-4 bg-slate-50">
@@ -1806,9 +1855,19 @@ export default function App() {
             <h4 className="flex items-center gap-2 text-orange-800 font-bold text-sm mb-1">
               <AlertTriangle size={14} /> 牌組檢查
             </h4>
+            <div className="text-[11px] text-orange-800/70 font-mono mb-2 border-b border-orange-200 pb-2 leading-relaxed">
+              ※相同編號卡最多4張
+              <br />
+              ※FLIP卡最多16張
+            </div>
             <ul className="text-xs text-orange-700 space-y-1 list-disc pl-4">
-              {deck.main.length < 40 && (
-                <li>主牌組建議至少 40 張 (目前 {deck.main.length})</li>
+              {nonFlipCookieCount < 20 && (
+                <li>
+                  主牌組建議至少 20 張餅乾卡 (目前 {nonFlipCookieCount})
+                  <span className="text-[10px] opacity-75 ml-1">
+                    (不含 FLIP)
+                  </span>
+                </li>
               )}
               {deck.main.length === LIMITS.MAIN && (
                 <li className="text-red-600 font-bold">主牌組已達上限</li>
@@ -1821,12 +1880,12 @@ export default function App() {
                   Flip 卡片已達上限 ({LIMITS.FLIP})
                 </li>
               )}
-              {deck.main.length >= 40 &&
+              {nonFlipCookieCount >= 20 &&
                 deck.main.length < LIMITS.MAIN &&
                 deck.extra.length < LIMITS.EXTRA &&
                 flipCount < LIMITS.FLIP && (
-                  <li className="text-emerald-600 list-none -ml-4">
-                    ✨ 牌組目前合規
+                  <li className="text-emerald-600 list-none -ml-4 flex items-center gap-1 font-bold">
+                    <CheckCircle size={14} /> 牌組目前合規
                   </li>
                 )}
             </ul>
