@@ -355,6 +355,8 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
       }
 
       setFormData({
+        series: 'BS1', // 預設值
+        number: '',
         name: '',
         color: CARD_COLORS.RED,
         type: CARD_TYPES.COOKIE,
