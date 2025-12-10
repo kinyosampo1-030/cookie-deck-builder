@@ -26,6 +26,7 @@ import {
   Pencil,
   Star,
   Youtube,
+  FileJson, // 新增圖示
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -141,162 +142,6 @@ const INITIAL_CARDS = [
     isFlip: false,
     imageUrl: null,
   },
-  {
-    id: "BS1-004",
-    series: "BS1",
-    number: "004",
-    name: "薄荷糖騎士",
-    type: CARD_TYPES.COOKIE,
-    color: CARD_COLORS.BLUE,
-    level: CARD_LEVELS.LV2,
-    isExtra: false,
-    isFlip: true,
-    imageUrl: null,
-  },
-  {
-    id: "BS1-005",
-    series: "BS1",
-    number: "005",
-    name: "雷電陷阱",
-    type: CARD_TYPES.TRAP,
-    color: CARD_COLORS.YELLOW,
-    level: null,
-    isExtra: false,
-    isFlip: false,
-    imageUrl: null,
-  },
-  {
-    id: "BS2-001",
-    series: "BS2",
-    number: "001",
-    name: "魔女的烤箱",
-    type: CARD_TYPES.SCENE,
-    color: CARD_COLORS.PURPLE,
-    level: null,
-    isExtra: false,
-    isFlip: false,
-    imageUrl: null,
-  },
-  {
-    id: "BS2-002",
-    series: "BS2",
-    number: "002",
-    name: "隱形披風",
-    type: CARD_TYPES.ITEM,
-    color: CARD_COLORS.COLORLESS,
-    level: null,
-    isExtra: false,
-    isFlip: false,
-    imageUrl: null,
-  },
-  {
-    id: "BS2-003",
-    series: "BS2",
-    number: "003",
-    name: "超級奶油巨人",
-    type: CARD_TYPES.COOKIE,
-    color: CARD_COLORS.YELLOW,
-    level: CARD_LEVELS.LV3,
-    isExtra: true,
-    isFlip: false,
-    imageUrl: null,
-  },
-  {
-    id: "BS3-010",
-    series: "BS3",
-    number: "010",
-    name: "深海氣泡飲",
-    type: CARD_TYPES.ITEM,
-    color: CARD_COLORS.BLUE,
-    level: null,
-    isExtra: false,
-    isFlip: false,
-    imageUrl: null,
-  },
-  {
-    id: "BS3-011",
-    series: "BS3",
-    number: "011",
-    name: "劇毒沼澤",
-    type: CARD_TYPES.SCENE,
-    color: CARD_COLORS.PURPLE,
-    level: null,
-    isExtra: false,
-    isFlip: false,
-    imageUrl: null,
-  },
-  {
-    id: "BS4-001",
-    series: "BS4",
-    number: "001",
-    name: "忍者餅乾",
-    type: CARD_TYPES.COOKIE,
-    color: CARD_COLORS.BLUE,
-    level: CARD_LEVELS.LV1,
-    isExtra: false,
-    isFlip: true,
-    imageUrl: null,
-  },
-  {
-    id: "P-001",
-    series: "P",
-    number: "001",
-    name: "天使餅乾",
-    type: CARD_TYPES.COOKIE,
-    color: CARD_COLORS.COLORLESS,
-    level: CARD_LEVELS.LV1,
-    isExtra: false,
-    isFlip: true,
-    imageUrl: null,
-  },
-  {
-    id: "BS5-005",
-    series: "BS5",
-    number: "005",
-    name: "火焰精靈",
-    type: CARD_TYPES.COOKIE,
-    color: CARD_COLORS.RED,
-    level: CARD_LEVELS.LV3,
-    isExtra: false,
-    isFlip: false,
-    imageUrl: null,
-  },
-  {
-    id: "BS6-002",
-    series: "BS6",
-    number: "002",
-    name: "千年樹之森",
-    type: CARD_TYPES.SCENE,
-    color: CARD_COLORS.GREEN,
-    level: null,
-    isExtra: false,
-    isFlip: false,
-    imageUrl: null,
-  },
-  {
-    id: "BS7-001",
-    series: "BS7",
-    number: "001",
-    name: "暗黑魔女餅乾",
-    type: CARD_TYPES.COOKIE,
-    color: CARD_COLORS.PURPLE,
-    level: CARD_LEVELS.LV3,
-    isExtra: true,
-    isFlip: false,
-    imageUrl: null,
-  },
-  {
-    id: "BS8-008",
-    series: "BS8",
-    number: "008",
-    name: "糖果陷阱",
-    type: CARD_TYPES.TRAP,
-    color: CARD_COLORS.YELLOW,
-    level: null,
-    isExtra: false,
-    isFlip: false,
-    imageUrl: null,
-  },
 ];
 
 const isExtraDeckCard = (card) => card.isExtra === true;
@@ -366,6 +211,107 @@ const Toast = ({ message, onClose }) => {
       <div className="bg-slate-800 text-white px-6 py-3 rounded-lg shadow-xl flex items-center gap-2 font-bold border border-slate-600">
         <AlertCircle size={20} className="text-blue-400" />
         {message}
+      </div>
+    </div>
+  );
+};
+
+// --- 批次匯入 Modal ---
+const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
+  const [jsonInput, setJsonInput] = useState("");
+
+  const handleImport = () => {
+    try {
+      const parsed = JSON.parse(jsonInput);
+      if (!Array.isArray(parsed)) {
+        alert("格式錯誤：輸入的內容必須是一個 JSON 陣列 [...]");
+        return;
+      }
+      if (
+        !confirm(
+          `解析成功！共發現 ${parsed.length} 張卡片。\n確定要寫入資料庫嗎？`
+        )
+      ) {
+        return;
+      }
+      onImport(parsed);
+    } catch (e) {
+      alert("JSON 格式錯誤，請檢查語法。\n" + e.message);
+    }
+  };
+
+  const sampleFormat = `[
+  {
+    "id": "BS1-999",
+    "series": "BS1",
+    "number": "999",
+    "name": "範例餅乾",
+    "type": "餅乾卡",
+    "color": "紅色",
+    "level": "LV.1",
+    "isFlip": true,
+    "isExtra": false
+  }
+]`;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col">
+        <div className="flex justify-between items-center p-4 border-b">
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            <FileJson className="text-green-600" /> 批量匯入卡片 (JSON)
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-slate-100 rounded-full"
+          >
+            <X size={24} />
+          </button>
+        </div>
+        <div className="flex-1 p-6 flex flex-col gap-4 overflow-hidden">
+          <div className="bg-blue-50 p-4 rounded text-sm text-blue-800 border border-blue-200">
+            <p className="font-bold mb-1">使用說明：</p>
+            <p>
+              請將您的卡片資料整理為 <strong>JSON 陣列</strong> 格式貼入下方。
+              <br />
+              您可以先在 Excel 整理，然後請 AI 幫您：「將這些資料轉為 JSON
+              格式，欄位包含 id, series, number, name, type, color, isFlip,
+              isExtra」。
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
+            <div className="flex flex-col gap-2">
+              <label className="font-bold text-slate-700">輸入 JSON:</label>
+              <textarea
+                className="flex-1 w-full border rounded-lg p-3 font-mono text-xs bg-slate-50 resize-none focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="在此貼上 JSON..."
+                value={jsonInput}
+                onChange={(e) => setJsonInput(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="font-bold text-slate-700">格式範例:</label>
+              <pre className="flex-1 w-full border rounded-lg p-3 font-mono text-xs bg-slate-100 overflow-auto select-all text-slate-600">
+                {sampleFormat}
+              </pre>
+            </div>
+          </div>
+        </div>
+        <div className="p-4 border-t flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-bold"
+          >
+            取消
+          </button>
+          <button
+            onClick={handleImport}
+            disabled={isProcessing || !jsonInput}
+            className="px-6 py-2 bg-green-600 text-white hover:bg-green-700 rounded-lg font-bold disabled:opacity-50 flex items-center gap-2"
+          >
+            {isProcessing ? "匯入中..." : "開始匯入"}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -701,15 +647,30 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
 
   const [previewUrl, setPreviewUrl] = useState(null);
 
+  // 初始化資料 (編輯模式 - 修復版)
   useEffect(() => {
     if (initialData) {
-      const [series, number] = initialData.id.split("-");
-      setFormData({
-        ...initialData,
-        series: series || "BS1",
-        number: number || "",
-        level: initialData.level || CARD_LEVELS.LV1,
-      });
+      // 處理 ID 解析：如果不符合 Series-Number 格式，就做簡單處理，避免 crash
+      let derivedSeries = "BS1";
+      let derivedNumber = "";
+
+      if (initialData.id && initialData.id.includes("-")) {
+        const parts = initialData.id.split("-");
+        derivedSeries = parts[0] || "BS1";
+        derivedNumber = parts[1] || "";
+      } else {
+        // 如果 ID 是非標準格式 (例如 "MyCard001")，將整個 ID 視為編號顯示
+        derivedNumber = initialData.id || "";
+      }
+
+      setFormData((prev) => ({
+        ...prev, // 保留預設值
+        ...initialData, // 填入卡片原始資料 (如 name, type, color, imageUrl)
+        // 強制使用解析出來的 series 和 number，確保 UI 顯示正確，並覆蓋可能不一致的舊資料
+        series: derivedSeries,
+        number: derivedNumber,
+      }));
+
       if (initialData.imageUrl) {
         setPreviewUrl(initialData.imageUrl);
       }
@@ -735,15 +696,27 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.number) {
-      alert("請填寫完整資訊 (名稱與編號)");
+    if (!formData.name) {
+      alert("請填寫卡片名稱");
       return;
     }
     if (formData.imageUrl && formData.imageUrl.length > 1048400) {
       alert("圖片壓縮後依然過大！請更換一張解析度較低的圖片。");
       return;
     }
-    const fullId = `${formData.series}-${formData.number}`;
+
+    // 關鍵修正：如果是編輯模式 (initialData 存在)，強制使用原始 ID，避免資料重複或錯誤
+    let fullId;
+    if (initialData && initialData.id) {
+      fullId = initialData.id;
+    } else {
+      // 新增模式才組合 ID
+      if (!formData.number) {
+        alert("請填寫編號");
+        return;
+      }
+      fullId = `${formData.series}-${formData.number}`;
+    }
 
     const submitData = {
       ...formData,
@@ -812,7 +785,7 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
                 <input
                   type="text"
                   placeholder="001"
-                  required
+                  required={!initialData}
                   className="border rounded p-2 flex-1"
                   value={formData.number}
                   onChange={(e) =>
@@ -1084,12 +1057,14 @@ const CardItem = ({
                 </button>
               )}
 
-              {compact ? (
-                <span className="font-mono font-black text-black text-sm bg-white/50 px-1 rounded -ml-0.5">
+              {/* 這裡修改了 ID 的顯示樣式：字體變大、加粗、背景更清晰 */}
+              {!compact && (
+                <span className="text-xs md:text-xl font-mono font-black bg-white/80 px-2 rounded border border-current/20 whitespace-nowrap ml-1 shadow-sm">
                   {card.id}
                 </span>
-              ) : (
-                <span className="text-xs font-mono font-bold opacity-60 bg-white/50 px-1 rounded border border-current/20 whitespace-nowrap ml-1">
+              )}
+              {compact && (
+                <span className="font-mono font-black text-black text-sm bg-white/50 px-1 rounded -ml-0.5">
                   {card.id}
                 </span>
               )}
@@ -1200,6 +1175,7 @@ export default function App() {
   });
   const [toastMsg, setToastMsg] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false); // 新增：控制批次匯入 Modal 的開關
   const [showExportModal, setShowExportModal] = useState(false);
   const [viewingCard, setViewingCard] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -1382,6 +1358,38 @@ export default function App() {
     }
   };
 
+  // 新增：批量匯入處理
+  const handleBulkImport = async (cardsData) => {
+    if (!user || !db) return;
+    setIsProcessing(true);
+    const batch = writeBatch(db);
+    let count = 0;
+    try {
+      cardsData.forEach((card) => {
+        if (!card.id || !card.name) return; // 簡單過濾無效資料
+        const ref = doc(
+          db,
+          "artifacts",
+          appId,
+          "public",
+          "data",
+          "cards",
+          card.id
+        );
+        batch.set(ref, card);
+        count++;
+      });
+      await batch.commit();
+      setToastMsg(`成功匯入 ${count} 張卡片！`);
+      setShowBulkModal(false);
+    } catch (err) {
+      console.error(err);
+      setToastMsg("匯入失敗，請檢查 JSON 格式或網路");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleDeleteCard = async (card) => {
     if (!confirm(`確定要永久刪除「${card.name}」嗎？此動作無法復原。`)) return;
     try {
@@ -1476,6 +1484,14 @@ export default function App() {
           initialData={editingCard}
         />
       )}
+      {/* 批量匯入 Modal */}
+      {showBulkModal && (
+        <BulkImportModal
+          onClose={() => setShowBulkModal(false)}
+          onImport={handleBulkImport}
+          isProcessing={isProcessing}
+        />
+      )}
       {showExportModal && (
         <ExportModal
           deck={deck}
@@ -1499,15 +1515,23 @@ export default function App() {
             </div>
             <div className="flex gap-2">
               {isAdmin ? (
-                <button
-                  onClick={() => {
-                    setEditingCard(null);
-                    setShowAddModal(true);
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors"
-                >
-                  <Plus size={16} /> 新增卡片
-                </button>
+                <>
+                  <button
+                    onClick={() => {
+                      setEditingCard(null);
+                      setShowAddModal(true);
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors"
+                  >
+                    <Plus size={16} /> 新增
+                  </button>
+                  <button
+                    onClick={() => setShowBulkModal(true)}
+                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors"
+                  >
+                    <FileJson size={16} /> 匯入
+                  </button>
+                </>
               ) : (
                 <div className="flex items-center gap-1 text-slate-400 text-xs bg-slate-100 px-2 py-1 rounded">
                   <Lock size={12} /> 僅供瀏覽
