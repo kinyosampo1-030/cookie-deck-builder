@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Search, Filter, Trash2, AlertCircle, Layers, Box, Zap, AlertTriangle, Palette, RotateCw, Plus, X, Image as ImageIcon, Upload, Eye, Share2, Download, Link as LinkIcon, Copy, Database, Cloud, Lock, RefreshCw, FileJson, WifiOff } from 'lucide-react';
+import { Search, Filter, Trash2, AlertCircle, Layers, Box, Zap, AlertTriangle, Palette, RotateCw, Plus, X, Image as ImageIcon, Upload, Eye, Share2, Download, Link as LinkIcon, Copy, Database, Cloud, Lock, RefreshCw, FileJson, WifiOff, Pencil } from 'lucide-react';
 
 // --- Firebase Imports ---
 import { initializeApp } from 'firebase/app';
@@ -342,33 +342,25 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
   useEffect(() => {
     if (initialData) {
       // 處理 ID 解析：如果不符合 Series-Number 格式，就做簡單處理，避免 crash
-      let series = 'BS1';
-      let number = '';
+      let derivedSeries = 'BS1';
+      let derivedNumber = '';
       
       if (initialData.id && initialData.id.includes('-')) {
         const parts = initialData.id.split("-");
-        series = parts[0] || 'BS1';
-        number = parts[1] || '';
+        derivedSeries = parts[0] || 'BS1';
+        derivedNumber = parts[1] || '';
       } else {
-        // 如果 ID 是非標準格式 (例如 "MyCard001")，將整個 ID 視為編號顯示，雖然 series 選單可能對不上，但至少不會壞掉
-        number = initialData.id || '';
+        // 如果 ID 是非標準格式 (例如 "MyCard001")，將整個 ID 視為編號顯示
+        derivedNumber = initialData.id || '';
       }
 
-      setFormData({
-        series: 'BS1', // 預設值
-        number: '',
-        name: '',
-        color: CARD_COLORS.RED,
-        type: CARD_TYPES.COOKIE,
-        level: CARD_LEVELS.LV1,
-        isFlip: false,
-        isExtra: false,
-        imageUrl: '',
-        ...initialData, // 展開所有欄位以確保完整
-        // 下面這兩行是為了讓表單 UI 顯示用 (如果是標準 ID)
-        series: series,
-        number: number,
-      });
+      setFormData(prev => ({
+        ...prev, // 保留預設值
+        ...initialData, // 填入卡片原始資料 (如 name, type, color, imageUrl)
+        // 強制使用解析出來的 series 和 number，確保 UI 顯示正確，並覆蓋可能不一致的舊資料
+        series: derivedSeries,
+        number: derivedNumber
+      }));
 
       if (initialData.imageUrl) {
         setPreviewUrl(initialData.imageUrl);
@@ -398,9 +390,7 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
       return;
     }
 
-    // 關鍵修正：如果是編輯模式 (initialData 存在)，強制使用原始 ID，
-    // 而不是嘗試用表單的 series-number 重新組合。
-    // 這解決了批次匯入的非標準 ID 在編輯時會跑掉或變成新卡片的問題。
+    // 關鍵修正：如果是編輯模式 (initialData 存在)，強制使用原始 ID，避免資料重複或錯誤
     let fullId;
     if (initialData && initialData.id) {
         fullId = initialData.id;
@@ -424,7 +414,7 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center p-4 border-b">
           <h2 className="text-xl font-bold flex items-center gap-2">
-            {initialData ? <><Palette className="text-blue-600" /> 編輯卡片</> : <><Plus className="text-blue-600" /> 新增自定義卡片</>}
+            {initialData ? <><Pencil className="text-blue-600" /> 編輯卡片</> : <><Plus className="text-blue-600" /> 新增自定義卡片</>}
           </h2>
           <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24} /></button>
         </div>
@@ -559,7 +549,7 @@ const CardItem = ({ card, onClick, onView, onEdit, onDelete, count = 0, compact 
       
       {!compact && onEdit && onDelete && (
         <div className="absolute top-2 right-2 flex gap-1 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={(e) => { e.stopPropagation(); onEdit(card); }} className="p-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 shadow-sm" title="編輯"><Palette size={14} /></button>
+          <button onClick={(e) => { e.stopPropagation(); onEdit(card); }} className="p-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 shadow-sm" title="編輯"><Pencil size={14} /></button>
           <button onClick={(e) => { e.stopPropagation(); onDelete(card); }} className="p-1.5 bg-red-500 text-white rounded hover:bg-red-600 shadow-sm" title="刪除"><Trash2 size={14} /></button>
         </div>
       )}
