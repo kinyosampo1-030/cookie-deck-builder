@@ -23,7 +23,7 @@
   "scripts": {
   "dev": "vite",
   "start": "vite",
-  "build": "vite build",      <-- 改成這樣
+  "build": "vite build",      
   "preview": "vite preview"
   },
   "browserslist": [
