@@ -338,15 +338,36 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
 
   const [previewUrl, setPreviewUrl] = useState(null);
 
+  // 初始化資料 (編輯模式)
   useEffect(() => {
     if (initialData) {
-      const [series, number] = initialData.id.split("-");
+      // 處理 ID 解析：如果不符合 Series-Number 格式，就做簡單處理，避免 crash
+      let series = 'BS1';
+      let number = '';
+      
+      if (initialData.id && initialData.id.includes('-')) {
+        const parts = initialData.id.split("-");
+        series = parts[0] || 'BS1';
+        number = parts[1] || '';
+      } else {
+        // 如果 ID 是非標準格式 (例如 "MyCard001")，將整個 ID 視為編號顯示，雖然 series 選單可能對不上，但至少不會壞掉
+        number = initialData.id || '';
+      }
+
       setFormData({
-        ...initialData,
-        series: series || "BS1",
-        number: number || "",
-        level: initialData.level || CARD_LEVELS.LV1,
+        name: '',
+        color: CARD_COLORS.RED,
+        type: CARD_TYPES.COOKIE,
+        level: CARD_LEVELS.LV1,
+        isFlip: false,
+        isExtra: false,
+        imageUrl: '',
+        ...initialData, // 展開所有欄位以確保完整
+        // 下面這兩行是為了讓表單 UI 顯示用 (如果是標準 ID)
+        series: series,
+        number: number,
       });
+
       if (initialData.imageUrl) {
         setPreviewUrl(initialData.imageUrl);
       }
@@ -367,7 +388,7 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.number) { alert('請填寫完整資訊 (名稱與編號)'); return; }
+    if (!formData.name) { alert('請填寫卡片名稱'); return; }
     
     // 安全檢查
     if (formData.imageUrl && formData.imageUrl.length > 1048400) {
@@ -375,7 +396,18 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
       return;
     }
 
-    const fullId = `${formData.series}-${formData.number}`;
+    // 關鍵修正：如果是編輯模式 (initialData 存在)，強制使用原始 ID，
+    // 而不是嘗試用表單的 series-number 重新組合。
+    // 這解決了批次匯入的非標準 ID 在編輯時會跑掉或變成新卡片的問題。
+    let fullId;
+    if (initialData && initialData.id) {
+        fullId = initialData.id;
+    } else {
+        // 新增模式才組合 ID
+        if (!formData.number) { alert('請填寫編號'); return; }
+        fullId = `${formData.series}-${formData.number}`;
+    }
+
     // 確保非餅乾卡不會有 level
     const submitData = {
         ...formData,
@@ -403,7 +435,7 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
                   {CARD_SERIES_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                 </select>
                 <span className="font-bold text-slate-400">-</span>
-                <input type="text" placeholder="001" required className="border rounded p-2 flex-1" value={formData.number} onChange={e => setFormData({...formData, number: e.target.value})} />
+                <input type="text" placeholder="001" required={!initialData} className="border rounded p-2 flex-1" value={formData.number} onChange={e => setFormData({...formData, number: e.target.value})} />
               </div>
             </div>
             <div>
@@ -457,6 +489,7 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
   );
 };
 
+// 修改後的 CardItem，支援長按檢視 + 編輯/刪除按鈕
 const CardItem = ({ card, onClick, onView, onEdit, onDelete, count = 0, compact = false }) => {
   const colorClass = getCardColorStyles(card.color);
   const longPressTimer = useRef(null);
