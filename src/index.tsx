@@ -1,10 +1,17 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
+// 如果你有 styles.css 可以保留這行，沒有的話刪掉也沒關係
+// import './styles.css' 
 
-// 這裡抓取 index.html 裡的 <div id="root"> 並將 App 渲染進去
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-)
+const rootElement = document.getElementById('root')
+
+if (rootElement) {
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+  )
+} else {
+  console.error('錯誤：在 index.html 中找不到 id 為 "root" 的元素')
+}
