@@ -103,6 +103,7 @@ const CARD_COLORS = {
 };
 const CARD_LEVELS = { LV1: "LV.1", LV2: "LV.2", LV3: "LV.3" };
 const CARD_SERIES_OPTIONS = [
+  "ST", // 新增 ST
   "BS1",
   "BS2",
   "BS3",
@@ -126,30 +127,10 @@ const INITIAL_CARDS = [
     level: CARD_LEVELS.LV1,
     isExtra: false,
     isFlip: true,
-    imageUrl: null,
-  },
-  {
-    id: "BS1-002",
-    series: "BS1",
-    number: "002",
-    name: "草莓果醬劍",
-    type: CARD_TYPES.ITEM,
-    color: CARD_COLORS.RED,
-    level: null,
-    isExtra: false,
-    isFlip: false,
-    imageUrl: null,
-  },
-  {
-    id: "BS1-003",
-    series: "BS1",
-    number: "003",
-    name: "幸運四葉草",
-    type: CARD_TYPES.ITEM,
-    color: CARD_COLORS.GREEN,
-    level: null,
-    isExtra: false,
-    isFlip: false,
+    isAncient: false,
+    isDragon: false,
+    isBeast: false,
+    isSoulJam: false,
     imageUrl: null,
   },
 ];
@@ -259,7 +240,11 @@ const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
     "color": "紅色",
     "level": "LV.1",
     "isFlip": true,
-    "isExtra": false
+    "isExtra": false,
+    "isAncient": false,
+    "isDragon": false,
+    "isBeast": false,
+    "isSoulJam": false
   }
 ]`;
 
@@ -283,9 +268,8 @@ const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
             <p>
               請將您的卡片資料整理為 <strong>JSON 陣列</strong> 格式貼入下方。
               <br />
-              您可以先在 Excel 整理，然後請 AI 幫您：「將這些資料轉為 JSON
-              格式，欄位包含 id, series, number, name, type, color, isFlip,
-              isExtra」。
+              欄位包含：id, series, number, name, type, color, isFlip, isExtra, 
+              isAncient, isDragon, isBeast, isSoulJam。
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
@@ -357,12 +341,16 @@ const CardDetailModal = ({ card, onClose }) => {
           >
             <h1 className="text-4xl font-bold mb-2">{card.name}</h1>
             <p className="text-xl font-mono opacity-60 mb-8">{card.id}</p>
-            <div className="flex gap-2 mt-4">
+            <div className="flex flex-wrap gap-2 mt-4">
               {card.level && (
                 <span className="px-3 py-1 bg-yellow-400 text-yellow-900 rounded-full font-bold">
                   {card.level}
                 </span>
               )}
+               {card.isAncient && <span className="px-2 py-1 bg-amber-100 text-amber-800 rounded font-bold text-xs border border-amber-300">上古</span>}
+               {card.isDragon && <span className="px-2 py-1 bg-red-100 text-red-800 rounded font-bold text-xs border border-red-300">龍族</span>}
+               {card.isBeast && <span className="px-2 py-1 bg-stone-800 text-stone-100 rounded font-bold text-xs border border-stone-600">野獸</span>}
+               {card.isSoulJam && <span className="px-2 py-1 bg-pink-100 text-pink-800 rounded font-bold text-xs border border-pink-300">靈魂果醬</span>}
             </div>
             <div className="text-2xl opacity-40 text-center mt-20">
               無圖片預覽
@@ -651,6 +639,10 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
     level: CARD_LEVELS.LV1,
     isFlip: false,
     isExtra: false,
+    isAncient: false,
+    isDragon: false,
+    isBeast: false,
+    isSoulJam: false,
     imageUrl: "",
   });
 
@@ -877,29 +869,33 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
               </div>
             )}
 
-            <div className="bg-slate-50 p-4 rounded-lg border space-y-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-5 h-5"
-                  checked={formData.isFlip}
-                  onChange={(e) =>
-                    setFormData({ ...formData, isFlip: e.target.checked })
-                  }
-                />
-                <span>FLIP</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-5 h-5"
-                  checked={formData.isExtra}
-                  onChange={(e) =>
-                    setFormData({ ...formData, isExtra: e.target.checked })
-                  }
-                />
-                <span>Extra Deck</span>
-              </label>
+            <div className="bg-slate-50 p-4 rounded-lg border">
+                <div className="grid grid-cols-2 gap-y-3 gap-x-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" className="w-5 h-5" checked={formData.isFlip} onChange={(e) => setFormData({ ...formData, isFlip: e.target.checked })} />
+                    <span>FLIP</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" className="w-5 h-5" checked={formData.isExtra} onChange={(e) => setFormData({ ...formData, isExtra: e.target.checked })} />
+                    <span>Extra Deck</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" className="w-5 h-5" checked={formData.isAncient} onChange={(e) => setFormData({ ...formData, isAncient: e.target.checked })} />
+                    <span>上古餅乾</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" className="w-5 h-5" checked={formData.isDragon} onChange={(e) => setFormData({ ...formData, isDragon: e.target.checked })} />
+                    <span>龍族</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" className="w-5 h-5" checked={formData.isBeast} onChange={(e) => setFormData({ ...formData, isBeast: e.target.checked })} />
+                    <span>野獸餅乾</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" className="w-5 h-5" checked={formData.isSoulJam} onChange={(e) => setFormData({ ...formData, isSoulJam: e.target.checked })} />
+                    <span>靈魂果醬</span>
+                  </label>
+                </div>
             </div>
           </div>
           <div className="space-y-4">
@@ -1103,6 +1099,10 @@ const CardItem = ({
                   EXTRA
                 </span>
               )}
+              {card.isAncient && <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-1 rounded border border-amber-300">上古</span>}
+              {card.isDragon && <span className="text-[10px] font-bold bg-red-100 text-red-800 px-1 rounded border border-red-300">龍族</span>}
+              {card.isBeast && <span className="text-[10px] font-bold bg-stone-800 text-stone-100 px-1 rounded border border-stone-600">野獸</span>}
+              {card.isSoulJam && <span className="text-[10px] font-bold bg-pink-100 text-pink-800 px-1 rounded border border-pink-300">靈魂果醬</span>}
             </div>
           )}
         </div>
@@ -1181,8 +1181,12 @@ export default function App() {
     color: "ALL",
     level: "ALL",
     series: "ALL",
-    showExtra: false, // 新增：EXTRA 篩選
-    showFlip: false, // 新增：FLIP 篩選
+    showExtra: false, 
+    showFlip: false, 
+    showAncient: false,
+    showDragon: false,
+    showBeast: false,
+    showSoulJam: false,
   });
   const [toastMsg, setToastMsg] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -1274,7 +1278,7 @@ export default function App() {
     return () => unsubscribe();
   }, [user, isOffline]);
 
-  // Load Deck from URL
+  // Load deck from URL
   useEffect(() => {
     if (allCards.length === 0) return; 
     const params = new URLSearchParams(window.location.search);
@@ -1349,7 +1353,7 @@ export default function App() {
     }
 
     if (!user || !db) return;
-    if (!editingCard && allCards.some(c => c.id === cardData.id)) {
+    if (!editingCard && allCards.some((c) => c.id === cardData.id)) {
       if (!confirm('此卡片編號已存在，確定要覆蓋嗎？')) return;
     }
 
@@ -1451,8 +1455,12 @@ export default function App() {
       
       const matchExtra = filters.showExtra ? card.isExtra : true;
       const matchFlip = filters.showFlip ? card.isFlip : true;
+      const matchAncient = filters.showAncient ? card.isAncient : true;
+      const matchDragon = filters.showDragon ? card.isDragon : true;
+      const matchBeast = filters.showBeast ? card.isBeast : true;
+      const matchSoulJam = filters.showSoulJam ? card.isSoulJam : true;
 
-      return matchesSearch && matchesType && matchesColor && matchesSeries && matchesLevel && matchExtra && matchFlip;
+      return matchesSearch && matchesType && matchesColor && matchesSeries && matchesLevel && matchExtra && matchFlip && matchAncient && matchDragon && matchBeast && matchSoulJam;
     });
   }, [filters, allCards]);
 
@@ -1511,7 +1519,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen flex-col md:flex-row bg-slate-50 overflow-hidden font-sans text-slate-900">
+    <div className="flex h-[100dvh] w-full fixed inset-0 flex-col md:flex-row bg-slate-50 overflow-hidden font-sans text-slate-900">
       {viewingCard && <CardDetailModal card={viewingCard} onClose={() => setViewingCard(null)} />}
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       
@@ -1579,7 +1587,7 @@ export default function App() {
                 </select></div>
             </div>
             {/* 新增：快速篩選 Checkbox (樣式優化) */}
-            <div className="flex gap-3 mt-2 pl-1">
+            <div className="flex flex-wrap gap-3 mt-2 pl-1">
               <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
                 <input type="checkbox" className="hidden peer" checked={filters.showExtra} onChange={(e) => setFilters({ ...filters, showExtra: e.target.checked })} />
                 <span className="text-[10px] uppercase tracking-wider bg-purple-200 text-purple-900 px-2 py-1 rounded border border-purple-300 peer-checked:ring-2 peer-checked:ring-purple-500 opacity-60 peer-checked:opacity-100 font-bold select-none">[EXTRA] 篩選</span>
@@ -1587,6 +1595,22 @@ export default function App() {
               <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
                 <input type="checkbox" className="hidden peer" checked={filters.showFlip} onChange={(e) => setFilters({ ...filters, showFlip: e.target.checked })} />
                 <span className="text-[10px] bg-slate-800 text-white px-2 py-1 rounded font-bold tracking-wider peer-checked:ring-2 peer-checked:ring-slate-500 opacity-60 peer-checked:opacity-100 select-none">[FLIP] 篩選</span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
+                <input type="checkbox" className="hidden peer" checked={filters.showAncient} onChange={(e) => setFilters({ ...filters, showAncient: e.target.checked })} />
+                <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-1 rounded font-bold border border-amber-300 peer-checked:ring-2 peer-checked:ring-amber-500 opacity-60 peer-checked:opacity-100 select-none">[上古] 篩選</span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
+                <input type="checkbox" className="hidden peer" checked={filters.showDragon} onChange={(e) => setFilters({ ...filters, showDragon: e.target.checked })} />
+                <span className="text-[10px] bg-red-100 text-red-800 px-2 py-1 rounded font-bold border border-red-300 peer-checked:ring-2 peer-checked:ring-red-500 opacity-60 peer-checked:opacity-100 select-none">[龍族] 篩選</span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
+                <input type="checkbox" className="hidden peer" checked={filters.showBeast} onChange={(e) => setFilters({ ...filters, showBeast: e.target.checked })} />
+                <span className="text-[10px] bg-stone-800 text-stone-100 px-2 py-1 rounded font-bold border border-stone-600 peer-checked:ring-2 peer-checked:ring-stone-500 opacity-60 peer-checked:opacity-100 select-none">[野獸] 篩選</span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
+                <input type="checkbox" className="hidden peer" checked={filters.showSoulJam} onChange={(e) => setFilters({ ...filters, showSoulJam: e.target.checked })} />
+                <span className="text-[10px] bg-pink-100 text-pink-800 px-2 py-1 rounded font-bold border border-pink-300 peer-checked:ring-2 peer-checked:ring-pink-500 opacity-60 peer-checked:opacity-100 select-none">[靈魂果醬] 篩選</span>
               </label>
             </div>
           </div>
@@ -1641,10 +1665,20 @@ export default function App() {
         </div>
       </div>
 
-      <div className="w-full md:w-80 lg:w-96 flex flex-col bg-white shadow-xl z-20">
+      <div className="w-full md:w-80 lg:w-96 h-[35%] md:h-auto flex flex-col bg-white shadow-xl z-20 border-t border-slate-300 md:border-t-0">
         <div className="p-4 bg-slate-800 text-white border-b border-slate-700">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold flex items-center gap-2"><Box size={20} className="text-blue-400"/> 目前牌組</h2>
+            <h2 className="text-lg font-bold flex items-center gap-2 flex-1">
+              <Box size={20} className="text-blue-400" />
+              {/* 牌組名稱輸入框 */}
+              <input
+                type="text"
+                value={deckName}
+                onChange={(e) => setDeckName(e.target.value)}
+                className="bg-transparent text-lg font-bold text-white border-b border-white/20 focus:border-white outline-none w-full placeholder-slate-400"
+                placeholder="命名你的牌組..."
+              />
+            </h2>
             <div className="flex gap-2">
               <button onClick={() => setShowExportModal(true)} className="bg-blue-600 hover:bg-blue-500 text-white p-1.5 rounded transition-colors" title="分享/輸出"><Share2 size={18} /></button>
               <button onClick={clearDeck} className="text-slate-400 hover:text-red-400 transition-colors p-1" title="清空"><Trash2 size={18} /></button>
