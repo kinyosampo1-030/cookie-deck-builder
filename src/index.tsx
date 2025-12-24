@@ -1,8 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
-// 如果你有 styles.css 可以保留這行，沒有的話刪掉也沒關係
-// import './styles.css' 
+import './styles.css' 
 
 const rootElement = document.getElementById('root')
 
