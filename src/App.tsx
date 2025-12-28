@@ -63,6 +63,7 @@ const appId = "my-deck-builder-v1";
 //  Firebase 設定 (正式版：使用環境變數)
 // ==========================================
 // 這裡改回安全寫法，讀取 Netlify 後台設定的變數
+// 這樣 Netlify 的安全掃描就不會因為偵測到明碼 Key 而阻擋部署
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -82,7 +83,7 @@ try {
     db = getFirestore(app);
   } else {
     // 若在本地沒設定 .env 或預覽環境中，會顯示此警告
-    console.warn("注意：未偵測到環境變數。如果您是在本地開發，請檢查 .env；如果是線上預覽，請忽略此訊息，部署後即可正常運作。");
+    console.warn("注意：未偵測到環境變數。如果您是在本地開發，請檢查 .env；如果是線上預覽，請忽略此訊息，部署到 Netlify 設定好變數後即可正常運作。");
   }
 } catch (e) {
   console.error("Firebase 初始化失敗:", e);
@@ -857,7 +858,7 @@ export default function App() {
         {(invalidForbidden || invalidRestricted) && (
             <div className="bg-red-100 text-red-800 p-3 text-sm font-bold border-b border-red-200 flex items-start gap-2 shrink-0 animate-pulse">
                 <AlertCircle size={20} className="shrink-0 mt-0.5" />
-                <span>此牌組包含超過數量上限的禁止與限制卡，正式比賽將無法使用。</span>
+                <span>此牌組包含超過數量的禁止與限制卡，於正式比賽無法使用。</span>
             </div>
         )}
 
