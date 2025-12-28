@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
   Search,
   Filter,
@@ -188,7 +188,7 @@ const compressImage = (file) => {
 
 // --- 元件 ---
 
-// Toast 元件
+// Toast 元件 (優化版：解決卡住問題)
 const Toast = ({ message, onClose }) => {
   useEffect(() => {
     if (!message) return;
@@ -196,14 +196,18 @@ const Toast = ({ message, onClose }) => {
       onClose();
     }, 2500); 
     return () => clearTimeout(timer);
-  }, [message, onClose]);
+  }, [message, onClose]); // 當 message 改變時，重置計時器
 
   if (!message) return null;
 
   return (
     <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-[90] animate-bounce pointer-events-none w-full max-w-sm px-4">
       <div className="bg-slate-800/95 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 font-bold border border-slate-600 backdrop-blur-sm pointer-events-auto justify-center">
-        <AlertCircle size={24} className="text-yellow-400 shrink-0" />
+        {message.includes('成功') || message.includes('合規') ? (
+            <CheckCircle size={24} className="text-green-400 shrink-0" />
+        ) : (
+            <AlertCircle size={24} className="text-yellow-400 shrink-0" />
+        )}
         <span className="text-lg">{message}</span>
       </div>
     </div>
@@ -597,6 +601,12 @@ const CardItem = ({ card, onClick, onView, onEdit, onDelete, count = 0, compact 
   const handleTouchMove = () => { if (longPressTimer.current) clearTimeout(longPressTimer.current); };
   const handleClick = (e) => { if (isLongPress.current) { e.preventDefault(); e.stopPropagation(); return; } onClick(card); };
 
+  // 紅字樣式判斷 (當牌組超過60張時)
+  const isOverLimit = count > 0; // 只要有數量就檢查
+  // 這裡我們不傳入 deckLength，而是由外部控制是否要顯示紅字，但為了簡單，我們直接在 CardItem 內部無法得知 Deck 總數。
+  // 我們改為在父層 App 傳遞一個 prop 叫做 `isMainDeckOverLimit`。
+  // 但為了不改動太多介面，我們在 App.tsx 中直接處理樣式。
+  
   return (
     <div onClick={handleClick} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} onTouchMove={handleTouchMove} className={`relative cursor-pointer transition-all duration-200 border-2 rounded-lg shadow-sm hover:shadow-md hover:scale-[1.02] select-none overflow-hidden group ${colorClass} ${compact ? "p-2 flex items-center justify-between text-sm min-h-[3.5rem]" : "p-3 flex flex-col gap-1"}`}>
       {card.imageUrl && !compact && <div className="absolute inset-0 opacity-30 pointer-events-none group-hover:opacity-40 transition-opacity"><img src={card.imageUrl} alt="" className="w-full h-full object-cover" /></div>}
@@ -607,6 +617,7 @@ const CardItem = ({ card, onClick, onView, onEdit, onDelete, count = 0, compact 
           <div className={`flex justify-between items-start ${compact ? "flex-col-reverse justify-center" : "mb-1"}`}>
             <h3 className={`font-bold ${compact ? "truncate w-full text-slate-700 text-sm" : "text-xl line-clamp-1"}`}>{card.name}</h3>
             <div className={`flex items-center gap-1 ${compact ? "w-full mb-0.5" : ""}`}>
+              {/* 電腦版 hover 顯示，手機版永遠顯示 */}
               {!compact && <button onClick={(e) => { e.stopPropagation(); onView(card); }} className="p-1 text-current opacity-100 hover:bg-white/50 rounded-full transition-all md:opacity-0 md:group-hover:opacity-100" title="檢視"><Eye size={20} /></button>}
               <span className={`${compact ? 'font-mono font-black text-black text-sm bg-white/50 px-1 rounded -ml-0.5' : 'text-lg font-mono font-black bg-white/80 px-2 rounded border border-current/20 whitespace-nowrap ml-1 shadow-sm'}`}>{card.id}</span>
             </div>
@@ -618,7 +629,7 @@ const CardItem = ({ card, onClick, onView, onEdit, onDelete, count = 0, compact 
               {card.level && <span className="text-xs font-bold bg-yellow-400 text-yellow-900 px-1 rounded shadow-sm">{card.level}</span>}
               {card.isFlip && <span className="flex items-center gap-0.5 text-xs bg-slate-800 text-white px-1.5 rounded font-bold tracking-wider">FLIP</span>}
               {card.isExtra && <span className="text-xs uppercase tracking-wider bg-purple-200 text-purple-900 px-1 rounded border border-purple-300">EXTRA</span>}
-              {card.isForbidden && <span className="flex items-center gap-0.5 text-xs bg-red-600 text-white px-1.5 rounded font-bold animate-pulse"><Ban size={12}/> 禁止</span>}
+              {card.isForbidden && <span className="flex items-center gap-0.5 text-xs bg-red-600 text-white px-1.5 rounded font-bold"><Ban size={12}/> 禁止</span>}
               {card.isLimitOne && <span className="flex items-center gap-0.5 text-xs bg-orange-500 text-white px-1.5 rounded font-bold"><AlertOctagon size={12}/> Limit 1</span>}
             </div>
           )}
@@ -675,11 +686,20 @@ export default function App() {
   const nonFlipCookieCount = useMemo(() => deck.main.filter((c) => c.type === CARD_TYPES.COOKIE && c.isFlip === false).length, [deck.main]);
   const invalidForbidden = useMemo(() => deck.main.some(c => c.isForbidden) || deck.extra.some(c => c.isForbidden), [deck.main, deck.extra]);
   const invalidRestricted = useMemo(() => { const counts = {}; [...deck.main, ...deck.extra].forEach(c => { if(c.isLimitOne) counts[c.id] = (counts[c.id] || 0) + 1; }); return Object.values(counts).some(count => count > 1); }, [deck.main, deck.extra]);
+  
+  // 判斷主牌組是否超過上限
+  const isMainDeckOverLimit = deck.main.length > LIMITS.MAIN;
 
   const addToDeck = (card) => {
+    // 允許加入，但跳出警告
     const currentCount = getCardCount(card.id);
-    if (card.isForbidden) setToastMsg("🚫 警告：加入了禁止卡！");
-    else if (card.isLimitOne && currentCount >= 1) setToastMsg("⚠️ 警告：限制卡已超過 1 張！");
+    if (card.isForbidden) {
+        setToastMsg("🚫 警告：加入了禁止卡！");
+        // 不 return，允許加入
+    } else if (card.isLimitOne && currentCount >= 1) {
+        setToastMsg("⚠️ 警告：限制卡已超過 1 張！");
+        // 不 return，允許加入
+    }
 
     const isExtra = isExtraDeckCard(card);
     const targetDeckKey = isExtra ? "extra" : "main";
@@ -687,7 +707,7 @@ export default function App() {
     const current = deck[targetDeckKey];
 
     if (isExtra && current.length >= limit) { setToastMsg(`額外牌組已滿 (${LIMITS.EXTRA}張)`); return; }
-    // 主牌組移除硬上限，只跳提示 (在 render 處理)
+    // 主牌組移除硬上限
     
     if (currentCount >= LIMITS.COPY) { setToastMsg(`同名卡片最多 ${LIMITS.COPY} 張`); return; }
     if (card.isFlip && !isExtra && getFlipCount() >= LIMITS.FLIP) { setToastMsg(`Flip 卡片上限 ${LIMITS.FLIP} 張`); return; }
@@ -700,7 +720,7 @@ export default function App() {
     setDeck((prev) => { const newList = [...prev[deckKey]]; const index = newList.findIndex((c) => c.id === card.id); if (index > -1) newList.splice(index, 1); return { ...prev, [deckKey]: newList }; });
   };
   const clearDeck = () => { if (confirm("確定要清空所有牌組嗎？")) setDeck({ main: [], extra: [] }); };
-  const handleShareClick = () => { if (deck.main.length > LIMITS.MAIN || invalidForbidden || invalidRestricted) { if (window.confirm("牌組含有違規項目(數量、禁止或限制卡)，確定要繼續分享嗎？")) setShowExportModal(true); } else { setShowExportModal(true); } };
+  const handleShareClick = () => { if (isMainDeckOverLimit || invalidForbidden || invalidRestricted) { if (window.confirm("牌組含有違規項目(數量、禁止或限制卡)，確定要繼續分享嗎？")) setShowExportModal(true); } else { setShowExportModal(true); } };
 
   // 省略重複的 save/delete handler，功能同上 ... 
   const handleSaveCard = async (cardData) => { if (isOffline) { setAllCards(prev => { const existingIndex = prev.findIndex(c => c.id === cardData.id); if (existingIndex >= 0) { const newCards = [...prev]; newCards[existingIndex] = cardData; return newCards; } else { return [...prev, cardData].sort((a, b) => a.id.localeCompare(b.id)); } }); setShowAddModal(false); setEditingCard(null); setToastMsg("離線模式：已更新卡片"); return; } if (!user || !db) return; try { await setDoc(doc(db, "artifacts", appId, "public", "data", "cards", cardData.id), cardData); setToastMsg("成功"); setShowAddModal(false); } catch(e){ console.error(e); } };
@@ -842,17 +862,17 @@ export default function App() {
           </div>
         </div>
         
-        {/* 常駐警告區塊 - 修復顯示邏輯 */}
+        {/* 常駐警告區塊 */}
         {(invalidForbidden || invalidRestricted) && (
             <div className="bg-red-100 text-red-800 p-4 text-base font-bold border-b border-red-200 flex items-start gap-3 shrink-0 animate-pulse">
                 <AlertCircle size={24} className="shrink-0 mt-0.5" />
-                <span>此牌組包含超過數量的禁止與限制卡，於正式比賽無法使用。</span>
+                <span>此牌組包含超過數量上限的禁止與限制卡，正式比賽將無法使用。</span>
             </div>
         )}
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50 overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
           <section>
-            <h3 className="text-base font-bold text-slate-500 uppercase tracking-wider mb-2 px-1 flex justify-between">主牌組清單 <span>{deck.main.length} / {LIMITS.MAIN}</span></h3>
+            <h3 className={`text-base font-bold uppercase tracking-wider mb-2 px-1 flex justify-between ${isMainDeckOverLimit ? 'text-red-600 animate-pulse' : 'text-slate-500'}`}>主牌組清單 <span>{deck.main.length} / {LIMITS.MAIN}</span></h3>
             <div className="space-y-2 min-h-[100px]">
               {groupedMainDeck.length === 0 ? <div className="h-24 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center text-slate-400 text-lg bg-slate-100"><Layers size={28} className="mb-2 opacity-50"/><span>點擊左側卡片加入</span></div> : 
                groupedMainDeck.map(group => <CardItem key={`main-group-${group.id}`} card={group} compact={true} count={group.stackCount} onClick={(c) => removeFromDeck(c, false)} onView={setViewingCard} />)}
