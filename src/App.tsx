@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
   Search,
   Filter,
@@ -29,7 +29,9 @@ import {
   FileJson,
   WifiOff,
   CheckCircle,
-  Cookie, 
+  Cookie,
+  Ban, // 新增：禁止圖示
+  AlertOctagon, // 新增：限制圖示
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -60,8 +62,6 @@ const appId = "my-deck-builder-v1";
 // ==========================================
 //  Firebase 設定
 // ==========================================
-// 注意：為了讓預覽環境能正常運作，這裡暫時使用硬編碼的 Key。
-// 在您的本機專案中，請務必改回 import.meta.env.VITE_... 的寫法以確保安全！
 const firebaseConfig = {
   apiKey: "AIzaSyDK-feks4M0aZaJY4-gFcP_TxVcJLfMuxo",
   authDomain: "cookierunbraverse.firebaseapp.com",
@@ -103,7 +103,7 @@ const CARD_COLORS = {
 };
 const CARD_LEVELS = { LV1: "LV.1", LV2: "LV.2", LV3: "LV.3" };
 const CARD_SERIES_OPTIONS = [
-  "ST", // 新增 ST
+  "ST",
   "BS1",
   "BS2",
   "BS3",
@@ -116,6 +116,7 @@ const CARD_SERIES_OPTIONS = [
   "P",
 ];
 
+// 初始化資料範本
 const INITIAL_CARDS = [
   {
     id: "BS1-001",
@@ -131,6 +132,8 @@ const INITIAL_CARDS = [
     isDragon: false,
     isBeast: false,
     isSoulJam: false,
+    isForbidden: false,
+    isLimitOne: false,
     imageUrl: null,
   },
 ];
@@ -198,8 +201,8 @@ const Toast = ({ message, onClose }) => {
   }, [onClose]);
 
   return (
-    <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[80] animate-bounce">
-      <div className="bg-slate-800 text-white px-6 py-3 rounded-lg shadow-xl flex items-center gap-2 font-bold border border-slate-600">
+    <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[80] animate-bounce pointer-events-none">
+      <div className="bg-slate-800 text-white px-6 py-3 rounded-lg shadow-xl flex items-center gap-2 font-bold border border-slate-600 pointer-events-auto">
         <AlertCircle size={20} className="text-blue-400" />
         {message}
       </div>
@@ -244,7 +247,9 @@ const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
     "isAncient": false,
     "isDragon": false,
     "isBeast": false,
-    "isSoulJam": false
+    "isSoulJam": false,
+    "isForbidden": false,
+    "isLimitOne": false
   }
 ]`;
 
@@ -268,8 +273,8 @@ const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
             <p>
               請將您的卡片資料整理為 <strong>JSON 陣列</strong> 格式貼入下方。
               <br />
-              欄位包含：id, series, number, name, type, color, isFlip, isExtra, 
-              isAncient, isDragon, isBeast, isSoulJam。
+              支援欄位：id, series, number, name, type, color, level, isFlip, isExtra, 
+              isAncient, isDragon, isBeast, isSoulJam, isForbidden, isLimitOne。
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
@@ -351,6 +356,8 @@ const CardDetailModal = ({ card, onClose }) => {
                {card.isDragon && <span className="px-2 py-1 bg-red-100 text-red-800 rounded font-bold text-xs border border-red-300">龍族</span>}
                {card.isBeast && <span className="px-2 py-1 bg-stone-800 text-stone-100 rounded font-bold text-xs border border-stone-600">野獸</span>}
                {card.isSoulJam && <span className="px-2 py-1 bg-pink-100 text-pink-800 rounded font-bold text-xs border border-pink-300">靈魂果醬</span>}
+               {card.isForbidden && <span className="px-2 py-1 bg-red-600 text-white rounded font-bold text-xs flex items-center gap-1"><Ban size={12}/> 禁止卡</span>}
+               {card.isLimitOne && <span className="px-2 py-1 bg-orange-500 text-white rounded font-bold text-xs flex items-center gap-1"><AlertOctagon size={12}/> Limit 1</span>}
             </div>
             <div className="text-2xl opacity-40 text-center mt-20">
               無圖片預覽
@@ -380,9 +387,8 @@ const ExportModal = ({ deck, deckName, onClose }) => {
   useEffect(() => {
     const mainIds = deck.main.map((c) => c.id);
     const extraIds = deck.extra.map((c) => c.id);
-    // Add deck name to URL data
     const data = JSON.stringify({ m: mainIds, e: extraIds, n: deckName });
-    const encoded = btoa(encodeURIComponent(data)); // Use encodeURIComponent for unicode support (Chinese characters)
+    const encoded = btoa(encodeURIComponent(data));
     const baseUrl = window.location.href.split("?")[0];
     const url = `${baseUrl}?d=${encoded}`;
     setShareUrl(url);
@@ -643,15 +649,15 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
     isDragon: false,
     isBeast: false,
     isSoulJam: false,
+    isForbidden: false,
+    isLimitOne: false,
     imageUrl: "",
   });
 
   const [previewUrl, setPreviewUrl] = useState(null);
 
-  // 初始化資料 (編輯模式 - 修復版)
   useEffect(() => {
     if (initialData) {
-      // 處理 ID 解析：如果不符合 Series-Number 格式，就做簡單處理，避免 crash
       let derivedSeries = "BS1";
       let derivedNumber = "";
 
@@ -660,14 +666,12 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
         derivedSeries = parts[0] || "BS1";
         derivedNumber = parts[1] || "";
       } else {
-        // 如果 ID 是非標準格式 (例如 "MyCard001")，將整個 ID 視為編號顯示
         derivedNumber = initialData.id || "";
       }
 
       setFormData((prev) => ({
-        ...prev, // 保留預設值
-        ...initialData, // 填入卡片原始資料 (如 name, type, color, imageUrl)
-        // 強制使用解析出來的 series 和 number，確保 UI 顯示正確，並覆蓋可能不一致的舊資料
+        ...prev,
+        ...initialData,
         series: derivedSeries,
         number: derivedNumber,
       }));
@@ -706,12 +710,10 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
       return;
     }
 
-    // 關鍵修正：如果是編輯模式 (initialData 存在)，強制使用原始 ID，避免資料重複或錯誤
     let fullId;
     if (initialData && initialData.id) {
       fullId = initialData.id;
     } else {
-      // 新增模式才組合 ID
       if (!formData.number) {
         alert("請填寫編號");
         return;
@@ -896,6 +898,16 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
                     <span>靈魂果醬</span>
                   </label>
                 </div>
+                <div className="mt-4 pt-4 border-t border-slate-200 grid grid-cols-2 gap-y-3 gap-x-4">
+                    <label className="flex items-center gap-2 cursor-pointer text-red-600 font-bold">
+                        <input type="checkbox" className="w-5 h-5 accent-red-600" checked={formData.isForbidden} onChange={(e) => setFormData({ ...formData, isForbidden: e.target.checked })} />
+                        <span>🚫 禁止卡</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-orange-600 font-bold">
+                        <input type="checkbox" className="w-5 h-5 accent-orange-600" checked={formData.isLimitOne} onChange={(e) => setFormData({ ...formData, isLimitOne: e.target.checked })} />
+                        <span>⚠️ 限制卡 (Limit 1)</span>
+                    </label>
+                </div>
             </div>
           </div>
           <div className="space-y-4">
@@ -1012,6 +1024,11 @@ const CardItem = ({
         </div>
       )}
 
+      {/* 禁止卡與限制卡遮罩 (列表模式) */}
+      {!compact && card.isForbidden && (
+        <div className="absolute inset-0 bg-red-900/10 pointer-events-none z-0"></div>
+      )}
+
       <div
         className={`relative z-10 w-full ${
           compact ? "flex items-center gap-3" : ""
@@ -1049,13 +1066,14 @@ const CardItem = ({
                 compact ? "w-full mb-0.5" : ""
               }`}
             >
+              {/* 手機版眼睛圖示優化：MD以上hover顯示，MD以下(手機)總是顯示 */}
               {!compact && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onView(card);
                   }}
-                  className="p-1 text-current opacity-0 group-hover:opacity-100 hover:bg-white/50 rounded-full transition-all"
+                  className="p-1 text-current opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white/50 rounded-full transition-all"
                   title="檢視詳細大圖"
                 >
                   <Eye size={16} />
@@ -1103,6 +1121,10 @@ const CardItem = ({
               {card.isDragon && <span className="text-[10px] font-bold bg-red-100 text-red-800 px-1 rounded border border-red-300">龍族</span>}
               {card.isBeast && <span className="text-[10px] font-bold bg-stone-800 text-stone-100 px-1 rounded border border-stone-600">野獸</span>}
               {card.isSoulJam && <span className="text-[10px] font-bold bg-pink-100 text-pink-800 px-1 rounded border border-pink-300">靈魂果醬</span>}
+              
+              {/* 禁止與限制標籤 */}
+              {card.isForbidden && <span className="flex items-center gap-0.5 text-[10px] bg-red-600 text-white px-1.5 rounded font-bold"><Ban size={10}/> 禁止</span>}
+              {card.isLimitOne && <span className="flex items-center gap-0.5 text-[10px] bg-orange-500 text-white px-1.5 rounded font-bold"><AlertOctagon size={10}/> Limit 1</span>}
             </div>
           )}
         </div>
@@ -1197,8 +1219,10 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [editingCard, setEditingCard] = useState(null);
   
-  // 新增狀態：離線模式
+  // 新增狀態：離線模式與懶加載
   const [isOffline, setIsOffline] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(30);
+  const loadMoreRef = useRef(null);
 
   const LIMITS = { MAIN: 60, EXTRA: 6, COPY: 4, FLIP: 16 };
 
@@ -1213,45 +1237,50 @@ export default function App() {
 
   // 1. Firebase Auth
   useEffect(() => {
-    if (isOffline) return; // 離線模式跳過 Auth
+    if (isOffline) return;
 
     if (!auth) {
       setLoadingError("Firebase 設定錯誤");
       return;
     }
-    
-    // 增加逾時偵測，但如果成功登入會清除
-    const timeoutId = setTimeout(() => { 
-        if (!user && !isOffline) setLoadingError("連線逾時 (可能被瀏覽器阻擋)"); 
+    const timeoutId = setTimeout(() => {
+      if (!user && !isOffline) setLoadingError("連線逾時，請檢查瀏覽器設定");
     }, 10000);
-
     const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+      let loginSuccess = false;
+      if (typeof __initial_auth_token !== "undefined" && __initial_auth_token) {
+        try {
           await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
+          loginSuccess = true;
+        } catch (error) {
+          console.warn("Custom token fail, fallback to anon");
         }
-      } catch (err) { 
-          console.error("登入失敗:", err); 
-          // 登入失敗不直接顯示錯誤，等待 timeout 或使用者切換離線模式
+      }
+      if (!loginSuccess) {
+        try {
+          await signInAnonymously(auth);
+        } catch (err) {
+          setLoadingError(`登入失敗: ${err.message}`);
+        }
       }
     };
     initAuth();
     const unsubscribe = onAuthStateChanged(auth, (u) => {
-      if (u) { 
-        setUser(u); 
-        clearTimeout(timeoutId); 
-        setLoadingError(null); 
+      if (u) {
+        setUser(u);
+        clearTimeout(timeoutId);
+        setLoadingError(null);
       }
     });
-    return () => { unsubscribe(); clearTimeout(timeoutId); };
+    return () => {
+      unsubscribe();
+      clearTimeout(timeoutId);
+    };
   }, [isOffline]);
 
-  // 1.5 Admin Check
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('cookieadmin') === 'true') {
+    if (params.get("cookieadmin") === "true") {
       setIsAdmin(true);
       setToastMsg("餅乾王國管理員模式已啟用 🍪");
     }
@@ -1259,7 +1288,6 @@ export default function App() {
 
   // 2. Firestore Sync & Data Fetching
   useEffect(() => {
-    // 離線模式處理
     if (isOffline) {
         if (allCards.length === 0) {
             setAllCards(INITIAL_CARDS);
@@ -1272,6 +1300,7 @@ export default function App() {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'cards'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const cards = snapshot.docs.map(doc => doc.data());
+      // 簡單排序
       cards.sort((a, b) => a.id.localeCompare(b.id));
       setAllCards(cards);
     }, (error) => { console.error("Firestore sync error:", error); setToastMsg("連線資料庫失敗，請檢查網路"); });
@@ -1285,12 +1314,15 @@ export default function App() {
     const deckData = params.get('d');
     if (deckData) {
       try {
-        const decoded = JSON.parse(decodeURIComponent(atob(deckData)));
+        const decodedString = decodeURIComponent(atob(deckData));
+        const decoded = JSON.parse(decodedString);
+
         if (decoded.m && decoded.e) {
           const mainCards = [], extraCards = [];
           decoded.m.forEach(id => { const c = allCards.find(c => c.id === id); if (c) mainCards.push(c); });
           decoded.e.forEach(id => { const c = allCards.find(c => c.id === id); if (c) extraCards.push(c); });
           setDeck({ main: mainCards, extra: extraCards });
+          if (decoded.n) setDeckName(decoded.n);
           setToastMsg('已成功載入分享的牌組！');
         }
       } catch (e) { console.error("牌組載入失敗", e); }
@@ -1300,7 +1332,6 @@ export default function App() {
   const getCardCount = (cardId) => deck.main.filter(c => c.id === cardId).length + deck.extra.filter(c => c.id === cardId).length;
   const getFlipCount = () => deck.main.filter(c => c.isFlip).length;
 
-  // 計算非 FLIP 的餅乾卡數量
   const nonFlipCookieCount = useMemo(() => {
     return deck.main.filter(
       (c) => c.type === CARD_TYPES.COOKIE && c.isFlip === false
@@ -1308,33 +1339,75 @@ export default function App() {
   }, [deck.main]);
 
   const addToDeck = (card) => {
+    // 禁止卡檢查
+    if (card.isForbidden) {
+        setToastMsg("❌ 此為禁止卡，無法加入牌組！");
+        return;
+    }
+
+    const currentCount = getCardCount(card.id);
+
+    // 限制卡檢查
+    if (card.isLimitOne && currentCount >= 1) {
+        setToastMsg("⚠️ 此為限制卡，牌組中最多只能放入 1 張！");
+        return;
+    }
+
     const isExtra = isExtraDeckCard(card);
-    const targetDeckKey = isExtra ? 'extra' : 'main';
-    const targetLimit = isExtra ? LIMITS.EXTRA : LIMITS.MAIN;
-    const currentDeck = deck[targetDeckKey];
+    const targetDeckKey = isExtra ? "extra" : "main";
+    const limit = isExtra ? LIMITS.EXTRA : LIMITS.MAIN;
+    const current = deck[targetDeckKey];
 
-    if (currentDeck.length >= targetLimit) { setToastMsg(`${isExtra ? '額外' : '主'}牌組已滿`); return; }
-    if (getCardCount(card.id) >= LIMITS.COPY) { setToastMsg(`同名卡片最多 ${LIMITS.COPY} 張`); return; }
-    if (card.isFlip && !isExtra && getFlipCount() >= LIMITS.FLIP) { setToastMsg(`Flip 卡片上限為 ${LIMITS.FLIP} 張`); return; }
-
-    setDeck(prev => ({ ...prev, [targetDeckKey]: [...prev[targetDeckKey], card].sort((a, b) => a.id.localeCompare(b.id)) }));
+    // 主牌組上限警告 (現在允許超過，但跳警告)
+    // 額外牌組維持硬上限
+    if (isExtra && current.length >= limit) {
+      setToastMsg(`額外牌組已滿 (${LIMITS.EXTRA}張)`);
+      return;
+    }
+    
+    // 一般卡片張數限制
+    if (currentCount >= LIMITS.COPY) {
+      setToastMsg(`同名卡片最多 ${LIMITS.COPY} 張`);
+      return;
+    }
+    
+    if (card.isFlip && !isExtra && getFlipCount() >= LIMITS.FLIP) {
+      setToastMsg(`Flip 卡片上限 ${LIMITS.FLIP} 張`);
+      return;
+    }
+    setDeck((prev) => ({
+      ...prev,
+      [targetDeckKey]: [...prev[targetDeckKey], card].sort((a, b) =>
+        a.id.localeCompare(b.id)
+      ),
+    }));
   };
 
   const removeFromDeck = (card, fromExtra) => {
-    const deckKey = fromExtra ? 'extra' : 'main';
-    setDeck(prev => {
-      const newDeckList = [...prev[deckKey]];
-      const index = newDeckList.findIndex(c => c.id === card.id);
-      if (index > -1) newDeckList.splice(index, 1);
-      return { ...prev, [deckKey]: newDeckList };
+    const deckKey = fromExtra ? "extra" : "main";
+    setDeck((prev) => {
+      const newList = [...prev[deckKey]];
+      const index = newList.findIndex((c) => c.id === card.id);
+      if (index > -1) newList.splice(index, 1);
+      return { ...prev, [deckKey]: newList };
     });
   };
 
-  const clearDeck = () => { if(confirm('確定要清空所有牌組嗎？')) setDeck({ main: [], extra: [] }); };
+  const clearDeck = () => {
+    if (confirm("確定要清空所有牌組嗎？")) setDeck({ main: [], extra: [] });
+  };
 
-  // 新增/更新 單張卡片
+  const handleShareClick = () => {
+    if (deck.main.length > LIMITS.MAIN) {
+      if (window.confirm("主牌組張數已超過 60 張上限，確定要繼續分享/輸出嗎？")) {
+        setShowExportModal(true);
+      }
+    } else {
+      setShowExportModal(true);
+    }
+  };
+
   const handleSaveCard = async (cardData) => {
-    // 離線模式處理
     if (isOffline) {
         setAllCards(prev => {
             const existingIndex = prev.findIndex(c => c.id === cardData.id);
@@ -1354,28 +1427,28 @@ export default function App() {
 
     if (!user || !db) return;
     if (!editingCard && allCards.some((c) => c.id === cardData.id)) {
-      if (!confirm('此卡片編號已存在，確定要覆蓋嗎？')) return;
+      if (!confirm("ID 已存在，確定覆蓋？")) return;
     }
-
     setIsProcessing(true);
     try {
-      const cardRef = doc(db, 'artifacts', appId, 'public', 'data', 'cards', cardData.id);
-      await setDoc(cardRef, cardData);
+      await setDoc(
+        doc(db, "artifacts", appId, "public", "data", "cards", cardData.id),
+        cardData
+      );
       setToastMsg(editingCard ? "卡片更新成功" : "卡片新增成功");
       setShowAddModal(false);
       setEditingCard(null);
     } catch (err) {
-      console.error("Save failed", err);
+      console.error(err);
       setToastMsg("儲存失敗");
-    } finally { setIsProcessing(false); }
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  // 批量匯入處理
   const handleBulkImport = async (cardsData) => {
-    // 離線模式處理
     if (isOffline) {
         setAllCards(prev => {
-            // 合併新舊資料，以 ID 為準
             const cardMap = new Map(prev.map(c => [c.id, c]));
             cardsData.forEach(c => cardMap.set(c.id, c));
             return Array.from(cardMap.values()).sort((a, b) => a.id.localeCompare(b.id));
@@ -1390,9 +1463,17 @@ export default function App() {
     const batch = writeBatch(db);
     let count = 0;
     try {
-      cardsData.forEach(card => {
-        if (!card.id || !card.name) return; // 簡單過濾無效資料
-        const ref = doc(db, 'artifacts', appId, 'public', 'data', 'cards', card.id);
+      cardsData.forEach((card) => {
+        if (!card.id || !card.name) return; 
+        const ref = doc(
+          db,
+          "artifacts",
+          appId,
+          "public",
+          "data",
+          "cards",
+          card.id
+        );
         batch.set(ref, card);
         count++;
       });
@@ -1402,33 +1483,30 @@ export default function App() {
     } catch (err) {
       console.error(err);
       setToastMsg("匯入失敗，請檢查 JSON 格式或網路");
-    } finally { setIsProcessing(false); }
-  };
-
-  // 刪除卡片
-  const handleDeleteCard = async (card) => {
-    if (!confirm(`確定要刪除「${card.name}」嗎？此動作無法復原。`)) return;
-    
-    if (isOffline) {
-        setAllCards(prev => prev.filter(c => c.id !== card.id));
-        setToastMsg("離線模式：已移除卡片");
-        return;
+    } finally {
+      setIsProcessing(false);
     }
-
-    try {
-      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'cards', card.id));
-      setToastMsg(`已刪除 ${card.name}`);
-    } catch (err) { console.error(err); setToastMsg("刪除失敗"); }
   };
 
-  // 開啟編輯 Modal
+  const handleDeleteCard = async (card) => {
+    if (!confirm(`確定要永久刪除「${card.name}」嗎？此動作無法復原。`)) return;
+    try {
+      await deleteDoc(
+        doc(db, "artifacts", appId, "public", "data", "cards", card.id)
+      );
+      setToastMsg(`已刪除 ${card.name}`);
+    } catch (err) {
+      console.error(err);
+      setToastMsg("刪除失敗");
+    }
+  };
+
   const openEditModal = (card) => {
     setEditingCard(card);
     setShowAddModal(true);
   };
 
   const initializeDatabase = async () => {
-    // 離線模式處理
     if (isOffline) {
         setAllCards(INITIAL_CARDS);
         setToastMsg("離線模式：已重置為預設資料");
@@ -1439,36 +1517,91 @@ export default function App() {
     setIsProcessing(true);
     const batch = writeBatch(db);
     try {
-      INITIAL_CARDS.forEach(card => batch.set(doc(db, 'artifacts', appId, 'public', 'data', 'cards', card.id), card));
+      INITIAL_CARDS.forEach((card) =>
+        batch.set(
+          doc(db, "artifacts", appId, "public", "data", "cards", card.id),
+          card
+        )
+      );
       await batch.commit();
       setToastMsg("匯入成功");
-    } catch (err) { console.error(err); setToastMsg("匯入失敗"); } finally { setIsProcessing(false); }
+    } catch (err) {
+      console.error(err);
+      setToastMsg("匯入失敗");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const filteredCards = useMemo(() => {
-    return allCards.filter(card => {
-      const matchesSearch = card.name.includes(filters.search) || card.id.toLowerCase().includes(filters.search.toLowerCase());
-      const matchesType = filters.type === 'ALL' || card.type === filters.type;
-      const matchesColor = filters.color === 'ALL' || card.color === filters.color;
-      const matchesSeries = filters.series === 'ALL' || card.series === filters.series;
-      const matchesLevel = filters.level === 'ALL' || card.level === filters.level;
-      
-      const matchExtra = filters.showExtra ? card.isExtra : true;
-      const matchFlip = filters.showFlip ? card.isFlip : true;
-      const matchAncient = filters.showAncient ? card.isAncient : true;
-      const matchDragon = filters.showDragon ? card.isDragon : true;
-      const matchBeast = filters.showBeast ? card.isBeast : true;
-      const matchSoulJam = filters.showSoulJam ? card.isSoulJam : true;
+  const filteredCards = useMemo(
+    () =>
+      allCards.filter((card) => {
+        const search = filters.search.toLowerCase();
+        const matchSearch =
+          card.name.toLowerCase().includes(search) ||
+          card.id.toLowerCase().includes(search);
+        const matchType = filters.type === "ALL" || card.type === filters.type;
+        const matchColor =
+          filters.color === "ALL" || card.color === filters.color;
+        const matchSeries =
+          filters.series === "ALL" || card.series === filters.series;
+        const matchLevel =
+          filters.level === "ALL" || card.level === filters.level;
 
-      return matchesSearch && matchesType && matchesColor && matchesSeries && matchesLevel && matchExtra && matchFlip && matchAncient && matchDragon && matchBeast && matchSoulJam;
-    });
-  }, [filters, allCards]);
+        const matchExtra = filters.showExtra ? card.isExtra : true;
+        const matchFlip = filters.showFlip ? card.isFlip : true;
+        const matchAncient = filters.showAncient ? card.isAncient : true;
+        const matchDragon = filters.showDragon ? card.isDragon : true;
+        const matchBeast = filters.showBeast ? card.isBeast : true;
+        const matchSoulJam = filters.showSoulJam ? card.isSoulJam : true;
+
+        return (
+          matchSearch &&
+          matchType &&
+          matchColor &&
+          matchSeries &&
+          matchLevel &&
+          matchExtra &&
+          matchFlip &&
+          matchAncient &&
+          matchDragon &&
+          matchBeast &&
+          matchSoulJam
+        );
+      }),
+    [filters, allCards]
+  );
+
+  // Lazy Loading Implementation
+  useEffect(() => {
+    setVisibleCount(30); // Reset on filter change
+  }, [filteredCards]);
+
+  const displayedCards = useMemo(() => {
+    return filteredCards.slice(0, visibleCount);
+  }, [filteredCards, visibleCount]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => prev + 30);
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [displayedCards]);
 
   const groupedMainDeck = useMemo(() => groupCards(deck.main), [deck.main]);
   const groupedExtraDeck = useMemo(() => groupCards(deck.extra), [deck.extra]);
   const flipCount = getFlipCount();
 
-  // 錯誤處理：顯示離線模式選項
   if (loadingError && !isOffline) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-slate-50 p-4 text-center">
@@ -1476,54 +1609,34 @@ export default function App() {
           <AlertCircle size={48} className="mx-auto text-red-500 mb-4" />
           <h2 className="text-xl font-bold text-slate-800 mb-2">無法連線至資料庫</h2>
           <p className="text-slate-600 mb-6 bg-red-50 p-3 rounded text-sm">{loadingError}</p>
-          
-          <div className="text-left text-sm text-slate-500 space-y-2 bg-slate-50 p-4 rounded mb-6">
-            <p className="font-bold text-slate-700">您可以選擇：</p>
-            <ul className="list-disc pl-5 space-y-1">
-              <li><strong>重新整理</strong>：嘗試再次連線。</li>
-              <li><strong>離線模擬</strong>：在不連線的情況下測試介面與功能 (資料不會儲存)。</li>
-            </ul>
-          </div>
-
           <div className="flex flex-col gap-3">
-            <button 
-                onClick={() => window.location.reload()}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold w-full transition-colors flex items-center justify-center gap-2"
-            >
-                <RefreshCw size={18} /> 重新整理頁面
-            </button>
-            <button 
-                onClick={() => {
-                    setIsOffline(true);
-                    setLoadingError(null);
-                    setUser({ uid: 'offline-user', isAnonymous: true });
-                    setIsAdmin(true); // 離線模式預設開啟管理權限方便測試
-                }}
-                className="bg-slate-600 hover:bg-slate-700 text-white px-6 py-2 rounded-lg font-bold w-full transition-colors flex items-center justify-center gap-2"
-            >
-                <WifiOff size={18} /> 進入離線模擬模式
-            </button>
+            <button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold w-full transition-colors flex items-center justify-center gap-2"><RefreshCw size={18} /> 重新整理頁面</button>
+            <button onClick={() => { setIsOffline(true); setLoadingError(null); setUser({ uid: 'offline-user', isAnonymous: true }); setIsAdmin(true); }} className="bg-slate-600 hover:bg-slate-700 text-white px-6 py-2 rounded-lg font-bold w-full transition-colors flex items-center justify-center gap-2"><WifiOff size={18} /> 進入離線模擬模式</button>
           </div>
         </div>
       </div>
     );
   }
 
-  // 載入中
-  if (!user && !isOffline) {
+  if (!user && !isOffline)
     return (
       <div className="flex h-screen items-center justify-center bg-slate-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
-  }
 
   return (
-    <div className="flex h-[100dvh] w-full fixed inset-0 flex-col md:flex-row bg-slate-50 overflow-hidden font-sans text-slate-900">
-      {viewingCard && <CardDetailModal card={viewingCard} onClose={() => setViewingCard(null)} />}
-      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
+    <div className="flex fixed inset-0 flex-col md:flex-row bg-slate-50 overflow-hidden font-sans text-slate-900 overscroll-contain h-[100dvh]">
+      {viewingCard && (
+        <CardDetailModal
+          card={viewingCard}
+          onClose={() => setViewingCard(null)}
+        />
+      )}
+      {toastMsg && (
+        <Toast message={toastMsg} onClose={() => setToastMsg(null)} />
+      )}
       
-      {/* 新增/編輯 Modal */}
       {showAddModal && (
         <AddCardModal 
           onClose={() => { setShowAddModal(false); setEditingCard(null); }} 
@@ -1533,13 +1646,12 @@ export default function App() {
         />
       )}
 
-      {/* 批量匯入 Modal */}
       {showBulkModal && <BulkImportModal onClose={() => setShowBulkModal(false)} onImport={handleBulkImport} isProcessing={isProcessing} />}
 
       {showExportModal && <ExportModal deck={deck} allCards={allCards} onClose={() => setShowExportModal(false)} deckName={deckName} />}
 
-      <div className="flex-1 flex flex-col min-w-0 border-r border-slate-200">
-        <div className="p-4 bg-white border-b border-slate-200 shadow-sm z-10 space-y-3">
+      <div className="flex-1 flex flex-col min-w-0 border-r border-slate-200 min-h-0">
+        <div className="p-4 bg-white border-b border-slate-200 shadow-sm z-10 space-y-3 shrink-0">
           <div className="flex justify-between items-center">
             <h1 className="text-xl font-bold flex items-center gap-2 text-slate-800">
                 <Cloud className={isOffline ? "text-slate-400" : "text-blue-600"} />
@@ -1557,21 +1669,15 @@ export default function App() {
               <span className="text-sm text-slate-500 bg-slate-100 px-2 py-1.5 rounded flex items-center">共 {filteredCards.length} 張</span>
             </div>
           </div>
-          {/* 副標題與離線提示 */}
           <div className="flex flex-col gap-1">
             <p className="text-[10px] text-orange-500 font-bold ml-8">先行測試版本，有Bug請私訊樂多綠YT或粉絲專頁</p>
-            {isOffline && (
-                <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-3 py-1.5 rounded text-xs flex items-center gap-2 mt-1">
-                    <WifiOff size={14} />
-                    <span>目前為離線模式，您的變更不會儲存到資料庫，重新整理後將遺失。</span>
-                </div>
-            )}
           </div>
           <div className="flex flex-col gap-2">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
               <input type="text" placeholder="搜尋名稱或編號..." className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} />
             </div>
+            {/* 篩選器... (保持不變) */}
             <div className="flex gap-2">
               <div className="relative flex-1"><Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.type} onChange={(e) => setFilters({...filters, type: e.target.value})}>{['ALL', ...Object.values(CARD_TYPES)].map(t => <option key={t} value={t}>{t === 'ALL' ? '全部種類' : t}</option>)}</select></div>
               <div className="relative flex-1"><Palette className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.color} onChange={(e) => setFilters({...filters, color: e.target.value})}>{['ALL', ...Object.values(CARD_COLORS)].map(c => <option key={c} value={c}>{c === 'ALL' ? '全部顏色' : c}</option>)}</select></div>
@@ -1586,7 +1692,6 @@ export default function App() {
                   {Object.values(CARD_LEVELS).map((l) => (<option key={l} value={l}>{l}</option>))}
                 </select></div>
             </div>
-            {/* 新增：快速篩選 Checkbox (樣式優化) */}
             <div className="flex flex-wrap gap-3 mt-2 pl-1">
               <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
                 <input type="checkbox" className="hidden peer" checked={filters.showExtra} onChange={(e) => setFilters({ ...filters, showExtra: e.target.checked })} />
@@ -1615,9 +1720,11 @@ export default function App() {
             </div>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 bg-slate-50">
+        
+        {/* 卡片列表 (修正手機版捲動問題) */}
+        <div className="flex-1 overflow-y-auto p-4 bg-slate-50 overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 pb-20">
-            {filteredCards.map(card => (
+            {displayedCards.map(card => (
               <CardItem 
                 key={card.id} 
                 card={card} 
@@ -1628,6 +1735,10 @@ export default function App() {
                 onDelete={isAdmin ? handleDeleteCard : null}
               />
             ))}
+            {/* Lazy Loading Sentinel */}
+            <div ref={loadMoreRef} className="col-span-full h-10 flex items-center justify-center text-slate-400 text-sm">
+                {displayedCards.length < filteredCards.length ? "載入更多..." : "已顯示所有卡片"}
+            </div>
             {allCards.length === 0 && isAdmin && (
               <div className="col-span-full py-12 text-center text-slate-400 flex flex-col items-center gap-4">
                 <Database size={48} className="opacity-20" />
@@ -1640,7 +1751,7 @@ export default function App() {
         </div>
 
         {/* 頁尾 */}
-        <div className="p-4 border-t border-slate-200 text-center text-xs text-slate-500 bg-white">
+        <div className="p-4 border-t border-slate-200 text-center text-xs text-slate-500 bg-white shrink-0">
           <div className="flex flex-col md:flex-row items-center justify-center gap-4">
             <span>製作者：樂多綠Gamecaster</span>
             <div className="flex items-center gap-3">
@@ -1665,32 +1776,34 @@ export default function App() {
         </div>
       </div>
 
-      <div className="w-full md:w-80 lg:w-96 h-[35%] md:h-auto flex flex-col bg-white shadow-xl z-20 border-t border-slate-300 md:border-t-0">
-        <div className="p-4 bg-slate-800 text-white border-b border-slate-700">
+      {/* 右側 (手機版下方) 牌組區塊 - 高度修正 */}
+      <div className="w-full md:w-80 lg:w-96 shrink-0 h-[35%] md:h-auto flex flex-col bg-white shadow-xl z-20 border-t border-slate-300 md:border-t-0">
+        <div className="p-4 bg-slate-800 text-white border-b border-slate-700 shrink-0">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold flex items-center gap-2 flex-1">
-              <Box size={20} className="text-blue-400" />
-              {/* 牌組名稱輸入框 */}
-              <input
-                type="text"
-                value={deckName}
-                onChange={(e) => setDeckName(e.target.value)}
-                className="bg-transparent text-lg font-bold text-white border-b border-white/20 focus:border-white outline-none w-full placeholder-slate-400"
-                placeholder="命名你的牌組..."
-              />
-            </h2>
+            <h2 className="text-lg font-bold flex items-center gap-2 flex-1"><Box size={20} className="text-blue-400"/> 目前牌組</h2>
             <div className="flex gap-2">
-              <button onClick={() => setShowExportModal(true)} className="bg-blue-600 hover:bg-blue-500 text-white p-1.5 rounded transition-colors" title="分享/輸出"><Share2 size={18} /></button>
-              <button onClick={clearDeck} className="text-slate-400 hover:text-red-400 transition-colors p-1" title="清空"><Trash2 size={18} /></button>
+              <button onClick={handleShareClick} className="bg-blue-600 hover:bg-blue-500 text-white p-1.5 rounded transition-colors" title="分享/輸出"><Share2 size={18} /></button>
+              {/* 一鍵清空按鈕 */}
+              <button onClick={clearDeck} className="bg-red-600 hover:bg-red-500 text-white px-2 py-1.5 rounded transition-colors text-sm font-bold flex items-center gap-1">
+                <Trash2 size={14} /> 清空
+              </button>
             </div>
           </div>
+          {/* 牌組名稱輸入框 */}
+          <input
+            type="text"
+            value={deckName}
+            onChange={(e) => setDeckName(e.target.value)}
+            className="bg-transparent text-lg font-bold text-white border-b border-white/20 focus:border-white outline-none w-full placeholder-slate-400 mb-2"
+            placeholder="命名你的牌組..."
+          />
           <div className="flex flex-wrap gap-2">
-            <StatBadge icon={Layers} label="主牌組" current={deck.main.length} max={LIMITS.MAIN} color="blue" />
+            <StatBadge icon={Layers} label="主牌組" current={deck.main.length} max={LIMITS.MAIN} color="blue" warningAtFull={false} />
             <StatBadge icon={Zap} label="額外" current={deck.extra.length} max={LIMITS.EXTRA} color="purple" />
             <StatBadge icon={RotateCw} label="Flip" current={flipCount} max={LIMITS.FLIP} color="orange" />
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-3 space-y-6 bg-slate-50">
+        <div className="flex-1 overflow-y-auto p-3 space-y-6 bg-slate-50 overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
           <section>
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-1 flex justify-between">主牌組清單 <span>{deck.main.length} / {LIMITS.MAIN}</span></h3>
             <div className="space-y-2 min-h-[100px]">
@@ -1713,10 +1826,10 @@ export default function App() {
              </div>
              <ul className="text-xs text-orange-700 space-y-1 list-disc pl-4">
                {nonFlipCookieCount < 20 && <li>主牌組建議至少 20 張餅乾卡 (目前 {nonFlipCookieCount})<span className="text-[10px] opacity-75 ml-1">(不含 FLIP)</span></li>}
-               {deck.main.length === LIMITS.MAIN && <li className="text-red-600 font-bold">主牌組已達上限</li>}
+               {deck.main.length > LIMITS.MAIN && <li className="text-red-600 font-bold">主牌組已超過上限 ({deck.main.length}/60)</li>}
                {deck.extra.length === LIMITS.EXTRA && <li className="text-red-600 font-bold">額外牌組已達上限</li>}
                {flipCount === LIMITS.FLIP && <li className="text-red-600 font-bold">Flip 卡片已達上限 ({LIMITS.FLIP})</li>}
-               {nonFlipCookieCount >= 20 && deck.main.length < LIMITS.MAIN && deck.extra.length < LIMITS.EXTRA && flipCount < LIMITS.FLIP && <li className="text-emerald-600 list-none -ml-4 flex items-center gap-1 font-bold"><CheckCircle size={14}/> 牌組目前合規</li>}
+               {nonFlipCookieCount >= 20 && deck.main.length <= LIMITS.MAIN && deck.extra.length < LIMITS.EXTRA && flipCount < LIMITS.FLIP && <li className="text-emerald-600 list-none -ml-4 flex items-center gap-1 font-bold"><CheckCircle size={14}/> 牌組目前合規</li>}
              </ul>
           </section>
         </div>
