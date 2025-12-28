@@ -60,10 +60,9 @@ let db = null;
 const appId = "my-deck-builder-v1";
 
 // ==========================================
-//  Firebase 設定 (正式環境變數版)
+//  Firebase 設定 (正式版：使用環境變數)
 // ==========================================
-// 這裡改回使用 import.meta.env 來讀取 .env 檔案中的變數
-// 請確保您的 .env 檔案中有對應的 VITE_ 開頭變數
+// 這裡改回安全寫法，讀取 Netlify 後台設定的變數
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -82,8 +81,8 @@ try {
     auth = getAuth(app);
     db = getFirestore(app);
   } else {
-    // 如果在本地或預覽環境沒有設定 .env，會在 Console 顯示警告
-    console.warn("警告：未偵測到 Firebase API Key。若是本地開發，請檢查 .env 檔案；若是線上部署，請檢查環境變數設定。");
+    // 若在本地沒設定 .env 或預覽環境中，會顯示此警告
+    console.warn("注意：未偵測到環境變數。如果您是在本地開發，請檢查 .env；如果是線上預覽，請忽略此訊息，部署後即可正常運作。");
   }
 } catch (e) {
   console.error("Firebase 初始化失敗:", e);
@@ -195,7 +194,7 @@ const Toast = ({ message, onClose }) => {
     if (!message) return;
     const timer = setTimeout(() => {
       onClose();
-    }, 2500); // 2.5秒後自動消失
+    }, 2500); 
     return () => clearTimeout(timer);
   }, [message, onClose]);
 
@@ -858,7 +857,7 @@ export default function App() {
         {(invalidForbidden || invalidRestricted) && (
             <div className="bg-red-100 text-red-800 p-3 text-sm font-bold border-b border-red-200 flex items-start gap-2 shrink-0 animate-pulse">
                 <AlertCircle size={20} className="shrink-0 mt-0.5" />
-                <span>此牌組包含超過數量的禁止與限制卡，於正式比賽無法使用。</span>
+                <span>此牌組包含超過數量上限的禁止與限制卡，正式比賽將無法使用。</span>
             </div>
         )}
 
