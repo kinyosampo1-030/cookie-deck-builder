@@ -62,17 +62,21 @@ const appId = "my-deck-builder-v1";
 // ==========================================
 //  Firebase 設定
 // ==========================================
+// 為了確保網站能立即運作，暫時使用直接設定的方式。
+// 若您已熟悉 Netlify 環境變數設定，可自行改回 import.meta.env
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+  apiKey: "AIzaSyDK-feks4M0aZaJY4-gFcP_TxVcJLfMuxo",
+  authDomain: "cookierunbraverse.firebaseapp.com",
+  projectId: "cookierunbraverse",
+  storageBucket: "cookierunbraverse.firebasestorage.app",
+  messagingSenderId: "1061622650816",
+  appId: "1:1061622650816:web:b61e2490336b244bf01a25",
+  measurementId: "G-YK70VGHNRN",
 };
+// ==========================================
 
 try {
+  // 安全檢查
   if (firebaseConfig.apiKey) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
@@ -709,11 +713,13 @@ export default function App() {
   const initializeDatabase = async () => { if (isOffline) { setAllCards(INITIAL_CARDS); setToastMsg("離線模式：已重置為預設資料"); return; } if (!user || !db || !confirm("確定匯入預設資料？")) return; setIsProcessing(true); const batch = writeBatch(db); try { INITIAL_CARDS.forEach((card) => batch.set(doc(db, "artifacts", appId, "public", "data", "cards", card.id), card)); await batch.commit(); setToastMsg("匯入成功"); } catch (err) { console.error(err); setToastMsg("匯入失敗"); } finally { setIsProcessing(false); } };
 
   const filteredCards = useMemo(() => allCards.filter((card) => { 
+    // 防止 card.series 為 undefined 導致崩潰 (安全防呆)
+    const cardSeries = card.series || "";
     const search = filters.search.toLowerCase(); 
     const matchSearch = card.name.toLowerCase().includes(search) || card.id.toLowerCase().includes(search); 
     const matchType = filters.type === "ALL" || card.type === filters.type; 
     const matchColor = filters.color === "ALL" || card.color === filters.color; 
-    const matchSeries = filters.series === "ALL" || (filters.series === "ST" ? card.series.includes("ST") : card.series === filters.series); 
+    const matchSeries = filters.series === "ALL" || (filters.series === "ST" ? cardSeries.includes("ST") : cardSeries === filters.series); 
     const matchLevel = filters.level === "ALL" || card.level === filters.level; 
     const matchExtra = filters.showExtra ? card.isExtra : true; 
     const matchFlip = filters.showFlip ? card.isFlip : true; 
@@ -757,7 +763,7 @@ export default function App() {
             </div>
           </div>
           <div className="flex flex-col gap-1">
-            <p className="text-sm text-orange-500 font-bold ml-10">先行測試版本，有Bug請私訊樂多綠YT或粉絲專頁</p>
+            <p className="text-base text-orange-500 font-bold ml-10">先行測試版本，有Bug請私訊樂多綠YT或粉絲專頁</p>
             {isOffline && <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-3 py-1.5 rounded text-sm flex items-center gap-2 mt-1"><WifiOff size={16} /><span>目前為離線模式，您的變更不會儲存到資料庫。</span></div>}
           </div>
           <div className="flex flex-col gap-3">
