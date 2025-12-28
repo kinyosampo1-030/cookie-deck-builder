@@ -62,8 +62,6 @@ const appId = "my-deck-builder-v1";
 // ==========================================
 //  Firebase 設定 (正式版：使用環境變數)
 // ==========================================
-// 這裡改回安全寫法，讀取 Netlify 後台設定的變數
-// 這樣 Netlify 的安全掃描就不會因為偵測到明碼 Key 而阻擋部署
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -83,7 +81,7 @@ try {
     db = getFirestore(app);
   } else {
     // 若在本地沒設定 .env 或預覽環境中，會顯示此警告
-    console.warn("注意：未偵測到環境變數。如果您是在本地開發，請檢查 .env；如果是線上預覽，請忽略此訊息，部署到 Netlify 設定好變數後即可正常運作。");
+    console.warn("注意：未偵測到環境變數。如果是線上預覽環境無法連線是正常的，請部署到 Netlify 並設定好環境變數。");
   }
 } catch (e) {
   console.error("Firebase 初始化失敗:", e);
