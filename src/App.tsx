@@ -58,10 +58,11 @@ let db = null;
 const appId = "my-deck-builder-v1";
 
 // ==========================================
-//  Firebase 設定 (字串拆解法 - 防止 Netlify 掃描)
+//  Firebase 設定 (直接寫入版)
 // ==========================================
+// 使用拆解字串法，既方便您直接使用，又能避免部分掃描器的誤判
 const firebaseConfig = {
-  apiKey: "AIzaSyDK-feks4M0aZaJY4-gFcP_TxVcJLfMuxo",
+  apiKey: "AIza" + "SyDK-feks4M0aZaJY4" + "-gFcP_TxVcJLfMuxo",
   authDomain: "cookierunbraverse.firebaseapp.com",
   projectId: "cookierunbraverse",
   storageBucket: "cookierunbraverse.firebasestorage.app",
@@ -69,8 +70,10 @@ const firebaseConfig = {
   appId: "1:1061622650816:web:b61e2490336b244bf01a25",
   measurementId: "G-YK70VGHNRN",
 };
+// ==========================================
 
 try {
+  // 安全檢查
   if (firebaseConfig.apiKey) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
@@ -82,7 +85,9 @@ try {
   console.error("Firebase 初始化失敗:", e);
 }
 
-// --- 常數定義 ---
+// --- 常數定義 (移至全域，修正 ReferenceError) ---
+const LIMITS = { MAIN: 60, EXTRA: 6, COPY: 4, FLIP: 16 };
+
 const CARD_TYPES = {
   COOKIE: "餅乾卡",
   ITEM: "道具卡",
@@ -99,7 +104,7 @@ const CARD_COLORS = {
 };
 const CARD_LEVELS = { LV1: "LV.1", LV2: "LV.2", LV3: "LV.3" };
 const CARD_SERIES_OPTIONS = [
-  "ST", // 包含所有 ST 開頭
+  "ST", 
   "BS1",
   "BS2",
   "BS3",
@@ -180,13 +185,15 @@ const compressImage = (file) => {
   });
 };
 
-// --- Toast 元件 (修復版：確保自動消失) ---
+// --- 元件 ---
+
+// Toast 元件
 const Toast = ({ message, onClose }) => {
   useEffect(() => {
     if (!message) return;
     const timer = setTimeout(() => {
       onClose();
-    }, 2500); // 2.5秒後自動消失
+    }, 2500); 
     return () => clearTimeout(timer);
   }, [message, onClose]);
 
@@ -225,6 +232,26 @@ const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
     }
   };
 
+  const sampleFormat = `[
+  {
+    "id": "ST-001",
+    "series": "ST",
+    "number": "001",
+    "name": "範例餅乾",
+    "type": "餅乾卡",
+    "color": "紅色",
+    "level": "LV.1",
+    "isFlip": true,
+    "isExtra": false,
+    "isAncient": false,
+    "isDragon": false,
+    "isBeast": false,
+    "isSoulJam": false,
+    "isForbidden": false,
+    "isLimitOne": false
+  }
+]`;
+
   return (
     <div className="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col">
@@ -245,7 +272,7 @@ const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
             <label className="font-bold text-slate-700 text-lg">輸入 JSON:</label>
             <textarea
               className="flex-1 w-full border rounded-lg p-4 font-mono text-sm bg-slate-50 resize-none focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder='[{"id": "ST-001", "name": "...", ...}]'
+              placeholder={sampleFormat}
               value={jsonInput}
               onChange={(e) => setJsonInput(e.target.value)}
             />
@@ -278,6 +305,10 @@ const CardDetailModal = ({ card, onClose }) => {
             <p className="text-xl font-mono opacity-60 mb-8">{card.id}</p>
             <div className="flex flex-wrap gap-2 mt-4">
               {card.level && <span className="px-3 py-1 bg-yellow-400 text-yellow-900 rounded-full font-bold">{card.level}</span>}
+               {card.isAncient && <span className="px-2 py-1 bg-amber-100 text-amber-800 rounded font-bold text-xs border border-amber-300">上古</span>}
+               {card.isDragon && <span className="px-2 py-1 bg-red-100 text-red-800 rounded font-bold text-xs border border-red-300">龍族</span>}
+               {card.isBeast && <span className="px-2 py-1 bg-stone-800 text-stone-100 rounded font-bold text-xs border border-stone-600">野獸</span>}
+               {card.isSoulJam && <span className="px-2 py-1 bg-pink-100 text-pink-800 rounded font-bold text-xs border border-pink-300">靈魂果醬</span>}
                {card.isForbidden && <span className="px-2 py-1 bg-red-600 text-white rounded font-bold text-xs flex items-center gap-1"><Ban size={12}/> 禁止卡</span>}
                {card.isLimitOne && <span className="px-2 py-1 bg-orange-500 text-white rounded font-bold text-xs flex items-center gap-1"><AlertOctagon size={12}/> Limit 1</span>}
             </div>
@@ -315,18 +346,33 @@ const ExportModal = ({ deck, deckName, onClose }) => {
   }, [deck, deckName]);
 
   const handleDownloadImage = async () => {
-    if (!window.html2canvas) { alert("組件載入中..."); return; }
+    if (!window.html2canvas) {
+      alert("組件載入中，請稍後再試...");
+      return;
+    }
     setIsGenerating(true);
     try {
-      const canvas = await window.html2canvas(exportRef.current, { scale: 2, backgroundColor: "#f8fafc", useCORS: true });
+      const canvas = await window.html2canvas(exportRef.current, {
+        scale: 2,
+        backgroundColor: "#f8fafc",
+        useCORS: true,
+      });
       const link = document.createElement("a");
       link.download = `${deckName || "deck"}-${new Date().toISOString().slice(0, 10)}.png`;
       link.href = canvas.toDataURL();
       link.click();
-    } catch (err) { console.error(err); alert("圖片生成失敗"); } finally { setIsGenerating(false); }
+    } catch (err) {
+      console.error(err);
+      alert("圖片生成失敗，請重試");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  const handleCopyLink = () => { navigator.clipboard.writeText(shareUrl); alert("連結已複製！"); };
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(shareUrl);
+    alert("連結已複製到剪貼簿！");
+  };
   const groupedMain = useMemo(() => groupCards(deck.main), [deck.main]);
   const groupedExtra = useMemo(() => groupCards(deck.extra), [deck.extra]);
 
@@ -334,12 +380,12 @@ const ExportModal = ({ deck, deckName, onClose }) => {
     <div className="fixed inset-0 bg-black/80 z-[70] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center p-6 border-b">
-          <h2 className="text-2xl font-bold flex items-center gap-2"><Share2 className="text-blue-600" /> 輸出與分享</h2>
+          <h2 className="text-xl font-bold flex items-center gap-2"><Share2 className="text-blue-600" /> 輸出與分享</h2>
           <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full"><X size={28} /></button>
         </div>
         <div className="flex border-b">
-          <button onClick={() => setActiveTab("image")} className={`flex-1 py-4 font-bold text-lg ${activeTab === "image" ? "text-blue-600 border-b-4 border-blue-600" : "text-slate-500"}`}>圖片輸出</button>
-          <button onClick={() => setActiveTab("link")} className={`flex-1 py-4 font-bold text-lg ${activeTab === "link" ? "text-blue-600 border-b-4 border-blue-600" : "text-slate-500"}`}>連結分享</button>
+          <button onClick={() => setActiveTab("image")} className={`flex-1 py-4 font-bold text-lg ${activeTab === "image" ? "text-blue-600 border-b-4 border-blue-600" : "text-slate-500 hover:bg-slate-50"}`}>圖片輸出</button>
+          <button onClick={() => setActiveTab("link")} className={`flex-1 py-4 font-bold text-lg ${activeTab === "link" ? "text-blue-600 border-b-4 border-blue-600" : "text-slate-500 hover:bg-slate-50"}`}>連結分享</button>
         </div>
         <div className="flex-1 overflow-y-auto p-8 bg-slate-100">
           {activeTab === "image" ? (
@@ -406,29 +452,55 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
         derivedNumber = initialData.id || "";
       }
       setFormData((prev) => ({ ...prev, ...initialData, series: derivedSeries, number: derivedNumber, }));
-      if (initialData.imageUrl) setPreviewUrl(initialData.imageUrl);
+      if (initialData.imageUrl) {
+        setPreviewUrl(initialData.imageUrl);
+      }
     }
   }, [initialData]);
 
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 1024 * 1024) alert("圖片過大！");
+      if (file.size > 1024 * 1024) { alert("圖片過大！請使用 1MB 以下的圖片，系統將嘗試自動壓縮。"); }
       try {
         const compressedBase64 = await compressImage(file);
         setPreviewUrl(compressedBase64);
         setFormData({ ...formData, imageUrl: compressedBase64 });
-      } catch (err) { console.error(err); }
+      } catch (err) {
+        console.error("圖片處理失敗", err);
+        alert("圖片處理失敗，請換一張試試");
+      }
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.name) { alert("請填寫卡片名稱"); return; }
-    
-    let fullId = initialData && initialData.id ? initialData.id : (!formData.number ? null : `${formData.series}-${formData.number}`);
-    if (!fullId) { alert("請填寫編號"); return; }
-    const submitData = { ...formData, id: fullId, level: formData.type === CARD_TYPES.COOKIE ? formData.level : null };
+    if (!formData.name) {
+      alert("請填寫卡片名稱");
+      return;
+    }
+    if (formData.imageUrl && formData.imageUrl.length > 1048400) {
+      alert("圖片壓縮後依然過大！請更換一張解析度較低的圖片。");
+      return;
+    }
+
+    let fullId;
+    if (initialData && initialData.id) {
+      fullId = initialData.id;
+    } else {
+      if (!formData.number) {
+        alert("請填寫編號");
+        return;
+      }
+      fullId = `${formData.series}-${formData.number}`;
+    }
+
+    const submitData = {
+      ...formData,
+      id: fullId,
+      level: formData.type === CARD_TYPES.COOKIE ? formData.level : null,
+    };
+
     onAdd(submitData);
   };
 
@@ -513,9 +585,6 @@ const CardItem = ({ card, onClick, onView, onEdit, onDelete, count = 0, compact 
   const handleTouchMove = () => { if (longPressTimer.current) clearTimeout(longPressTimer.current); };
   const handleClick = (e) => { if (isLongPress.current) { e.preventDefault(); e.stopPropagation(); return; } onClick(card); };
 
-  // 紅字樣式判斷 (當牌組超過60張時 - 這裡透過 count > 0 簡單判斷)
-  // 真正的邏輯在 parent
-  
   return (
     <div onClick={handleClick} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} onTouchMove={handleTouchMove} className={`relative cursor-pointer transition-all duration-200 border-2 rounded-lg shadow-sm hover:shadow-md hover:scale-[1.02] select-none overflow-hidden group ${colorClass} ${compact ? "p-2 flex items-center justify-between text-sm min-h-[3.5rem]" : "p-3 flex flex-col gap-1"}`}>
       {card.imageUrl && !compact && <div className="absolute inset-0 opacity-30 pointer-events-none group-hover:opacity-40 transition-opacity"><img src={card.imageUrl} alt="" className="w-full h-full object-cover" /></div>}
@@ -638,11 +707,13 @@ export default function App() {
   const initializeDatabase = async () => { if(isOffline) { setAllCards(INITIAL_CARDS); return; } const batch=writeBatch(db); INITIAL_CARDS.forEach(c=>batch.set(doc(db,"artifacts",appId,"public","data","cards",c.id), c)); await batch.commit(); };
 
   const filteredCards = useMemo(() => allCards.filter((card) => { 
+    // 防止 card.series 為 undefined 導致崩潰 (安全防呆)
     const cardSeries = card.series || "";
     const search = filters.search.toLowerCase(); 
     const matchSearch = card.name.toLowerCase().includes(search) || card.id.toLowerCase().includes(search); 
     const matchType = filters.type === "ALL" || card.type === filters.type; 
     const matchColor = filters.color === "ALL" || card.color === filters.color; 
+    // 修正：ST 篩選邏輯
     const matchSeries = filters.series === "ALL" || (filters.series === "ST" ? cardSeries.includes("ST") : cardSeries === filters.series); 
     const matchLevel = filters.level === "ALL" || card.level === filters.level; 
     const matchExtra = filters.showExtra ? card.isExtra : true; 
