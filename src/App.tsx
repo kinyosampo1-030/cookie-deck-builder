@@ -36,7 +36,7 @@ import {
   Menu,
   ChevronRight,
   ExternalLink,
-  Facebook, // 新增：Facebook 圖示
+  Facebook,
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -65,26 +65,28 @@ let db = null;
 const appId = "my-deck-builder-v1";
 
 // ==========================================
-//  Firebase 設定
+//  Firebase 設定 (已更新為讀取環境變數)
 // ==========================================
+// 在本地開發時，請確保您的 .env 檔案位於專案根目錄，且變數名稱以 VITE_ 開頭
 const firebaseConfig = {
-  apiKey: "AIzaSyDK-feks4M0aZaJY4-gFcP_TxVcJLfMuxo",
-  authDomain: "cookierunbraverse.firebaseapp.com",
-  projectId: "cookierunbraverse",
-  storageBucket: "cookierunbraverse.firebasestorage.app",
-  messagingSenderId: "1061622650816",
-  appId: "1:1061622650816:web:b61e2490336b244bf01a25",
-  measurementId: "G-YK70VGHNRN",
+  apiKey: import.meta.env?.VITE_FIREBASE_API_KEY || "AIzaSyDK-feks4M0aZaJY4-gFcP_TxVcJLfMuxo",
+  authDomain: import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN || "cookierunbraverse.firebaseapp.com",
+  projectId: import.meta.env?.VITE_FIREBASE_PROJECT_ID || "cookierunbraverse",
+  storageBucket: import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET || "cookierunbraverse.firebasestorage.app",
+  messagingSenderId: import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID || "1061622650816",
+  appId: import.meta.env?.VITE_FIREBASE_APP_ID || "1:1061622650816:web:b61e2490336b244bf01a25",
+  measurementId: import.meta.env?.VITE_FIREBASE_MEASUREMENT_ID || "G-YK70VGHNRN",
 };
 // ==========================================
 
 try {
+  // 檢查是否有 API Key (環境變數或預設值)
   if (firebaseConfig.apiKey) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
   } else {
-    console.warn("警告：未偵測到 Firebase API Key，請檢查您的設定。");
+    console.warn("警告：未偵測到 Firebase API Key，請檢查 .env 設定。");
   }
 } catch (e) {
   console.error("Firebase 初始化失敗:", e);
@@ -1704,12 +1706,13 @@ export default function App() {
 
       {/* 左側：卡片清單 (手機上為滿版，桌面版在左側) */}
       <div className="flex-1 flex flex-col min-w-0 border-r border-slate-200 min-h-0">
-        {/* Header 區域重製 */}
-        <div className="p-4 bg-white border-b border-slate-200 shadow-sm z-10 space-y-3 shrink-0">
+        {/* Header 區域重製 - 縮小 Padding 以適應手機版 */}
+        <div className="p-3 md:p-4 bg-white border-b border-slate-200 shadow-sm z-10 space-y-2 md:space-y-3 shrink-0">
           <div className="flex justify-between items-start">
             <div className="flex flex-col">
-                <h1 className="text-xl md:text-2xl font-black flex items-center gap-2 text-slate-800">
-                    <Cloud className={isOffline ? "text-slate-400" : "text-blue-600"} size={28} />
+                {/* 標題字體調整 */}
+                <h1 className="text-lg md:text-2xl font-black flex items-center gap-2 text-slate-800">
+                    <Cloud className={isOffline ? "text-slate-400" : "text-blue-600"} size={24} />
                     Cookierun: Braverse Deck Builder
                 </h1>
                 <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">
@@ -1731,19 +1734,21 @@ export default function App() {
           <div className="flex flex-col gap-2">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
-              <input type="text" placeholder="搜尋名稱或編號..." className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} />
+              {/* 縮小輸入框高度 */}
+              <input type="text" placeholder="搜尋名稱或編號..." className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} />
             </div>
             {/* 篩選器 */}
             <div className="flex gap-2">
-              <div className="relative flex-1"><Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.type} onChange={(e) => setFilters({...filters, type: e.target.value})}>{['ALL', ...Object.values(CARD_TYPES)].map(t => <option key={t} value={t}>{t === 'ALL' ? '全部種類' : t}</option>)}</select></div>
-              <div className="relative flex-1"><Palette className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.color} onChange={(e) => setFilters({...filters, color: e.target.value})}>{['ALL', ...Object.values(CARD_COLORS)].map(c => <option key={c} value={c}>{c === 'ALL' ? '全部顏色' : c}</option>)}</select></div>
+              {/* 縮小下拉選單高度 */}
+              <div className="relative flex-1"><Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.type} onChange={(e) => setFilters({...filters, type: e.target.value})}>{['ALL', ...Object.values(CARD_TYPES)].map(t => <option key={t} value={t}>{t === 'ALL' ? '全部種類' : t}</option>)}</select></div>
+              <div className="relative flex-1"><Palette className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.color} onChange={(e) => setFilters({...filters, color: e.target.value})}>{['ALL', ...Object.values(CARD_COLORS)].map(c => <option key={c} value={c}>{c === 'ALL' ? '全部顏色' : c}</option>)}</select></div>
             </div>
             <div className="flex gap-2">
-              <div className="relative flex-1"><Layers className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.series} onChange={(e) => setFilters({...filters, series: e.target.value})}>
+              <div className="relative flex-1"><Layers className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.series} onChange={(e) => setFilters({...filters, series: e.target.value})}>
                   <option value="ALL">全部系列</option>
                   {CARD_SERIES_OPTIONS.map((s) => (<option key={s} value={s}>{s}</option>))}
                 </select></div>
-              <div className="relative flex-1"><Star className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.level} onChange={(e) => setFilters({...filters, level: e.target.value})}>
+              <div className="relative flex-1"><Star className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.level} onChange={(e) => setFilters({...filters, level: e.target.value})}>
                   <option value="ALL">全部等級</option>
                   {Object.values(CARD_LEVELS).map((l) => (<option key={l} value={l}>{l}</option>))}
                 </select></div>
@@ -1758,9 +1763,10 @@ export default function App() {
                 <input type="checkbox" className="hidden peer" checked={filters.showFlip} onChange={(e) => setFilters({ ...filters, showFlip: e.target.checked })} />
                 <span className="text-[10px] bg-slate-800 text-white px-2 py-1 rounded font-bold tracking-wider peer-checked:ring-2 peer-checked:ring-slate-500 opacity-60 peer-checked:opacity-100">[FLIP]</span>
               </label>
+              {/* 修改按鈕標籤 */}
               <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
                 <input type="checkbox" className="hidden peer" checked={filters.showAncient} onChange={(e) => setFilters({ ...filters, showAncient: e.target.checked })} />
-                <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-1 rounded font-bold border border-amber-300 peer-checked:ring-2 peer-checked:ring-amber-500 opacity-60 peer-checked:opacity-100">上古餅乾</span>
+                <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-1 rounded font-bold border border-amber-300 peer-checked:ring-2 peer-checked:ring-amber-500 opacity-60 peer-checked:opacity-100">上古</span>
               </label>
               <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
                 <input type="checkbox" className="hidden peer" checked={filters.showDragon} onChange={(e) => setFilters({ ...filters, showDragon: e.target.checked })} />
@@ -1768,7 +1774,7 @@ export default function App() {
               </label>
               <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
                 <input type="checkbox" className="hidden peer" checked={filters.showBeast} onChange={(e) => setFilters({ ...filters, showBeast: e.target.checked })} />
-                <span className="text-[10px] bg-stone-800 text-stone-100 px-2 py-1 rounded font-bold border border-stone-600 peer-checked:ring-2 peer-checked:ring-stone-500 opacity-60 peer-checked:opacity-100">野獸餅乾</span>
+                <span className="text-[10px] bg-stone-800 text-stone-100 px-2 py-1 rounded font-bold border border-stone-600 peer-checked:ring-2 peer-checked:ring-stone-500 opacity-60 peer-checked:opacity-100">野獸</span>
               </label>
               <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
                 <input type="checkbox" className="hidden peer" checked={filters.showSoulJam} onChange={(e) => setFilters({ ...filters, showSoulJam: e.target.checked })} />
@@ -1806,18 +1812,18 @@ export default function App() {
           )}
         </div>
 
-        {/* 恢復 Footer 區域 */}
-        <div className="p-3 bg-white border-t border-slate-200 text-xs text-slate-500 flex flex-col md:flex-row justify-between items-center gap-2">
+        {/* 恢復 Footer 區域 - 調整手機版 padding */}
+        <div className="p-2 md:p-3 bg-white border-t border-slate-200 text-xs text-slate-500 flex flex-col md:flex-row justify-between items-center gap-2">
             <span className="font-bold">製作者：樂多綠Gamecaster</span>
             <div className="flex flex-col md:flex-row gap-2 md:gap-4 text-center md:text-left items-center">
                 <a href="https://www.youtube.com/@%E6%A8%82%E5%A4%9A%E7%B6%A0" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-red-600 transition-colors font-bold">
                     <Youtube size={14} /> YouTube
                 </a>
                 <a href="https://www.facebook.com/midaylovesworld/" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold">
-                   <Facebook size={14} /> 樂多綠臉書粉絲專頁
+                   <Facebook size={14} /> 樂多綠Facebook
                 </a>
                 <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold">
-                   <ExternalLink size={14} /> 薑餅人對戰卡牌/台灣 | Cookierun: Braverse
+                   <ExternalLink size={14} /> 薑餅人對戰卡牌/台灣
                 </a>
             </div>
         </div>
