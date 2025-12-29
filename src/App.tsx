@@ -61,7 +61,7 @@ const appId = "my-deck-builder-v1";
 //  Firebase 設定 (字串拆解法 - 防止 Netlify 掃描)
 // ==========================================
 const firebaseConfig = {
-  apiKey: "AIza" + "SyDK-feks4M0aZaJY4" + "-gFcP_TxVcJLfMuxo",
+  apiKey: "AIzaSyDK-feks4M0aZaJY4-gFcP_TxVcJLfMuxo",
   authDomain: "cookierunbraverse.firebaseapp.com",
   projectId: "cookierunbraverse",
   storageBucket: "cookierunbraverse.firebasestorage.app",
