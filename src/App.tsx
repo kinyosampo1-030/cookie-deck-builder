@@ -69,13 +69,13 @@ const appId = "my-deck-builder-v1";
 // ==========================================
 // 在本地開發時，請確保您的 .env 檔案位於專案根目錄，且變數名稱以 VITE_ 開頭
 const firebaseConfig = {
-  apiKey: import.meta.env?.VITE_FIREBASE_API_KEY || "AIzaSyDK-feks4M0aZaJY4-gFcP_TxVcJLfMuxo",
-  authDomain: import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN || "cookierunbraverse.firebaseapp.com",
-  projectId: import.meta.env?.VITE_FIREBASE_PROJECT_ID || "cookierunbraverse",
-  storageBucket: import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET || "cookierunbraverse.firebasestorage.app",
-  messagingSenderId: import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID || "1061622650816",
-  appId: import.meta.env?.VITE_FIREBASE_APP_ID || "1:1061622650816:web:b61e2490336b244bf01a25",
-  measurementId: import.meta.env?.VITE_FIREBASE_MEASUREMENT_ID || "G-YK70VGHNRN",
+  apiKey: import.meta.env?.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env?.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env?.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env?.VITE_FIREBASE_MEASUREMENT_ID,
 };
 // ==========================================
 
@@ -172,6 +172,32 @@ const groupCards = (cardList) => {
     groups[key].stackCount += 1;
   });
   return Object.values(groups).sort((a, b) => a.id.localeCompare(b.id));
+};
+
+// 用於輸出圖片的排序權重計算
+const getExportSortWeight = (card) => {
+  // 1. FLIP 卡片排最後
+  if (card.isFlip) return 900;
+
+  // 2. 餅乾卡 (LV1 -> LV2 -> LV3)
+  if (card.type === CARD_TYPES.COOKIE) {
+    if (card.level === CARD_LEVELS.LV1) return 100;
+    if (card.level === CARD_LEVELS.LV2) return 110;
+    if (card.level === CARD_LEVELS.LV3) return 120;
+    return 130; // 無等級餅乾
+  }
+
+  // 3. 道具卡
+  if (card.type === CARD_TYPES.ITEM) return 200;
+
+  // 4. 陷阱卡 (非 FLIP)
+  if (card.type === CARD_TYPES.TRAP) return 300;
+
+  // 5. 場景卡
+  if (card.type === CARD_TYPES.SCENE) return 400;
+
+  // 其他
+  return 800;
 };
 
 const compressImage = (file) => {
@@ -411,7 +437,7 @@ const ExportModal = ({ deck, deckName, onClose }) => {
     try {
       const canvas = await window.html2canvas(exportRef.current, {
         scale: 2,
-        backgroundColor: "#f8fafc",
+        backgroundColor: "#ffffff",
         useCORS: true,
       });
       const link = document.createElement("a");
@@ -432,8 +458,22 @@ const ExportModal = ({ deck, deckName, onClose }) => {
     navigator.clipboard.writeText(shareUrl);
     alert("連結已複製到剪貼簿！");
   };
-  const groupedMain = useMemo(() => groupCards(deck.main), [deck.main]);
-  const groupedExtra = useMemo(() => groupCards(deck.extra), [deck.extra]);
+
+  // 使用 useMemo 對輸出用的卡片進行排序與分組
+  const sortedMain = useMemo(() => {
+    const groups = groupCards(deck.main);
+    return groups.sort((a, b) => {
+        const wA = getExportSortWeight(a);
+        const wB = getExportSortWeight(b);
+        if (wA !== wB) return wA - wB;
+        // 同類型依 ID 排序
+        return a.id.localeCompare(b.id);
+    });
+  }, [deck.main]);
+
+  const sortedExtra = useMemo(() => groupCards(deck.extra), [deck.extra]);
+  
+  const flipCount = deck.main.filter(c => c.isFlip).length;
 
   return (
     <div
@@ -501,36 +541,35 @@ const ExportModal = ({ deck, deckName, onClose }) => {
 
               <div
                 ref={exportRef}
-                className="bg-white p-8 rounded-lg shadow-lg w-full max-w-[1000px] min-h-[600px] border border-slate-200"
+                className="bg-white p-8 rounded-lg shadow-lg w-full max-w-[1000px] border border-slate-200"
               >
-                <div className="flex justify-between items-end border-b-2 border-slate-800 pb-4 mb-6">
-                  <div>
-                    <h1 className="text-3xl font-bold text-slate-900 uppercase">
+                {/* 輸出圖片 Header */}
+                <div className="flex flex-col items-center border-b-2 border-slate-800 pb-6 mb-6">
+                    <h1 className="text-4xl md:text-5xl font-black text-slate-900 uppercase text-center tracking-tight mb-3">
                       {deckName || "My Deck"}
                     </h1>
-                    <p className="text-slate-500 mt-1">
-                      Total Cards: {deck.main.length + deck.extra.length}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-bold text-slate-400">
-                      CREATED WITH
+                    <div className="flex gap-6 text-sm font-bold text-slate-500 uppercase tracking-wider">
+                        <span className="flex items-center gap-1">
+                            <Layers size={16} /> Total: {deck.main.length}
+                        </span>
+                        <span className="flex items-center gap-1">
+                            <RotateCw size={16} /> Flip: {flipCount}
+                        </span>
+                        {deck.extra.length > 0 && (
+                            <span className="flex items-center gap-1 text-purple-600">
+                                <Zap size={16} /> Extra: {deck.extra.length}
+                            </span>
+                        )}
                     </div>
-                    <div className="text-xl font-black text-blue-600">
-                      Braverse Deck Builder
-                    </div>
-                  </div>
                 </div>
 
-                <div className="mb-8">
-                  <h3 className="font-bold text-slate-800 bg-slate-100 px-3 py-1 rounded inline-block mb-4 border-l-4 border-blue-500">
-                    MAIN DECK ({deck.main.length})
-                  </h3>
-                  <div className="grid grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3">
-                    {groupedMain.map((group) => (
+                <div className="mb-4">
+                  {/* 縮小間距，調整 Grid */}
+                  <div className="grid grid-cols-6 md:grid-cols-8 gap-1">
+                    {sortedMain.map((group) => (
                       <div
                         key={group.id}
-                        className="relative aspect-[3/4] rounded-lg overflow-hidden border border-slate-200 shadow-sm bg-slate-50 group"
+                        className="relative aspect-[3/4] rounded overflow-hidden border border-slate-200 shadow-sm bg-slate-50 group"
                       >
                         {group.imageUrl ? (
                           <img
@@ -540,19 +579,20 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                           />
                         ) : (
                           <div
-                            className={`w-full h-full flex flex-col p-2 text-[10px] ${getCardColorStyles(
+                            className={`w-full h-full flex flex-col p-1 text-[8px] ${getCardColorStyles(
                               group.color
                             )}`}
                           >
                             <span className="font-bold leading-tight line-clamp-2">
                               {group.name}
                             </span>
-                            <span className="mt-1 font-mono opacity-70 font-bold">
+                            <span className="mt-0.5 font-mono opacity-70 font-bold scale-90 origin-left">
                               {group.id}
                             </span>
                           </div>
                         )}
-                        <div className="absolute bottom-1 right-1 bg-black text-white text-xs font-bold px-1.5 py-0.5 rounded shadow-md border border-white/20 z-10">
+                        {/* 縮小張數 Badge */}
+                        <div className="absolute bottom-0.5 right-0.5 bg-black text-white text-[9px] font-bold px-1 py-0.5 rounded shadow-md border border-white/20 z-10 leading-none min-w-[16px] text-center opacity-90">
                           x{group.stackCount}
                         </div>
                       </div>
@@ -560,16 +600,16 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                   </div>
                 </div>
 
-                {groupedExtra.length > 0 && (
-                  <div>
-                    <h3 className="font-bold text-slate-800 bg-purple-50 text-purple-900 px-3 py-1 rounded inline-block mb-4 border-l-4 border-purple-500">
-                      EXTRA DECK ({deck.extra.length})
+                {sortedExtra.length > 0 && (
+                  <div className="mt-6 pt-4 border-t border-slate-200">
+                    <h3 className="font-bold text-purple-900 text-sm uppercase mb-3 flex items-center gap-2">
+                        <Zap size={16} /> Extra Deck
                     </h3>
-                    <div className="grid grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3">
-                      {groupedExtra.map((group) => (
+                    <div className="grid grid-cols-6 md:grid-cols-8 gap-1">
+                      {sortedExtra.map((group) => (
                         <div
                           key={group.id}
-                          className="relative aspect-[3/4] rounded-lg overflow-hidden border border-slate-200 shadow-sm bg-slate-50 group"
+                          className="relative aspect-[3/4] rounded overflow-hidden border border-slate-200 shadow-sm bg-slate-50 group"
                         >
                           {group.imageUrl ? (
                             <img
@@ -579,19 +619,19 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                             />
                           ) : (
                             <div
-                              className={`w-full h-full flex flex-col p-2 text-[10px] ${getCardColorStyles(
+                              className={`w-full h-full flex flex-col p-1 text-[8px] ${getCardColorStyles(
                                 group.color
                               )}`}
                             >
                               <span className="font-bold leading-tight line-clamp-2">
                                 {group.name}
                               </span>
-                              <span className="mt-1 font-mono opacity-70 font-bold">
+                              <span className="mt-0.5 font-mono opacity-70 font-bold scale-90 origin-left">
                                 {group.id}
                               </span>
                             </div>
                           )}
-                          <div className="absolute bottom-1 right-1 bg-black text-white text-xs font-bold px-1.5 py-0.5 rounded shadow-md border border-white/20 z-10">
+                          <div className="absolute bottom-0.5 right-0.5 bg-black text-white text-[9px] font-bold px-1 py-0.5 rounded shadow-md border border-white/20 z-10 leading-none min-w-[16px] text-center opacity-90">
                             x{group.stackCount}
                           </div>
                         </div>
@@ -599,6 +639,18 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                     </div>
                   </div>
                 )}
+                
+                {/* 底部 Footer */}
+                <div className="mt-8 pt-4 border-t-2 border-slate-100 flex justify-end items-center">
+                    <div className="text-right">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            CREATED WITH
+                        </div>
+                        <div className="text-lg font-black text-slate-300">
+                            Braverse Deck Builder
+                        </div>
+                    </div>
+                </div>
               </div>
             </div>
           )}
