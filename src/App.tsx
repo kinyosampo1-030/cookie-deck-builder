@@ -64,13 +64,13 @@ const appId = "my-deck-builder-v1";
 // ==========================================
 // 這是 Vite 的標準寫法，會自動讀取 .env 檔案或是 Netlify 後台設定的環境變數
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+  apiKey: "AIzaSyDK-feks4M0aZaJY4-gFcP_TxVcJLfMuxo",
+  authDomain: "cookierunbraverse.firebaseapp.com",
+  projectId: "cookierunbraverse",
+  storageBucket: "cookierunbraverse.firebasestorage.app",
+  messagingSenderId: "1061622650816",
+  appId: "1:1061622650816:web:b61e2490336b244bf01a25",
+  measurementId: "G-YK70VGHNRN",
 };
 // ==========================================
 
