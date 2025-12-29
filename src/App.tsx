@@ -35,7 +35,8 @@ import {
   AlertOctagon,
   Menu,
   ChevronRight,
-  ExternalLink, // 新增：用於外部連結圖示
+  ExternalLink,
+  Facebook, // 新增：Facebook 圖示
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -441,7 +442,7 @@ const ExportModal = ({ deck, deckName, onClose }) => {
         className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center p-4 border-b">
+        <div className="flex justify-between items-start md:items-center p-4 border-b">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <Share2 className="text-blue-600" /> 輸出與分享
           </h2>
@@ -477,14 +478,14 @@ const ExportModal = ({ deck, deckName, onClose }) => {
         <div className="flex-1 overflow-y-auto p-6 bg-slate-100">
           {activeTab === "image" && (
             <div className="flex flex-col items-center gap-4">
-              <div className="bg-white p-4 rounded shadow w-full flex justify-between items-center">
+              <div className="bg-white p-4 rounded shadow w-full flex flex-col md:flex-row justify-between items-center gap-4">
                 <span className="text-slate-600 text-sm">
                   將牌組匯出為高解析度 PNG 圖片 (包含完整卡片縮圖)
                 </span>
                 <button
                   onClick={handleDownloadImage}
                   disabled={isGenerating}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 disabled:opacity-50"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 disabled:opacity-50 shrink-0"
                 >
                   {isGenerating ? (
                     "生成中..."
@@ -963,7 +964,8 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
   );
 };
 
-const CardItem = ({
+// 使用 React.memo 優化卡片組件，減少列表重繪
+const CardItem = React.memo(({
   card,
   onClick,
   onView,
@@ -1025,6 +1027,7 @@ const CardItem = ({
             src={card.imageUrl}
             alt=""
             className="w-full h-full object-cover"
+            loading="lazy"
           />
         </div>
       )}
@@ -1046,6 +1049,7 @@ const CardItem = ({
               src={card.imageUrl}
               className="w-full h-full object-cover"
               alt=""
+              loading="lazy"
             />
           </div>
         )}
@@ -1167,7 +1171,7 @@ const CardItem = ({
       )}
     </div>
   );
-};
+});
 
 const StatBadge = ({
   icon: Icon,
@@ -1223,6 +1227,7 @@ export default function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [editingCard, setEditingCard] = useState(null);
+  const [isDataLoaded, setIsDataLoaded] = useState(false); // 新增：資料載入狀態
   
   // 新增狀態：手機版側邊欄開關
   const [isMobileDeckOpen, setIsMobileDeckOpen] = useState(false);
@@ -1304,6 +1309,7 @@ export default function App() {
     if (isOffline) {
         if (allCards.length === 0) {
             setAllCards(INITIAL_CARDS);
+            setIsDataLoaded(true); // 離線模式立即載入
             setToastMsg("已載入離線模擬資料");
         }
         return;
@@ -1316,6 +1322,7 @@ export default function App() {
       // 簡單排序
       cards.sort((a, b) => a.id.localeCompare(b.id));
       setAllCards(cards);
+      setIsDataLoaded(true); // 標記資料已載入
     }, (error) => { console.error("Firestore sync error:", error); setToastMsg("連線資料庫失敗，請檢查網路"); });
     return () => unsubscribe();
   }, [user, isOffline]);
@@ -1342,7 +1349,10 @@ export default function App() {
     }
   }, [allCards]);
 
-  const getCardCount = (cardId) => deck.main.filter(c => c.id === cardId).length + deck.extra.filter(c => c.id === cardId).length;
+  const getCardCount = useCallback((cardId) => {
+     return deck.main.filter(c => c.id === cardId).length + deck.extra.filter(c => c.id === cardId).length;
+  }, [deck]);
+  
   const getFlipCount = () => deck.main.filter(c => c.isFlip).length;
 
   const nonFlipCookieCount = useMemo(() => {
@@ -1369,13 +1379,19 @@ export default function App() {
     return violation;
   }, [deck]);
 
-  const addToDeck = (card) => {
+  const addToDeck = useCallback((card) => {
     // 禁止卡提示 (僅提示，不阻擋)
     if (card.isForbidden) {
         setToastMsg("❌ 加入了禁止卡 (正式比賽無法使用)");
     }
-
-    const currentCount = getCardCount(card.id);
+    
+    // 為了在 useCallback 內取得最新 deck，這裡需要依賴 deck，
+    // 但這會導致 addToDeck 變更，進而導致 CardItem 重繪。
+    // 在簡單應用中這是可接受的，因為我們要更新 CardItem 上的計數器。
+    
+    // 注意：這裡我們使用 setState 的 callback 來確保邏輯正確，但讀取 limit 檢查還是需要 current deck。
+    // 為了簡化，我們直接使用外部 deck state (已在 dependency array)。
+    const currentCount = deck.main.filter(c => c.id === card.id).length + deck.extra.filter(c => c.id === card.id).length;
 
     // 限制卡提示 (僅提示，不阻擋)
     if (card.isLimitOne && currentCount >= 1) {
@@ -1386,6 +1402,7 @@ export default function App() {
     const targetDeckKey = isExtra ? "extra" : "main";
     const limit = isExtra ? LIMITS.EXTRA : LIMITS.MAIN;
     const current = deck[targetDeckKey];
+    const flipCountCurrent = deck.main.filter(c => c.isFlip).length;
 
     // 主牌組超過上限僅提示
     if (isExtra && current.length >= limit) {
@@ -1399,7 +1416,7 @@ export default function App() {
       return;
     }
      
-    if (card.isFlip && !isExtra && getFlipCount() >= LIMITS.FLIP) {
+    if (card.isFlip && !isExtra && flipCountCurrent >= LIMITS.FLIP) {
       setToastMsg(`Flip 卡片上限 ${LIMITS.FLIP} 張`);
       return;
     }
@@ -1409,7 +1426,7 @@ export default function App() {
         a.id.localeCompare(b.id)
       ),
     }));
-  };
+  }, [deck]);
 
   const removeFromDeck = (card, fromExtra) => {
     const deckKey = fromExtra ? "extra" : "main";
@@ -1763,34 +1780,44 @@ export default function App() {
         
         {/* 卡片列表 */}
         <div className="flex-1 overflow-y-auto p-4 bg-slate-50 overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 pb-20">
-            {displayedCards.map(card => (
-              <CardItem 
-                key={card.id} 
-                card={card} 
-                onClick={addToDeck} 
-                onView={setViewingCard} 
-                count={getCardCount(card.id)}
-                onEdit={isAdmin ? openEditModal : null}
-                onDelete={isAdmin ? handleDeleteCard : null}
-              />
-            ))}
-            {/* Lazy Loading Sentinel */}
-            <div ref={loadMoreRef} className="col-span-full h-10 flex items-center justify-center text-slate-400 text-sm">
-                {displayedCards.length < filteredCards.length ? "載入更多..." : "已顯示所有卡片"}
+          {!isDataLoaded ? (
+            <div className="flex flex-col items-center justify-center h-64 text-slate-500 gap-3">
+               <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+               <p className="font-bold text-sm">正在從雲端載入卡片資料... (可能需要一些時間)</p>
             </div>
-          </div>
+          ) : (
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 pb-20">
+                {displayedCards.map(card => (
+                  <CardItem 
+                    key={card.id} 
+                    card={card} 
+                    onClick={addToDeck} 
+                    onView={setViewingCard} 
+                    count={getCardCount(card.id)}
+                    onEdit={isAdmin ? openEditModal : null}
+                    onDelete={isAdmin ? handleDeleteCard : null}
+                  />
+                ))}
+                {/* Lazy Loading Sentinel */}
+                <div ref={loadMoreRef} className="col-span-full h-10 flex items-center justify-center text-slate-400 text-sm">
+                    {displayedCards.length < filteredCards.length ? "載入更多..." : "已顯示所有卡片"}
+                </div>
+              </div>
+          )}
         </div>
 
         {/* 恢復 Footer 區域 */}
         <div className="p-3 bg-white border-t border-slate-200 text-xs text-slate-500 flex flex-col md:flex-row justify-between items-center gap-2">
             <span className="font-bold">製作者：樂多綠Gamecaster</span>
-            <div className="flex gap-4">
+            <div className="flex flex-col md:flex-row gap-2 md:gap-4 text-center md:text-left items-center">
                 <a href="https://www.youtube.com/@%E6%A8%82%E5%A4%9A%E7%B6%A0" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-red-600 transition-colors font-bold">
                     <Youtube size={14} /> YouTube
                 </a>
+                <a href="https://www.facebook.com/midaylovesworld/" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold">
+                   <Facebook size={14} /> 樂多綠臉書粉絲專頁
+                </a>
                 <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold">
-                   <ExternalLink size={14} /> CRTCG薑餅人對戰卡牌/台灣
+                   <ExternalLink size={14} /> 薑餅人對戰卡牌/台灣 | Cookierun: Braverse
                 </a>
             </div>
         </div>
