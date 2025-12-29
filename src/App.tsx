@@ -33,8 +33,9 @@ import {
   Cookie,
   Ban,
   AlertOctagon,
-  Menu, // 新增：用於手機版選單
-  ChevronRight, // 新增：用於收合
+  Menu,
+  ChevronRight,
+  ExternalLink, // 新增：用於外部連結圖示
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -1059,7 +1060,7 @@ const CardItem = ({
               className={`font-bold ${
                 compact
                   ? `truncate w-full text-slate-700 text-xs ${card.isForbidden || card.isLimitOne ? 'text-red-700' : ''}`
-                  : "text-lg line-clamp-1"
+                  : "text-lg md:text-xl line-clamp-1 leading-snug" // 放大字體
               }`}
             >
               {card.name}
@@ -1099,32 +1100,32 @@ const CardItem = ({
           </div>
 
           {!compact && (
-            <div className="flex flex-wrap items-center gap-1.5 text-xs opacity-90 font-semibold">
-              <span className="text-[10px] font-bold border border-current px-1 rounded opacity-80 uppercase bg-white/30">
+            <div className="flex flex-wrap items-center gap-1.5 text-xs md:text-sm opacity-90 font-semibold">
+              <span className="text-[10px] md:text-xs font-bold border border-current px-1 rounded opacity-80 uppercase bg-white/30">
                 {card.color}
               </span>
               <span className="bg-white/50 px-2 py-0.5 rounded text-current border border-current/20">
                 {card.type}
               </span>
               {card.level && (
-                <span className="text-[10px] font-bold bg-yellow-400 text-yellow-900 px-1 rounded shadow-sm">
+                <span className="text-[10px] md:text-xs font-bold bg-yellow-400 text-yellow-900 px-1 rounded shadow-sm">
                   {card.level}
                 </span>
               )}
               {card.isFlip && (
-                <span className="flex items-center gap-0.5 text-[10px] bg-slate-800 text-white px-1.5 rounded font-bold tracking-wider">
+                <span className="flex items-center gap-0.5 text-[10px] md:text-xs bg-slate-800 text-white px-1.5 rounded font-bold tracking-wider">
                   FLIP
                 </span>
               )}
               {card.isExtra && (
-                <span className="text-[10px] uppercase tracking-wider bg-purple-200 text-purple-900 px-1 rounded border border-purple-300">
+                <span className="text-[10px] md:text-xs uppercase tracking-wider bg-purple-200 text-purple-900 px-1 rounded border border-purple-300">
                   EXTRA
                 </span>
               )}
-              {card.isAncient && <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-1 rounded border border-amber-300">上古</span>}
-              {card.isDragon && <span className="text-[10px] font-bold bg-red-100 text-red-800 px-1 rounded border border-red-300">龍族</span>}
-              {card.isBeast && <span className="text-[10px] font-bold bg-stone-800 text-stone-100 px-1 rounded border border-stone-600">野獸</span>}
-              {card.isSoulJam && <span className="text-[10px] font-bold bg-pink-100 text-pink-800 px-1 rounded border border-pink-300">靈魂果醬</span>}
+              {card.isAncient && <span className="text-[10px] md:text-xs font-bold bg-amber-100 text-amber-800 px-1 rounded border border-amber-300">上古</span>}
+              {card.isDragon && <span className="text-[10px] md:text-xs font-bold bg-red-100 text-red-800 px-1 rounded border border-red-300">龍族</span>}
+              {card.isBeast && <span className="text-[10px] md:text-xs font-bold bg-stone-800 text-stone-100 px-1 rounded border border-stone-600">野獸</span>}
+              {card.isSoulJam && <span className="text-[10px] md:text-xs font-bold bg-pink-100 text-pink-800 px-1 rounded border border-pink-300">靈魂果醬</span>}
               
               {/* 禁止與限制標籤 */}
               {card.isForbidden && <span className="flex items-center gap-0.5 text-[10px] bg-red-600 text-white px-1.5 rounded font-bold"><Ban size={10}/> 禁止</span>}
@@ -1686,22 +1687,28 @@ export default function App() {
 
       {/* 左側：卡片清單 (手機上為滿版，桌面版在左側) */}
       <div className="flex-1 flex flex-col min-w-0 border-r border-slate-200 min-h-0">
+        {/* Header 區域重製 */}
         <div className="p-4 bg-white border-b border-slate-200 shadow-sm z-10 space-y-3 shrink-0">
-          <div className="flex justify-between items-center">
-            <h1 className="text-xl font-bold flex items-center gap-2 text-slate-800">
-                <Cloud className={isOffline ? "text-slate-400" : "text-blue-600"} />
-                {isOffline ? "Braverse (離線)" : "Braverse Builder"}
-            </h1>
+          <div className="flex justify-between items-start">
+            <div className="flex flex-col">
+                <h1 className="text-xl md:text-2xl font-black flex items-center gap-2 text-slate-800">
+                    <Cloud className={isOffline ? "text-slate-400" : "text-blue-600"} size={28} />
+                    Cookierun: Braverse Deck Builder
+                </h1>
+                <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">
+                    先行測試版本，有Bug請私訊樂多綠YT或粉絲專頁
+                </p>
+            </div>
+            
             <div className="flex gap-2">
               {isAdmin ? (
                 <>
-                  <button onClick={() => { setEditingCard(null); setShowAddModal(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors"><Plus size={16} /> 新增</button>
-                  <button onClick={() => setShowBulkModal(true)} className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors"><FileJson size={16} /> 匯入</button>
+                  <button onClick={() => { setEditingCard(null); setShowAddModal(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors"><Plus size={16} /> <span className="hidden md:inline">新增</span></button>
+                  <button onClick={() => setShowBulkModal(true)} className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors"><FileJson size={16} /> <span className="hidden md:inline">匯入</span></button>
                 </>
               ) : (
                 <div className="flex items-center gap-1 text-slate-400 text-xs bg-slate-100 px-2 py-1 rounded"><Lock size={12} /> 僅供瀏覽</div>
               )}
-              <span className="text-sm text-slate-500 bg-slate-100 px-2 py-1.5 rounded flex items-center">共 {filteredCards.length} 張</span>
             </div>
           </div>
           <div className="flex flex-col gap-2">
@@ -1709,7 +1716,7 @@ export default function App() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
               <input type="text" placeholder="搜尋名稱或編號..." className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} />
             </div>
-            {/* 篩選器... */}
+            {/* 篩選器 */}
             <div className="flex gap-2">
               <div className="relative flex-1"><Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.type} onChange={(e) => setFilters({...filters, type: e.target.value})}>{['ALL', ...Object.values(CARD_TYPES)].map(t => <option key={t} value={t}>{t === 'ALL' ? '全部種類' : t}</option>)}</select></div>
               <div className="relative flex-1"><Palette className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.color} onChange={(e) => setFilters({...filters, color: e.target.value})}>{['ALL', ...Object.values(CARD_COLORS)].map(c => <option key={c} value={c}>{c === 'ALL' ? '全部顏色' : c}</option>)}</select></div>
@@ -1724,23 +1731,37 @@ export default function App() {
                   {Object.values(CARD_LEVELS).map((l) => (<option key={l} value={l}>{l}</option>))}
                 </select></div>
             </div>
-            {/* Checkboxes... (省略中間代碼以保持精簡，功能不變) */}
-            <div className="flex flex-wrap gap-3 mt-2 pl-1">
-              {/* ...checkboxes... */}
+            {/* 恢復完整的 checkbox 篩選列 */}
+            <div className="flex flex-wrap gap-3 mt-2 pl-1 select-none">
               <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
                 <input type="checkbox" className="hidden peer" checked={filters.showExtra} onChange={(e) => setFilters({ ...filters, showExtra: e.target.checked })} />
-                <span className="text-[10px] uppercase tracking-wider bg-purple-200 text-purple-900 px-2 py-1 rounded border border-purple-300 peer-checked:ring-2 peer-checked:ring-purple-500 opacity-60 peer-checked:opacity-100 font-bold select-none">[EXTRA]</span>
+                <span className="text-[10px] uppercase tracking-wider bg-purple-200 text-purple-900 px-2 py-1 rounded border border-purple-300 peer-checked:ring-2 peer-checked:ring-purple-500 opacity-60 peer-checked:opacity-100 font-bold">[EXTRA]</span>
               </label>
               <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
                 <input type="checkbox" className="hidden peer" checked={filters.showFlip} onChange={(e) => setFilters({ ...filters, showFlip: e.target.checked })} />
-                <span className="text-[10px] bg-slate-800 text-white px-2 py-1 rounded font-bold tracking-wider peer-checked:ring-2 peer-checked:ring-slate-500 opacity-60 peer-checked:opacity-100 select-none">[FLIP]</span>
+                <span className="text-[10px] bg-slate-800 text-white px-2 py-1 rounded font-bold tracking-wider peer-checked:ring-2 peer-checked:ring-slate-500 opacity-60 peer-checked:opacity-100">[FLIP]</span>
               </label>
-              {/* More checkboxes... */}
+              <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
+                <input type="checkbox" className="hidden peer" checked={filters.showAncient} onChange={(e) => setFilters({ ...filters, showAncient: e.target.checked })} />
+                <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-1 rounded font-bold border border-amber-300 peer-checked:ring-2 peer-checked:ring-amber-500 opacity-60 peer-checked:opacity-100">上古餅乾</span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
+                <input type="checkbox" className="hidden peer" checked={filters.showDragon} onChange={(e) => setFilters({ ...filters, showDragon: e.target.checked })} />
+                <span className="text-[10px] bg-red-100 text-red-800 px-2 py-1 rounded font-bold border border-red-300 peer-checked:ring-2 peer-checked:ring-red-500 opacity-60 peer-checked:opacity-100">龍族</span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
+                <input type="checkbox" className="hidden peer" checked={filters.showBeast} onChange={(e) => setFilters({ ...filters, showBeast: e.target.checked })} />
+                <span className="text-[10px] bg-stone-800 text-stone-100 px-2 py-1 rounded font-bold border border-stone-600 peer-checked:ring-2 peer-checked:ring-stone-500 opacity-60 peer-checked:opacity-100">野獸餅乾</span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
+                <input type="checkbox" className="hidden peer" checked={filters.showSoulJam} onChange={(e) => setFilters({ ...filters, showSoulJam: e.target.checked })} />
+                <span className="text-[10px] bg-pink-100 text-pink-800 px-2 py-1 rounded font-bold border border-pink-300 peer-checked:ring-2 peer-checked:ring-pink-500 opacity-60 peer-checked:opacity-100">靈魂果醬</span>
+              </label>
             </div>
           </div>
         </div>
         
-        {/* 卡片列表 (修正手機版捲動問題) */}
+        {/* 卡片列表 */}
         <div className="flex-1 overflow-y-auto p-4 bg-slate-50 overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 pb-20">
             {displayedCards.map(card => (
@@ -1759,6 +1780,19 @@ export default function App() {
                 {displayedCards.length < filteredCards.length ? "載入更多..." : "已顯示所有卡片"}
             </div>
           </div>
+        </div>
+
+        {/* 恢復 Footer 區域 */}
+        <div className="p-3 bg-white border-t border-slate-200 text-xs text-slate-500 flex flex-col md:flex-row justify-between items-center gap-2">
+            <span className="font-bold">製作者：樂多綠Gamecaster</span>
+            <div className="flex gap-4">
+                <a href="https://www.youtube.com/@%E6%A8%82%E5%A4%9A%E7%B6%A0" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-red-600 transition-colors font-bold">
+                    <Youtube size={14} /> YouTube
+                </a>
+                <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold">
+                   <ExternalLink size={14} /> CRTCG薑餅人對戰卡牌/台灣
+                </a>
+            </div>
         </div>
       </div>
 
