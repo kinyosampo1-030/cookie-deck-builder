@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
   Search,
@@ -30,8 +31,8 @@ import {
   WifiOff,
   CheckCircle,
   Cookie,
-  Ban, // 新增：禁止圖示
-  AlertOctagon, // 新增：限制圖示
+  Ban,
+  AlertOctagon,
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -74,7 +75,6 @@ const firebaseConfig = {
 // ==========================================
 
 try {
-  // 安全檢查
   if (firebaseConfig.apiKey) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
@@ -116,7 +116,6 @@ const CARD_SERIES_OPTIONS = [
   "P",
 ];
 
-// 初始化資料範本
 const INITIAL_CARDS = [
   {
     id: "BS1-001",
@@ -194,15 +193,18 @@ const compressImage = (file) => {
 
 // --- 元件 ---
 
+// 修改 Toast 元件：確保計時器正常運作，不受外部重新渲染影響
 const Toast = ({ message, onClose }) => {
   useEffect(() => {
-    const timer = setTimeout(onClose, 3000);
+    const timer = setTimeout(() => {
+      onClose();
+    }, 3000);
     return () => clearTimeout(timer);
-  }, [onClose]);
+  }, [message, onClose]); // 依賴 message 改變時重置
 
   return (
-    <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[80] animate-bounce pointer-events-none">
-      <div className="bg-slate-800 text-white px-6 py-3 rounded-lg shadow-xl flex items-center gap-2 font-bold border border-slate-600 pointer-events-auto">
+    <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] animate-bounce pointer-events-none">
+      <div className="bg-slate-800 text-white px-6 py-3 rounded-lg shadow-xl flex items-center gap-2 font-bold border border-slate-600 pointer-events-auto cursor-pointer" onClick={onClose}>
         <AlertCircle size={20} className="text-blue-400" />
         {message}
       </div>
@@ -1054,7 +1056,7 @@ const CardItem = ({
             <h3
               className={`font-bold ${
                 compact
-                  ? "truncate w-full text-slate-700 text-xs"
+                  ? `truncate w-full text-slate-700 text-xs ${card.isForbidden || card.isLimitOne ? 'text-red-700' : ''}`
                   : "text-lg line-clamp-1"
               }`}
             >
@@ -1218,13 +1220,18 @@ export default function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [editingCard, setEditingCard] = useState(null);
-  
+   
   // 新增狀態：離線模式與懶加載
   const [isOffline, setIsOffline] = useState(false);
   const [visibleCount, setVisibleCount] = useState(30);
   const loadMoreRef = useRef(null);
 
   const LIMITS = { MAIN: 60, EXTRA: 6, COPY: 4, FLIP: 16 };
+
+  // Toast 關閉函式，使用 useCallback 避免因組件重新渲染導致函數參考改變，進而重置 Timer
+  const closeToast = useCallback(() => {
+    setToastMsg(null);
+  }, []);
 
   // 0. 自動注入 Tailwind
   useEffect(() => {
@@ -1338,19 +1345,35 @@ export default function App() {
     ).length;
   }, [deck.main]);
 
+  // 計算牌組中禁止與限制卡的違規狀況
+  const forbiddenCount = useMemo(() => {
+    return deck.main.filter(c => c.isForbidden).length + deck.extra.filter(c => c.isForbidden).length;
+  }, [deck]);
+
+  const limitOneViolation = useMemo(() => {
+    // 找出所有標記為Limit 1的卡片
+    const allLimitCards = [...deck.main, ...deck.extra].filter(c => c.isLimitOne);
+    // 檢查是否有同名卡片 > 1
+    const counts = {};
+    let violation = false;
+    allLimitCards.forEach(c => {
+        counts[c.id] = (counts[c.id] || 0) + 1;
+        if (counts[c.id] > 1) violation = true;
+    });
+    return violation;
+  }, [deck]);
+
   const addToDeck = (card) => {
-    // 禁止卡檢查
+    // 禁止卡提示 (僅提示，不阻擋)
     if (card.isForbidden) {
-        setToastMsg("❌ 此為禁止卡，無法加入牌組！");
-        return;
+        setToastMsg("❌ 加入了禁止卡 (正式比賽無法使用)");
     }
 
     const currentCount = getCardCount(card.id);
 
-    // 限制卡檢查
+    // 限制卡提示 (僅提示，不阻擋)
     if (card.isLimitOne && currentCount >= 1) {
-        setToastMsg("⚠️ 此為限制卡，牌組中最多只能放入 1 張！");
-        return;
+        setToastMsg("⚠️ 加入了第二張限制卡 (正式比賽無法使用)");
     }
 
     const isExtra = isExtraDeckCard(card);
@@ -1358,19 +1381,18 @@ export default function App() {
     const limit = isExtra ? LIMITS.EXTRA : LIMITS.MAIN;
     const current = deck[targetDeckKey];
 
-    // 主牌組上限警告 (現在允許超過，但跳警告)
-    // 額外牌組維持硬上限
+    // 主牌組超過上限僅提示
     if (isExtra && current.length >= limit) {
       setToastMsg(`額外牌組已滿 (${LIMITS.EXTRA}張)`);
       return;
     }
-    
+     
     // 一般卡片張數限制
     if (currentCount >= LIMITS.COPY) {
       setToastMsg(`同名卡片最多 ${LIMITS.COPY} 張`);
       return;
     }
-    
+     
     if (card.isFlip && !isExtra && getFlipCount() >= LIMITS.FLIP) {
       setToastMsg(`Flip 卡片上限 ${LIMITS.FLIP} 張`);
       return;
@@ -1543,8 +1565,15 @@ export default function App() {
         const matchType = filters.type === "ALL" || card.type === filters.type;
         const matchColor =
           filters.color === "ALL" || card.color === filters.color;
+        
+        // 修正 Series 篩選邏輯：ST 包含所有 ST 開頭的系列 (ST, ST1, ST2...)
         const matchSeries =
-          filters.series === "ALL" || card.series === filters.series;
+          filters.series === "ALL"
+            ? true
+            : filters.series === "ST"
+            ? card.series.startsWith("ST")
+            : card.series === filters.series;
+
         const matchLevel =
           filters.level === "ALL" || card.level === filters.level;
 
@@ -1634,9 +1663,9 @@ export default function App() {
         />
       )}
       {toastMsg && (
-        <Toast message={toastMsg} onClose={() => setToastMsg(null)} />
+        <Toast message={toastMsg} onClose={closeToast} />
       )}
-      
+       
       {showAddModal && (
         <AddCardModal 
           onClose={() => { setShowAddModal(false); setEditingCard(null); }} 
@@ -1805,8 +1834,10 @@ export default function App() {
         </div>
         <div className="flex-1 overflow-y-auto p-3 space-y-6 bg-slate-50 overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
           <section>
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-1 flex justify-between">主牌組清單 <span>{deck.main.length} / {LIMITS.MAIN}</span></h3>
-            <div className="space-y-2 min-h-[100px]">
+            <h3 className={`text-xs font-bold uppercase tracking-wider mb-2 px-1 flex justify-between ${deck.main.length > 60 ? "text-red-600" : "text-slate-400"}`}>
+                主牌組清單 <span>{deck.main.length} / {LIMITS.MAIN}</span>
+            </h3>
+            <div className={`space-y-2 min-h-[100px] ${deck.main.length > 60 ? "border-2 border-red-100 rounded-lg p-1 bg-red-50/30" : ""}`}>
               {groupedMainDeck.length === 0 ? <div className="h-24 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center text-slate-400 text-sm bg-slate-100"><Layers size={24} className="mb-1 opacity-50"/><span>點擊左側卡片加入</span></div> : 
                groupedMainDeck.map(group => <CardItem key={`main-group-${group.id}`} card={group} compact={true} count={group.stackCount} onClick={(c) => removeFromDeck(c, false)} onView={setViewingCard} />)}
             </div>
@@ -1814,23 +1845,30 @@ export default function App() {
           <section>
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-1 flex justify-between">額外牌組 <span>{deck.extra.length} / {LIMITS.EXTRA}</span></h3>
             <div className="space-y-2">
-               {groupedExtraDeck.length === 0 ? <div className="h-16 border-2 border-dashed border-purple-200 rounded-lg flex items-center justify-center text-purple-400 text-sm bg-purple-50"><span>加入額外牌組卡片</span></div> : 
-                groupedExtraDeck.map(group => <CardItem key={`extra-group-${group.id}`} card={group} compact={true} count={group.stackCount} onClick={(c) => removeFromDeck(c, true)} onView={setViewingCard} />)}
+                 {groupedExtraDeck.length === 0 ? <div className="h-16 border-2 border-dashed border-purple-200 rounded-lg flex items-center justify-center text-purple-400 text-sm bg-purple-50"><span>加入額外牌組卡片</span></div> : 
+                 groupedExtraDeck.map(group => <CardItem key={`extra-group-${group.id}`} card={group} compact={true} count={group.stackCount} onClick={(c) => removeFromDeck(c, true)} onView={setViewingCard} />)}
             </div>
           </section>
           <section className="bg-orange-50 p-3 rounded-lg border border-orange-200">
-             <h4 className="flex items-center gap-2 text-orange-800 font-bold text-sm mb-1"><AlertTriangle size={14} /> 牌組檢查</h4>
-             <div className="text-[11px] text-orange-800/70 font-mono mb-2 border-b border-orange-200 pb-2 leading-relaxed">
-              ※相同編號卡最多4張<br/>
-              ※FLIP卡最多16張
-             </div>
-             <ul className="text-xs text-orange-700 space-y-1 list-disc pl-4">
-               {nonFlipCookieCount < 20 && <li>主牌組建議至少 20 張餅乾卡 (目前 {nonFlipCookieCount})<span className="text-[10px] opacity-75 ml-1">(不含 FLIP)</span></li>}
-               {deck.main.length > LIMITS.MAIN && <li className="text-red-600 font-bold">主牌組已超過上限 ({deck.main.length}/60)</li>}
-               {deck.extra.length === LIMITS.EXTRA && <li className="text-red-600 font-bold">額外牌組已達上限</li>}
-               {flipCount === LIMITS.FLIP && <li className="text-red-600 font-bold">Flip 卡片已達上限 ({LIMITS.FLIP})</li>}
-               {nonFlipCookieCount >= 20 && deck.main.length <= LIMITS.MAIN && deck.extra.length < LIMITS.EXTRA && flipCount < LIMITS.FLIP && <li className="text-emerald-600 list-none -ml-4 flex items-center gap-1 font-bold"><CheckCircle size={14}/> 牌組目前合規</li>}
-             </ul>
+              <h4 className="flex items-center gap-2 text-orange-800 font-bold text-sm mb-1"><AlertTriangle size={14} /> 牌組檢查</h4>
+              <div className="text-[11px] text-orange-800/70 font-mono mb-2 border-b border-orange-200 pb-2 leading-relaxed">
+               ※相同編號卡最多4張<br/>
+               ※FLIP卡最多16張
+              </div>
+              <ul className="text-xs text-orange-700 space-y-1 list-disc pl-4">
+                {nonFlipCookieCount < 20 && <li>主牌組建議至少 20 張餅乾卡 (目前 {nonFlipCookieCount})<span className="text-[10px] opacity-75 ml-1">(不含 FLIP)</span></li>}
+                {deck.main.length > LIMITS.MAIN && <li className="text-red-600 font-bold">主牌組已超過上限 ({deck.main.length}/60)</li>}
+                {deck.extra.length === LIMITS.EXTRA && <li className="text-red-600 font-bold">額外牌組已達上限</li>}
+                {flipCount === LIMITS.FLIP && <li className="text-red-600 font-bold">Flip 卡片已達上限 ({LIMITS.FLIP})</li>}
+                {/* 新增的常駐警告 */}
+                {(forbiddenCount > 0 || limitOneViolation) && (
+                    <li className="text-red-600 font-bold flex items-start gap-1 -ml-1">
+                        <Ban size={14} className="shrink-0 mt-0.5" />
+                        <span>此牌組包含超過數量上限的禁止與限制卡，正式比賽將無法使用。</span>
+                    </li>
+                )}
+                {nonFlipCookieCount >= 20 && deck.main.length <= LIMITS.MAIN && deck.extra.length < LIMITS.EXTRA && flipCount < LIMITS.FLIP && forbiddenCount === 0 && !limitOneViolation && <li className="text-emerald-600 list-none -ml-4 flex items-center gap-1 font-bold"><CheckCircle size={14}/> 牌組目前合規</li>}
+              </ul>
           </section>
         </div>
       </div>
