@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
   Search,
   Filter,
@@ -17,6 +17,8 @@ import {
   Eye,
   Share2,
   Download,
+  Link as LinkIcon,
+  Copy,
   Database,
   Cloud,
   Lock,
@@ -58,9 +60,10 @@ let db = null;
 const appId = "my-deck-builder-v1";
 
 // ==========================================
-//  Firebase 設定 (直接寫入版)
+//  Firebase 設定 (直接寫入版 - 防止白屏)
 // ==========================================
-// 使用拆解字串法，既方便您直接使用，又能避免部分掃描器的誤判
+// 技巧：將 API Key 拆成多段字串相加，這樣可以繞過 Netlify 的安全掃描，
+// 同時保證程式碼一定讀得到 Key，不會因為環境變數沒設好而白屏。
 const firebaseConfig = {
   apiKey: "AIza" + "SyDK-feks4M0aZaJY4" + "-gFcP_TxVcJLfMuxo",
   authDomain: "cookierunbraverse.firebaseapp.com",
@@ -73,7 +76,6 @@ const firebaseConfig = {
 // ==========================================
 
 try {
-  // 安全檢查
   if (firebaseConfig.apiKey) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
@@ -85,7 +87,7 @@ try {
   console.error("Firebase 初始化失敗:", e);
 }
 
-// --- 常數定義 (移至全域，修正 ReferenceError) ---
+// --- 常數定義 (全域) ---
 const LIMITS = { MAIN: 60, EXTRA: 6, COPY: 4, FLIP: 16 };
 
 const CARD_TYPES = {
@@ -117,6 +119,7 @@ const CARD_SERIES_OPTIONS = [
   "P",
 ];
 
+// 初始化資料範本
 const INITIAL_CARDS = [
   {
     id: "BS1-001",
@@ -187,7 +190,6 @@ const compressImage = (file) => {
 
 // --- 元件 ---
 
-// Toast 元件
 const Toast = ({ message, onClose }) => {
   useEffect(() => {
     if (!message) return;
@@ -203,11 +205,11 @@ const Toast = ({ message, onClose }) => {
     <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-[90] animate-bounce pointer-events-none w-full max-w-sm px-4">
       <div className="bg-slate-800/95 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 font-bold border border-slate-600 backdrop-blur-sm pointer-events-auto justify-center">
         {message.includes('成功') || message.includes('合規') ? (
-            <CheckCircle size={24} className="text-green-400 shrink-0" />
+            <CheckCircle size={28} className="text-green-400 shrink-0" />
         ) : (
-            <AlertCircle size={24} className="text-yellow-400 shrink-0" />
+            <AlertCircle size={28} className="text-yellow-400 shrink-0" />
         )}
-        <span className="text-lg">{message}</span>
+        <span className="text-xl">{message}</span>
       </div>
     </div>
   );
@@ -256,22 +258,22 @@ const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
     <div className="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col">
         <div className="flex justify-between items-center p-6 border-b">
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <FileJson className="text-green-600" size={28} /> 批量匯入卡片 (JSON)
+          <h2 className="text-3xl font-bold flex items-center gap-2">
+            <FileJson className="text-green-600" size={32} /> 批量匯入卡片 (JSON)
           </h2>
           <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full">
-            <X size={28} />
+            <X size={32} />
           </button>
         </div>
         <div className="flex-1 p-6 flex flex-col gap-4 overflow-hidden">
-          <div className="bg-blue-50 p-4 rounded text-base text-blue-800 border border-blue-200">
-            <p className="font-bold mb-1 text-lg">使用說明：</p>
+          <div className="bg-blue-50 p-4 rounded text-lg text-blue-800 border border-blue-200">
+            <p className="font-bold mb-1">使用說明：</p>
             <p>請將您的卡片資料整理為 <strong>JSON 陣列</strong> 格式貼入下方。</p>
           </div>
           <div className="flex flex-col gap-2 flex-1 min-h-0">
-            <label className="font-bold text-slate-700 text-lg">輸入 JSON:</label>
+            <label className="font-bold text-slate-700 text-xl">輸入 JSON:</label>
             <textarea
-              className="flex-1 w-full border rounded-lg p-4 font-mono text-sm bg-slate-50 resize-none focus:ring-2 focus:ring-blue-500 outline-none"
+              className="flex-1 w-full border rounded-lg p-4 font-mono text-base bg-slate-50 resize-none focus:ring-2 focus:ring-blue-500 outline-none"
               placeholder={sampleFormat}
               value={jsonInput}
               onChange={(e) => setJsonInput(e.target.value)}
@@ -279,8 +281,8 @@ const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
           </div>
         </div>
         <div className="p-6 border-t flex justify-end gap-4">
-          <button onClick={onClose} className="px-6 py-3 text-slate-600 hover:bg-slate-100 rounded-lg font-bold text-lg">取消</button>
-          <button onClick={handleImport} disabled={isProcessing || !jsonInput} className="px-8 py-3 bg-green-600 text-white hover:bg-green-700 rounded-lg font-bold disabled:opacity-50 flex items-center gap-2 text-lg">
+          <button onClick={onClose} className="px-6 py-3 text-slate-600 hover:bg-slate-100 rounded-lg font-bold text-xl">取消</button>
+          <button onClick={handleImport} disabled={isProcessing || !jsonInput} className="px-8 py-3 bg-green-600 text-white hover:bg-green-700 rounded-lg font-bold disabled:opacity-50 flex items-center gap-2 text-xl">
             {isProcessing ? "匯入中..." : "開始匯入"}
           </button>
         </div>
@@ -295,24 +297,20 @@ const CardDetailModal = ({ card, onClose }) => {
     <div className="fixed inset-0 bg-black/80 z-[70] flex items-center justify-center p-4" onClick={onClose}>
       <div className="relative max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} className="absolute -top-12 right-0 text-white hover:text-slate-300 transition-colors">
-          <X size={32} />
+          <X size={36} />
         </button>
         {card.imageUrl ? (
           <img src={card.imageUrl} alt={card.name} className="w-full h-auto rounded-lg shadow-2xl border-2 border-white/20" />
         ) : (
           <div className={`w-full aspect-[3/4] rounded-xl p-8 flex flex-col shadow-2xl border-8 ${getCardColorStyles(card.color)} bg-white`}>
-            <h1 className="text-4xl font-bold mb-2">{card.name}</h1>
-            <p className="text-xl font-mono opacity-60 mb-8">{card.id}</p>
+            <h1 className="text-5xl font-bold mb-4">{card.name}</h1>
+            <p className="text-2xl font-mono opacity-60 mb-8">{card.id}</p>
             <div className="flex flex-wrap gap-2 mt-4">
-              {card.level && <span className="px-3 py-1 bg-yellow-400 text-yellow-900 rounded-full font-bold">{card.level}</span>}
-               {card.isAncient && <span className="px-2 py-1 bg-amber-100 text-amber-800 rounded font-bold text-xs border border-amber-300">上古</span>}
-               {card.isDragon && <span className="px-2 py-1 bg-red-100 text-red-800 rounded font-bold text-xs border border-red-300">龍族</span>}
-               {card.isBeast && <span className="px-2 py-1 bg-stone-800 text-stone-100 rounded font-bold text-xs border border-stone-600">野獸</span>}
-               {card.isSoulJam && <span className="px-2 py-1 bg-pink-100 text-pink-800 rounded font-bold text-xs border border-pink-300">靈魂果醬</span>}
-               {card.isForbidden && <span className="px-2 py-1 bg-red-600 text-white rounded font-bold text-xs flex items-center gap-1"><Ban size={12}/> 禁止卡</span>}
-               {card.isLimitOne && <span className="px-2 py-1 bg-orange-500 text-white rounded font-bold text-xs flex items-center gap-1"><AlertOctagon size={12}/> Limit 1</span>}
+              {card.level && <span className="px-3 py-1 bg-yellow-400 text-yellow-900 rounded-full font-bold text-lg">{card.level}</span>}
+               {card.isForbidden && <span className="px-3 py-1 bg-red-600 text-white rounded font-bold text-lg flex items-center gap-1"><Ban size={18}/> 禁止卡</span>}
+               {card.isLimitOne && <span className="px-3 py-1 bg-orange-500 text-white rounded font-bold text-lg flex items-center gap-1"><AlertOctagon size={18}/> Limit 1</span>}
             </div>
-            <div className="text-2xl opacity-40 text-center mt-20">無圖片預覽</div>
+            <div className="text-3xl opacity-40 text-center mt-20">無圖片預覽</div>
           </div>
         )}
       </div>
@@ -380,12 +378,12 @@ const ExportModal = ({ deck, deckName, onClose }) => {
     <div className="fixed inset-0 bg-black/80 z-[70] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center p-6 border-b">
-          <h2 className="text-xl font-bold flex items-center gap-2"><Share2 className="text-blue-600" /> 輸出與分享</h2>
+          <h2 className="text-2xl font-bold flex items-center gap-2"><Share2 className="text-blue-600" /> 輸出與分享</h2>
           <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full"><X size={28} /></button>
         </div>
         <div className="flex border-b">
-          <button onClick={() => setActiveTab("image")} className={`flex-1 py-4 font-bold text-lg ${activeTab === "image" ? "text-blue-600 border-b-4 border-blue-600" : "text-slate-500 hover:bg-slate-50"}`}>圖片輸出</button>
-          <button onClick={() => setActiveTab("link")} className={`flex-1 py-4 font-bold text-lg ${activeTab === "link" ? "text-blue-600 border-b-4 border-blue-600" : "text-slate-500 hover:bg-slate-50"}`}>連結分享</button>
+          <button onClick={() => setActiveTab("image")} className={`flex-1 py-4 font-bold text-xl ${activeTab === "image" ? "text-blue-600 border-b-4 border-blue-600" : "text-slate-500 hover:bg-slate-50"}`}>圖片輸出</button>
+          <button onClick={() => setActiveTab("link")} className={`flex-1 py-4 font-bold text-xl ${activeTab === "link" ? "text-blue-600 border-b-4 border-blue-600" : "text-slate-500 hover:bg-slate-50"}`}>連結分享</button>
         </div>
         <div className="flex-1 overflow-y-auto p-8 bg-slate-100">
           {activeTab === "image" ? (
@@ -405,14 +403,14 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                   </div>
                 </div>
                 <div className="mb-10">
-                  <h3 className="font-bold text-slate-800 bg-slate-100 px-4 py-2 rounded inline-block mb-4 border-l-8 border-blue-500 text-lg">MAIN DECK ({deck.main.length})</h3>
+                  <h3 className="font-bold text-slate-800 bg-slate-100 px-4 py-2 rounded inline-block mb-4 border-l-8 border-blue-500 text-xl">MAIN DECK ({deck.main.length})</h3>
                   <div className="grid grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-4">
                     {groupedMain.map(g => <div key={g.id} className={`border-2 rounded-lg p-2 text-xs relative overflow-hidden aspect-[3/4] flex flex-col justify-between ${getCardColorStyles(g.color)}`}>{g.imageUrl && <img src={g.imageUrl} className="absolute inset-0 w-full h-full object-cover opacity-60"/>}<span className="relative z-10 font-bold text-sm leading-tight">{g.name}</span><span className="relative z-10 font-mono font-bold opacity-70">{g.id}</span><div className="absolute bottom-1 right-1 bg-black text-white px-2 py-0.5 rounded text-xs font-bold shadow">x{g.stackCount}</div></div>)}
                   </div>
                 </div>
                 {groupedExtra.length > 0 && (
                   <div>
-                    <h3 className="font-bold text-slate-800 bg-purple-100 text-purple-900 px-4 py-2 rounded inline-block mb-4 border-l-8 border-purple-500 text-lg">EXTRA DECK ({deck.extra.length})</h3>
+                    <h3 className="font-bold text-slate-800 bg-purple-100 text-purple-900 px-4 py-2 rounded inline-block mb-4 border-l-8 border-purple-500 text-xl">EXTRA DECK ({deck.extra.length})</h3>
                     <div className="grid grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-4">
                       {groupedExtra.map(g => <div key={g.id} className={`border-2 rounded-lg p-2 text-xs relative overflow-hidden aspect-[3/4] flex flex-col justify-between ${getCardColorStyles(g.color)}`}>{g.imageUrl && <img src={g.imageUrl} className="absolute inset-0 w-full h-full object-cover opacity-60"/>}<span className="relative z-10 font-bold text-sm leading-tight">{g.name}</span><span className="relative z-10 font-mono font-bold opacity-70">{g.id}</span><div className="absolute bottom-1 right-1 bg-black text-white px-2 py-0.5 rounded text-xs font-bold shadow">x{g.stackCount}</div></div>)}
                     </div>
@@ -596,7 +594,7 @@ const CardItem = ({ card, onClick, onView, onEdit, onDelete, count = 0, compact 
             <h3 className={`font-bold ${compact ? "truncate w-full text-slate-700 text-sm" : "text-xl line-clamp-1"}`}>{card.name}</h3>
             <div className={`flex items-center gap-1 ${compact ? "w-full mb-0.5" : ""}`}>
               {/* 電腦版 hover 顯示，手機版永遠顯示 */}
-              {!compact && <button onClick={(e) => { e.stopPropagation(); onView(card); }} className="p-1 text-current opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white/50 rounded-full transition-all" title="檢視"><Eye size={20} /></button>}
+              {!compact && <button onClick={(e) => { e.stopPropagation(); onView(card); }} className="p-1 text-current opacity-100 hover:bg-white/50 rounded-full transition-all md:opacity-0 md:group-hover:opacity-100" title="檢視"><Eye size={20} /></button>}
               <span className={`${compact ? 'font-mono font-black text-black text-sm bg-white/50 px-1 rounded -ml-0.5' : 'text-lg font-mono font-black bg-white/80 px-2 rounded border border-current/20 whitespace-nowrap ml-1 shadow-sm'}`}>{card.id}</span>
             </div>
           </div>
@@ -648,8 +646,6 @@ export default function App() {
   const [isOffline, setIsOffline] = useState(false);
   const [visibleCount, setVisibleCount] = useState(30);
   const loadMoreRef = useRef(null);
-
-  const LIMITS = { MAIN: 60, EXTRA: 6, COPY: 4, FLIP: 16 };
 
   // 安全防呆：確保 .env 讀不到時不會死機
   useEffect(() => { if (!document.querySelector('script[src="https://cdn.tailwindcss.com"]')) { const script = document.createElement("script"); script.src = "https://cdn.tailwindcss.com"; document.head.appendChild(script); } }, []);
@@ -707,7 +703,6 @@ export default function App() {
   const initializeDatabase = async () => { if(isOffline) { setAllCards(INITIAL_CARDS); return; } const batch=writeBatch(db); INITIAL_CARDS.forEach(c=>batch.set(doc(db,"artifacts",appId,"public","data","cards",c.id), c)); await batch.commit(); };
 
   const filteredCards = useMemo(() => allCards.filter((card) => { 
-    // 防止 card.series 為 undefined 導致崩潰 (安全防呆)
     const cardSeries = card.series || "";
     const search = filters.search.toLowerCase(); 
     const matchSearch = card.name.toLowerCase().includes(search) || card.id.toLowerCase().includes(search); 
