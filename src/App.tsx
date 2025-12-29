@@ -60,7 +60,7 @@ let db = null;
 const appId = "my-deck-builder-v1";
 
 // ==========================================
-//  Firebase 設定 (直接寫入版 - 防止白屏)
+//  Firebase 設定 (防白屏 + 防掃描版)
 // ==========================================
 // 技巧：將 API Key 拆成多段字串相加，這樣可以繞過 Netlify 的安全掃描，
 // 同時保證程式碼一定讀得到 Key，不會因為環境變數沒設好而白屏。
@@ -190,6 +190,7 @@ const compressImage = (file) => {
 
 // --- 元件 ---
 
+// Toast 元件 (修復版：確保自動消失)
 const Toast = ({ message, onClose }) => {
   useEffect(() => {
     if (!message) return;
@@ -695,7 +696,6 @@ export default function App() {
   const clearDeck = () => { if (confirm("確定要清空所有牌組嗎？")) setDeck({ main: [], extra: [] }); };
   const handleShareClick = () => { if (deck.main.length > LIMITS.MAIN || invalidForbidden || invalidRestricted) { if (window.confirm("牌組含有違規項目(數量、禁止或限制卡)，確定要繼續分享嗎？")) setShowExportModal(true); } else { setShowExportModal(true); } };
 
-  // 省略重複的 save/delete handler，功能同上 ... 
   const handleSaveCard = async (cardData) => { if (isOffline) { setAllCards(prev => { const existingIndex = prev.findIndex(c => c.id === cardData.id); if (existingIndex >= 0) { const newCards = [...prev]; newCards[existingIndex] = cardData; return newCards; } else { return [...prev, cardData].sort((a, b) => a.id.localeCompare(b.id)); } }); setShowAddModal(false); setEditingCard(null); setToastMsg("離線模式：已更新卡片"); return; } if (!user || !db) return; try { await setDoc(doc(db, "artifacts", appId, "public", "data", "cards", cardData.id), cardData); setToastMsg("成功"); setShowAddModal(false); } catch(e){ console.error(e); } };
   const handleBulkImport = async (cardsData) => { if(isOffline) { setAllCards(prev => { const map = new Map(prev.map(c=>[c.id,c])); cardsData.forEach(c=>map.set(c.id,c)); return Array.from(map.values()).sort((a,b)=>a.id.localeCompare(b.id)); }); setShowBulkModal(false); setToastMsg(`匯入 ${cardsData.length} 張`); return; } if(!db) return; const batch=writeBatch(db); cardsData.forEach(c=>{ if(c.id) batch.set(doc(db,"artifacts",appId,"public","data","cards",c.id), c); }); await batch.commit(); setShowBulkModal(false); setToastMsg("批量匯入成功"); };
   const handleDeleteCard = async (card) => { if(!confirm("刪除?")) return; if(isOffline) { setAllCards(p=>p.filter(c=>c.id!==card.id)); return; } await deleteDoc(doc(db,"artifacts",appId,"public","data","cards",card.id)); };
@@ -703,6 +703,7 @@ export default function App() {
   const initializeDatabase = async () => { if(isOffline) { setAllCards(INITIAL_CARDS); return; } const batch=writeBatch(db); INITIAL_CARDS.forEach(c=>batch.set(doc(db,"artifacts",appId,"public","data","cards",c.id), c)); await batch.commit(); };
 
   const filteredCards = useMemo(() => allCards.filter((card) => { 
+    // 防止 card.series 為 undefined 導致崩潰 (安全防呆)
     const cardSeries = card.series || "";
     const search = filters.search.toLowerCase(); 
     const matchSearch = card.name.toLowerCase().includes(search) || card.id.toLowerCase().includes(search); 
@@ -839,7 +840,7 @@ export default function App() {
         {(invalidForbidden || invalidRestricted) && (
             <div className="bg-red-100 text-red-800 p-4 text-base font-bold border-b border-red-200 flex items-start gap-3 shrink-0 animate-pulse">
                 <AlertCircle size={24} className="shrink-0 mt-0.5" />
-                <span>此牌組包含超過數量的禁止與限制卡，於正式比賽無法使用。</span>
+                <span>此牌組包含超過數量上限的禁止與限制卡，正式比賽將無法使用。</span>
             </div>
         )}
 
