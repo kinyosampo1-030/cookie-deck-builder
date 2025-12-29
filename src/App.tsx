@@ -60,29 +60,30 @@ let db = null;
 const appId = "my-deck-builder-v1";
 
 // ==========================================
-//  Firebase 設定 (使用字串拆解法繞過掃描)
+//  Firebase 設定 (Vite 環境變數版)
 // ==========================================
-// 技巧：將 Key 拆開，Netlify 的安全掃描就不會誤判阻擋部署
-// 同時也解決了環境變數讀取失敗導致白畫面的問題
+// 這是 Vite 的標準寫法，會自動讀取 .env 檔案或是 Netlify 後台設定的環境變數
 const firebaseConfig = {
-  apiKey: "AIza" + "SyDK-feks4M0aZaJY4" + "-gFcP_TxVcJLfMuxo",
-  authDomain: "cookierunbraverse.firebaseapp.com",
-  projectId: "cookierunbraverse",
-  storageBucket: "cookierunbraverse.firebasestorage.app",
-  messagingSenderId: "1061622650816",
-  appId: "1:1061622650816:web:b61e2490336b244bf01a25",
-  measurementId: "G-YK70VGHNRN",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 // ==========================================
 
 try {
-  // 安全檢查
+  // 安全檢查：確認有讀取到 API Key 才初始化
+  // 如果在 Netlify 沒有設定環境變數，這裡會抓不到 Key
   if (firebaseConfig.apiKey) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
   } else {
-    console.warn("警告：未偵測到 Firebase API Key。");
+    // 這裡只會在 Console 顯示警告，不會讓程式直接崩潰 (白畫面)
+    console.warn("注意：未偵測到環境變數。請確認您已在 Netlify 後台設定，或在本地建立了 .env 檔案。");
   }
 } catch (e) {
   console.error("Firebase 初始化失敗:", e);
@@ -188,7 +189,7 @@ const compressImage = (file) => {
 
 // --- 元件 ---
 
-// Toast 元件 (優化版：解決卡住問題)
+// Toast 元件
 const Toast = ({ message, onClose }) => {
   useEffect(() => {
     if (!message) return;
@@ -196,7 +197,7 @@ const Toast = ({ message, onClose }) => {
       onClose();
     }, 2500); 
     return () => clearTimeout(timer);
-  }, [message, onClose]); // 當 message 改變時，重置計時器
+  }, [message, onClose]);
 
   if (!message) return null;
 
@@ -720,7 +721,7 @@ export default function App() {
     setDeck((prev) => { const newList = [...prev[deckKey]]; const index = newList.findIndex((c) => c.id === card.id); if (index > -1) newList.splice(index, 1); return { ...prev, [deckKey]: newList }; });
   };
   const clearDeck = () => { if (confirm("確定要清空所有牌組嗎？")) setDeck({ main: [], extra: [] }); };
-  const handleShareClick = () => { if (isMainDeckOverLimit || invalidForbidden || invalidRestricted) { if (window.confirm("牌組含有違規項目(數量、禁止或限制卡)，確定要繼續分享嗎？")) setShowExportModal(true); } else { setShowExportModal(true); } };
+  const handleShareClick = () => { if (deck.main.length > LIMITS.MAIN || invalidForbidden || invalidRestricted) { if (window.confirm("牌組含有違規項目(數量、禁止或限制卡)，確定要繼續分享嗎？")) setShowExportModal(true); } else { setShowExportModal(true); } };
 
   // 省略重複的 save/delete handler，功能同上 ... 
   const handleSaveCard = async (cardData) => { if (isOffline) { setAllCards(prev => { const existingIndex = prev.findIndex(c => c.id === cardData.id); if (existingIndex >= 0) { const newCards = [...prev]; newCards[existingIndex] = cardData; return newCards; } else { return [...prev, cardData].sort((a, b) => a.id.localeCompare(b.id)); } }); setShowAddModal(false); setEditingCard(null); setToastMsg("離線模式：已更新卡片"); return; } if (!user || !db) return; try { await setDoc(doc(db, "artifacts", appId, "public", "data", "cards", cardData.id), cardData); setToastMsg("成功"); setShowAddModal(false); } catch(e){ console.error(e); } };
@@ -782,7 +783,6 @@ export default function App() {
             <p className="text-base text-orange-500 font-bold ml-10">先行測試版本，有Bug請私訊樂多綠YT或粉絲專頁</p>
             {isOffline && <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-3 py-1.5 rounded text-sm flex items-center gap-2 mt-1"><WifiOff size={16} /><span>目前為離線模式，您的變更不會儲存到資料庫。</span></div>}
           </div>
-          {/* 篩選器 (保持不變) */}
           <div className="flex flex-col gap-3">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
@@ -862,7 +862,7 @@ export default function App() {
           </div>
         </div>
         
-        {/* 常駐警告區塊 */}
+        {/* 常駐警告區塊 - 修復顯示邏輯 */}
         {(invalidForbidden || invalidRestricted) && (
             <div className="bg-red-100 text-red-800 p-4 text-base font-bold border-b border-red-200 flex items-start gap-3 shrink-0 animate-pulse">
                 <AlertCircle size={24} className="shrink-0 mt-0.5" />
