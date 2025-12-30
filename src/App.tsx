@@ -23,6 +23,8 @@ import {
   Database,
   Cloud,
   Lock,
+  Unlock, // 新增：解鎖圖示
+  LogOut, // 新增：登出圖示
   RefreshCw,
   Pencil,
   Star,
@@ -37,6 +39,7 @@ import {
   ChevronRight,
   ExternalLink,
   Facebook,
+  UserCog, // 新增：管理員圖示
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -45,6 +48,8 @@ import {
   getAuth,
   signInAnonymously,
   signInWithCustomToken,
+  signInWithEmailAndPassword, // 新增：Email 登入
+  signOut, // 新增：登出
   onAuthStateChanged,
 } from "firebase/auth";
 import {
@@ -52,6 +57,8 @@ import {
   collection,
   doc,
   setDoc,
+  getDoc, // 新增：讀取單一文件
+  addDoc, // 新增：新增文件 (用於短網址)
   onSnapshot,
   query,
   writeBatch,
@@ -67,20 +74,18 @@ const appId = "my-deck-builder-v1";
 // ==========================================
 //  Firebase 設定 (已更新為讀取環境變數)
 // ==========================================
-// 在本地開發時，請確保您的 .env 檔案位於專案根目錄，且變數名稱以 VITE_ 開頭
 const firebaseConfig = {
-  apiKey: import.meta.env?.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env?.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env?.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env?.VITE_FIREBASE_MEASUREMENT_ID,
+  apiKey: import.meta.env?.VITE_FIREBASE_API_KEY || "AIzaSyDK-feks4M0aZaJY4-gFcP_TxVcJLfMuxo",
+  authDomain: import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN || "cookierunbraverse.firebaseapp.com",
+  projectId: import.meta.env?.VITE_FIREBASE_PROJECT_ID || "cookierunbraverse",
+  storageBucket: import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET || "cookierunbraverse.firebasestorage.app",
+  messagingSenderId: import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID || "1061622650816",
+  appId: import.meta.env?.VITE_FIREBASE_APP_ID || "1:1061622650816:web:b61e2490336b244bf01a25",
+  measurementId: import.meta.env?.VITE_FIREBASE_MEASUREMENT_ID || "G-YK70VGHNRN",
 };
 // ==========================================
 
 try {
-  // 檢查是否有 API Key (環境變數或預設值)
   if (firebaseConfig.apiKey) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
@@ -174,29 +179,17 @@ const groupCards = (cardList) => {
   return Object.values(groups).sort((a, b) => a.id.localeCompare(b.id));
 };
 
-// 用於輸出圖片的排序權重計算
 const getExportSortWeight = (card) => {
-  // 1. FLIP 卡片排最後
   if (card.isFlip) return 900;
-
-  // 2. 餅乾卡 (LV1 -> LV2 -> LV3)
   if (card.type === CARD_TYPES.COOKIE) {
     if (card.level === CARD_LEVELS.LV1) return 100;
     if (card.level === CARD_LEVELS.LV2) return 110;
     if (card.level === CARD_LEVELS.LV3) return 120;
-    return 130; // 無等級餅乾
+    return 130;
   }
-
-  // 3. 道具卡
   if (card.type === CARD_TYPES.ITEM) return 200;
-
-  // 4. 陷阱卡 (非 FLIP)
   if (card.type === CARD_TYPES.TRAP) return 300;
-
-  // 5. 場景卡
   if (card.type === CARD_TYPES.SCENE) return 400;
-
-  // 其他
   return 800;
 };
 
@@ -225,20 +218,86 @@ const compressImage = (file) => {
 
 // --- 元件 ---
 
-// 修改 Toast 元件：確保計時器正常運作，不受外部重新渲染影響
 const Toast = ({ message, onClose }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
     }, 3000);
     return () => clearTimeout(timer);
-  }, [message, onClose]); // 依賴 message 改變時重置
+  }, [message, onClose]);
 
   return (
     <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] animate-bounce pointer-events-none">
       <div className="bg-slate-800 text-white px-6 py-3 rounded-lg shadow-xl flex items-center gap-2 font-bold border border-slate-600 pointer-events-auto cursor-pointer" onClick={onClose}>
         <AlertCircle size={20} className="text-blue-400" />
         {message}
+      </div>
+    </div>
+  );
+};
+
+// 新增：登入模組
+const LoginModal = ({ onClose, onLogin }) => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      await onLogin(email, password);
+      onClose();
+    } catch (err) {
+      setError("登入失敗：" + (err.message || "請檢查帳號密碼"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800">
+            <UserCog className="text-blue-600" /> 管理員登入
+          </h2>
+          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full">
+            <X size={24} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && <div className="text-red-500 text-sm bg-red-50 p-2 rounded">{error}</div>}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1">Email</label>
+            <input 
+              type="email" 
+              required 
+              className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1">Password</label>
+            <input 
+              type="password" 
+              required 
+              className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="w-full bg-slate-800 text-white py-2 rounded-lg font-bold hover:bg-slate-900 disabled:opacity-50"
+          >
+            {loading ? "驗證中..." : "登入"}
+          </button>
+        </form>
       </div>
     </div>
   );
@@ -407,6 +466,7 @@ const ExportModal = ({ deck, deckName, onClose }) => {
   const [activeTab, setActiveTab] = useState("image");
   const exportRef = useRef(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isCreatingLink, setIsCreatingLink] = useState(false); // 新增：短網址生成狀態
   const [shareUrl, setShareUrl] = useState("");
 
   useEffect(() => {
@@ -418,15 +478,42 @@ const ExportModal = ({ deck, deckName, onClose }) => {
     }
   }, []);
 
-  useEffect(() => {
+  // 舊版長網址生成 (作為備用或初始值)
+  const generateLongUrl = () => {
     const mainIds = deck.main.map((c) => c.id);
     const extraIds = deck.extra.map((c) => c.id);
     const data = JSON.stringify({ m: mainIds, e: extraIds, n: deckName });
     const encoded = btoa(encodeURIComponent(data));
     const baseUrl = window.location.href.split("?")[0];
-    const url = `${baseUrl}?d=${encoded}`;
-    setShareUrl(url);
-  }, [deck, deckName]);
+    return `${baseUrl}?d=${encoded}`;
+  };
+
+  // 新增：短網址生成邏輯
+  const handleGenerateShortLink = async () => {
+    if (!db) {
+        alert("無法連線至資料庫，請檢查網路");
+        return;
+    }
+    setIsCreatingLink(true);
+    try {
+        const deckData = {
+            m: deck.main.map(c => c.id),
+            e: deck.extra.map(c => c.id),
+            n: deckName,
+            createdAt: new Date().toISOString()
+        };
+        // 寫入到 shared_decks 集合
+        const docRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'shared_decks'), deckData);
+        const baseUrl = window.location.href.split("?")[0];
+        setShareUrl(`${baseUrl}?s=${docRef.id}`);
+    } catch (error) {
+        console.error("建立短網址失敗", error);
+        alert("短網址建立失敗，將使用長網址替代");
+        setShareUrl(generateLongUrl());
+    } finally {
+        setIsCreatingLink(false);
+    }
+  };
 
   const handleDownloadImage = async () => {
     if (!window.html2canvas) {
@@ -455,18 +542,17 @@ const ExportModal = ({ deck, deckName, onClose }) => {
   };
 
   const handleCopyLink = () => {
+    if (!shareUrl) return;
     navigator.clipboard.writeText(shareUrl);
     alert("連結已複製到剪貼簿！");
   };
 
-  // 使用 useMemo 對輸出用的卡片進行排序與分組
   const sortedMain = useMemo(() => {
     const groups = groupCards(deck.main);
     return groups.sort((a, b) => {
         const wA = getExportSortWeight(a);
         const wB = getExportSortWeight(b);
         if (wA !== wB) return wA - wB;
-        // 同類型依 ID 排序
         return a.id.localeCompare(b.id);
     });
   }, [deck.main]);
@@ -543,7 +629,6 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                 ref={exportRef}
                 className="bg-white p-8 rounded-lg shadow-lg w-full max-w-[1000px] border border-slate-200"
               >
-                {/* 輸出圖片 Header */}
                 <div className="flex flex-col items-center border-b-2 border-slate-800 pb-6 mb-6">
                     <h1 className="text-4xl md:text-5xl font-black text-slate-900 uppercase text-center tracking-tight mb-3">
                       {deckName || "My Deck"}
@@ -564,7 +649,6 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                 </div>
 
                 <div className="mb-4">
-                  {/* 縮小間距，調整 Grid */}
                   <div className="grid grid-cols-6 md:grid-cols-8 gap-1">
                     {sortedMain.map((group) => (
                       <div
@@ -591,8 +675,8 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                             </span>
                           </div>
                         )}
-                        {/* 縮小張數 Badge */}
-                        <div className="absolute bottom-0.5 right-0.5 bg-black text-white text-[9px] font-bold px-1 py-0.5 rounded shadow-md border border-white/20 z-10 leading-none min-w-[16px] text-center opacity-90">
+                        {/* 修正數字標籤：使用 Flexbox 強制置中，確保數字在框框中間 */}
+                        <div className="absolute bottom-0.5 right-0.5 bg-black text-white text-[9px] font-bold w-5 h-4 rounded shadow-md border border-white/20 z-10 flex items-center justify-center opacity-90 leading-none">
                           x{group.stackCount}
                         </div>
                       </div>
@@ -631,7 +715,8 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                               </span>
                             </div>
                           )}
-                          <div className="absolute bottom-0.5 right-0.5 bg-black text-white text-[9px] font-bold px-1 py-0.5 rounded shadow-md border border-white/20 z-10 leading-none min-w-[16px] text-center opacity-90">
+                          {/* 修正數字標籤：使用 Flexbox 強制置中 */}
+                          <div className="absolute bottom-0.5 right-0.5 bg-black text-white text-[9px] font-bold w-5 h-4 rounded shadow-md border border-white/20 z-10 flex items-center justify-center opacity-90 leading-none">
                             x{group.stackCount}
                           </div>
                         </div>
@@ -640,7 +725,6 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                   </div>
                 )}
                 
-                {/* 底部 Footer */}
                 <div className="mt-8 pt-4 border-t-2 border-slate-100 flex justify-end items-center">
                     <div className="text-right">
                         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
@@ -664,7 +748,7 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                 <div className="text-sm text-blue-800">
                   <p className="font-bold mb-1">關於分享連結</p>
                   <p>
-                    現在我們使用了雲端資料庫，您的自定義卡片也可以透過連結分享給朋友了！只要他們有網路，就能看到您上傳的卡片。
+                    產生短連結會將您的牌組資訊儲存至雲端，讓網址更簡短美觀，方便在社群媒體分享！
                   </p>
                 </div>
               </div>
@@ -673,18 +757,39 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                   牌組分享連結
                 </label>
                 <div className="flex gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={shareUrl}
-                    className="flex-1 border rounded-lg px-3 py-2 text-slate-600 bg-white select-all font-mono text-sm"
-                  />
-                  <button
-                    onClick={handleCopyLink}
-                    className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2"
-                  >
-                    <Copy size={18} /> 複製
-                  </button>
+                  {shareUrl ? (
+                    <>
+                        <input
+                            type="text"
+                            readOnly
+                            value={shareUrl}
+                            className="flex-1 border rounded-lg px-3 py-2 text-slate-600 bg-white select-all font-mono text-sm"
+                        />
+                        <button
+                            onClick={handleCopyLink}
+                            className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2"
+                        >
+                            <Copy size={18} /> 複製
+                        </button>
+                    </>
+                  ) : (
+                    <button
+                        onClick={handleGenerateShortLink}
+                        disabled={isCreatingLink}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                    >
+                        {isCreatingLink ? (
+                            <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                產生中...
+                            </>
+                        ) : (
+                            <>
+                                <LinkIcon size={18} /> 產生短連結
+                            </>
+                        )}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1086,7 +1191,6 @@ const CardItem = React.memo(({
         </div>
       )}
 
-      {/* 禁止卡與限制卡遮罩 (列表模式) */}
       {!compact && card.isForbidden && (
         <div className="absolute inset-0 bg-red-900/10 pointer-events-none z-0"></div>
       )}
@@ -1096,7 +1200,6 @@ const CardItem = React.memo(({
           compact ? "flex items-center gap-3" : ""
         }`}
       >
-        {/* Compact Mode: Thumbnail */}
         {compact && card.imageUrl && (
           <div className="shrink-0 w-8 h-11 rounded border border-slate-300 overflow-hidden bg-white">
             <img
@@ -1129,7 +1232,6 @@ const CardItem = React.memo(({
                 compact ? "w-full mb-0.5" : ""
               }`}
             >
-              {/* 手機版眼睛圖示優化：MD以上hover顯示，MD以下(手機)總是顯示 */}
               {!compact && (
                 <button
                   onClick={(e) => {
@@ -1143,7 +1245,6 @@ const CardItem = React.memo(({
                 </button>
               )}
 
-              {/* ID 樣式優化：字體放大、加粗、背景清晰 */}
               {!compact && (
                 <span className="text-xs md:text-xl font-mono font-black bg-white/80 px-2 rounded border border-current/20 whitespace-nowrap ml-1 shadow-sm">
                   {card.id}
@@ -1185,7 +1286,6 @@ const CardItem = React.memo(({
               {card.isBeast && <span className="text-[10px] md:text-xs font-bold bg-stone-800 text-stone-100 px-1 rounded border border-stone-600">野獸</span>}
               {card.isSoulJam && <span className="text-[10px] md:text-xs font-bold bg-pink-100 text-pink-800 px-1 rounded border border-pink-300">靈魂果醬</span>}
               
-              {/* 禁止與限制標籤 */}
               {card.isForbidden && <span className="flex items-center gap-0.5 text-[10px] bg-red-600 text-white px-1.5 rounded font-bold"><Ban size={10}/> 禁止</span>}
               {card.isLimitOne && <span className="flex items-center gap-0.5 text-[10px] bg-orange-500 text-white px-1.5 rounded font-bold"><AlertOctagon size={10}/> Limit 1</span>}
             </div>
@@ -1275,30 +1375,27 @@ export default function App() {
   });
   const [toastMsg, setToastMsg] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showBulkModal, setShowBulkModal] = useState(false); // 新增：控制批次匯入 Modal 的開關
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false); // 新增：登入 Modal 狀態
   const [viewingCard, setViewingCard] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [editingCard, setEditingCard] = useState(null);
-  const [isDataLoaded, setIsDataLoaded] = useState(false); // 新增：資料載入狀態
+  const [isDataLoaded, setIsDataLoaded] = useState(false); 
   
-  // 新增狀態：手機版側邊欄開關
   const [isMobileDeckOpen, setIsMobileDeckOpen] = useState(false);
    
-  // 新增狀態：離線模式與懶加載
   const [isOffline, setIsOffline] = useState(false);
   const [visibleCount, setVisibleCount] = useState(30);
   const loadMoreRef = useRef(null);
 
   const LIMITS = { MAIN: 60, EXTRA: 6, COPY: 4, FLIP: 16 };
 
-  // Toast 關閉函式
   const closeToast = useCallback(() => {
     setToastMsg(null);
   }, []);
 
-  // 0. 自動注入 Tailwind
   useEffect(() => {
     if (!document.querySelector('script[src="https://cdn.tailwindcss.com"]')) {
       const script = document.createElement("script");
@@ -1307,7 +1404,7 @@ export default function App() {
     }
   }, []);
 
-  // 1. Firebase Auth
+  // 修改後的 Auth 邏輯
   useEffect(() => {
     if (isOffline) return;
 
@@ -1318,30 +1415,29 @@ export default function App() {
     const timeoutId = setTimeout(() => {
       if (!user && !isOffline) setLoadingError("連線逾時，請檢查瀏覽器設定");
     }, 10000);
+
     const initAuth = async () => {
-      let loginSuccess = false;
-      if (typeof __initial_auth_token !== "undefined" && __initial_auth_token) {
-        try {
-          await signInWithCustomToken(auth, __initial_auth_token);
-          loginSuccess = true;
-        } catch (error) {
-          console.warn("Custom token fail, fallback to anon");
-        }
-      }
-      if (!loginSuccess) {
-        try {
-          await signInAnonymously(auth);
-        } catch (err) {
-          setLoadingError(`登入失敗: ${err.message}`);
-        }
-      }
+      // 只有在完全沒有使用者狀態時，才嘗試匿名登入
+      // 我們等待 onAuthStateChanged 來決定
     };
     initAuth();
+
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       if (u) {
         setUser(u);
         clearTimeout(timeoutId);
         setLoadingError(null);
+        // 核心邏輯：如果使用者不是匿名，則視為管理員
+        // 在正式環境中，您可能需要檢查 user.email 或 custom claims
+        if (!u.isAnonymous) {
+            setIsAdmin(true);
+            setToastMsg(`歡迎管理員：${u.email}`);
+        } else {
+            setIsAdmin(false);
+        }
+      } else {
+        // 如果沒有使用者（例如剛登出），自動執行匿名登入
+        signInAnonymously(auth).catch(err => setLoadingError(`登入失敗: ${err.message}`));
       }
     });
     return () => {
@@ -1350,20 +1446,36 @@ export default function App() {
     };
   }, [isOffline]);
 
+  // 保留舊的 URL admin 機制做為備援 (可選)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("cookieadmin") === "true") {
-      setIsAdmin(true);
-      setToastMsg("餅乾王國管理員模式已啟用 🍪");
+    if (params.get("cookieadmin") === "true" && !isAdmin) {
+      // 僅在未通過 Auth 驗證時啟用，避免衝突
+      // 但建議逐步廢除此方式
+      // setIsAdmin(true); 
     }
-  }, []);
+  }, [isAdmin]);
 
-  // 2. Firestore Sync & Data Fetching
+  // 處理管理員登入
+  const handleAdminLogin = async (email, password) => {
+      await signInWithEmailAndPassword(auth, email, password);
+      // 登入成功後 onAuthStateChanged 會自動更新狀態
+  };
+
+  // 處理登出
+  const handleLogout = async () => {
+      if (confirm("確定要登出管理員模式嗎？")) {
+          await signOut(auth);
+          // 登出後 onAuthStateChanged 會觸發，並自動執行 signInAnonymously
+          setToastMsg("已登出管理員模式");
+      }
+  };
+
   useEffect(() => {
     if (isOffline) {
         if (allCards.length === 0) {
             setAllCards(INITIAL_CARDS);
-            setIsDataLoaded(true); // 離線模式立即載入
+            setIsDataLoaded(true);
             setToastMsg("已載入離線模擬資料");
         }
         return;
@@ -1373,18 +1485,48 @@ export default function App() {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'cards'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const cards = snapshot.docs.map(doc => doc.data());
-      // 簡單排序
       cards.sort((a, b) => a.id.localeCompare(b.id));
       setAllCards(cards);
-      setIsDataLoaded(true); // 標記資料已載入
+      setIsDataLoaded(true); 
     }, (error) => { console.error("Firestore sync error:", error); setToastMsg("連線資料庫失敗，請檢查網路"); });
     return () => unsubscribe();
   }, [user, isOffline]);
 
-  // Load deck from URL
+  // Load deck from URL (支援長網址 ?d= 和短網址 ?s=)
   useEffect(() => {
     if (allCards.length === 0) return; 
     const params = new URLSearchParams(window.location.search);
+    
+    // 處理短網址
+    const shortId = params.get('s');
+    if (shortId && db) {
+        const loadSharedDeck = async () => {
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'shared_decks', shortId);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const decoded = docSnap.data();
+                    if (decoded.m && decoded.e) {
+                        const mainCards = [], extraCards = [];
+                        decoded.m.forEach(id => { const c = allCards.find(c => c.id === id); if (c) mainCards.push(c); });
+                        decoded.e.forEach(id => { const c = allCards.find(c => c.id === id); if (c) extraCards.push(c); });
+                        setDeck({ main: mainCards, extra: extraCards });
+                        if (decoded.n) setDeckName(decoded.n);
+                        setToastMsg('已成功載入分享的牌組！');
+                    }
+                } else {
+                    setToastMsg('找不到該分享的牌組，可能已被刪除');
+                }
+            } catch (e) {
+                console.error("載入短網址失敗", e);
+                setToastMsg('載入牌組時發生錯誤');
+            }
+        };
+        loadSharedDeck();
+        return;
+    }
+
+    // 處理舊版長網址
     const deckData = params.get('d');
     if (deckData) {
       try {
@@ -1401,7 +1543,7 @@ export default function App() {
         }
       } catch (e) { console.error("牌組載入失敗", e); }
     }
-  }, [allCards]);
+  }, [allCards, db]);
 
   const getCardCount = useCallback((cardId) => {
      return deck.main.filter(c => c.id === cardId).length + deck.extra.filter(c => c.id === cardId).length;
@@ -1415,15 +1557,12 @@ export default function App() {
     ).length;
   }, [deck.main]);
 
-  // 計算牌組中禁止與限制卡的違規狀況
   const forbiddenCount = useMemo(() => {
     return deck.main.filter(c => c.isForbidden).length + deck.extra.filter(c => c.isForbidden).length;
   }, [deck]);
 
   const limitOneViolation = useMemo(() => {
-    // 找出所有標記為Limit 1的卡片
     const allLimitCards = [...deck.main, ...deck.extra].filter(c => c.isLimitOne);
-    // 檢查是否有同名卡片 > 1
     const counts = {};
     let violation = false;
     allLimitCards.forEach(c => {
@@ -1434,20 +1573,12 @@ export default function App() {
   }, [deck]);
 
   const addToDeck = useCallback((card) => {
-    // 禁止卡提示 (僅提示，不阻擋)
     if (card.isForbidden) {
         setToastMsg("❌ 加入了禁止卡 (正式比賽無法使用)");
     }
     
-    // 為了在 useCallback 內取得最新 deck，這裡需要依賴 deck，
-    // 但這會導致 addToDeck 變更，進而導致 CardItem 重繪。
-    // 在簡單應用中這是可接受的，因為我們要更新 CardItem 上的計數器。
-    
-    // 注意：這裡我們使用 setState 的 callback 來確保邏輯正確，但讀取 limit 檢查還是需要 current deck。
-    // 為了簡化，我們直接使用外部 deck state (已在 dependency array)。
     const currentCount = deck.main.filter(c => c.id === card.id).length + deck.extra.filter(c => c.id === card.id).length;
 
-    // 限制卡提示 (僅提示，不阻擋)
     if (card.isLimitOne && currentCount >= 1) {
         setToastMsg("⚠️ 加入了第二張限制卡 (正式比賽無法使用)");
     }
@@ -1458,13 +1589,11 @@ export default function App() {
     const current = deck[targetDeckKey];
     const flipCountCurrent = deck.main.filter(c => c.isFlip).length;
 
-    // 主牌組超過上限僅提示
     if (isExtra && current.length >= limit) {
       setToastMsg(`額外牌組已滿 (${LIMITS.EXTRA}張)`);
       return;
     }
      
-    // 一般卡片張數限制
     if (currentCount >= LIMITS.COPY) {
       setToastMsg(`同名卡片最多 ${LIMITS.COPY} 張`);
       return;
@@ -1643,7 +1772,6 @@ export default function App() {
         const matchColor =
           filters.color === "ALL" || card.color === filters.color;
         
-        // 修正 Series 篩選邏輯：ST 包含所有 ST 開頭的系列 (ST, ST1, ST2...)
         const matchSeries =
           filters.series === "ALL"
             ? true
@@ -1678,9 +1806,8 @@ export default function App() {
     [filters, allCards]
   );
 
-  // Lazy Loading Implementation
   useEffect(() => {
-    setVisibleCount(30); // Reset on filter change
+    setVisibleCount(30);
   }, [filteredCards]);
 
   const displayedCards = useMemo(() => {
@@ -1755,6 +1882,13 @@ export default function App() {
       {showBulkModal && <BulkImportModal onClose={() => setShowBulkModal(false)} onImport={handleBulkImport} isProcessing={isProcessing} />}
 
       {showExportModal && <ExportModal deck={deck} allCards={allCards} onClose={() => setShowExportModal(false)} deckName={deckName} />}
+
+      {showLoginModal && (
+        <LoginModal 
+          onClose={() => setShowLoginModal(false)} 
+          onLogin={handleAdminLogin} 
+        />
+      )}
 
       {/* 左側：卡片清單 (手機上為滿版，桌面版在左側) */}
       <div className="flex-1 flex flex-col min-w-0 border-r border-slate-200 min-h-0">
@@ -1877,6 +2011,26 @@ export default function App() {
                 <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold">
                    <ExternalLink size={14} /> 薑餅人對戰卡牌/台灣
                 </a>
+            </div>
+            {/* 新增：右下角隱藏的登入/登出按鈕 */}
+            <div className="flex-1 flex justify-end">
+              {isAdmin ? (
+                <button 
+                  onClick={handleLogout} 
+                  className="p-1 text-slate-300 hover:text-red-500 transition-colors"
+                  title="登出管理員"
+                >
+                  <LogOut size={16} />
+                </button>
+              ) : (
+                <button 
+                  onClick={() => setShowLoginModal(true)} 
+                  className="p-1 text-slate-200 hover:text-slate-400 transition-colors"
+                  title="管理員登入"
+                >
+                  <Lock size={16} />
+                </button>
+              )}
             </div>
         </div>
       </div>
