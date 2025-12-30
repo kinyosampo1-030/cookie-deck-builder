@@ -1396,6 +1396,50 @@ export default function App() {
     setToastMsg(null);
   }, []);
 
+  // --- SEO & Metadata ---
+  useEffect(() => {
+    // 1. Set Title
+    document.title = "Cookierun: Braverse Deck Builder | 薑餅人對戰卡牌組構建器";
+
+    // 2. Set Favicon (🍪)
+    const setFavicon = () => {
+      const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+      link.type = 'image/svg+xml';
+      link.rel = 'icon';
+      link.href = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍪</text></svg>`;
+      document.getElementsByTagName('head')[0].appendChild(link);
+    };
+    setFavicon();
+
+    // 3. Set Meta Tags
+    const setMeta = (name, content) => {
+      let element = document.querySelector(`meta[name='${name}']`);
+      if (!element) {
+        element = document.createElement('meta');
+        element.name = name;
+        document.head.appendChild(element);
+      }
+      element.content = content;
+    };
+
+    const setOgMeta = (property, content) => {
+      let element = document.querySelector(`meta[property='${property}']`);
+      if (!element) {
+        element = document.createElement('meta');
+        element.setAttribute('property', property);
+        document.head.appendChild(element);
+      }
+      element.content = content;
+    };
+
+    setMeta('description', '專為薑餅人對戰卡牌 (Cookierun: Braverse) 打造的牌組構建器。提供卡片搜尋、牌組組建、圖片輸出與短網址分享功能。');
+    setOgMeta('og:title', 'Cookierun: Braverse Deck Builder');
+    setOgMeta('og:description', '快速組建你的薑餅人對戰卡牌牌組！支援圖片輸出與雲端分享。');
+    setOgMeta('og:image', 'https://static.wixstatic.com/media/2295bf_14bd7289bff149c4a075e7af4bf24764~mv2.png'); // Placeholder
+    setOgMeta('og:type', 'website');
+
+  }, []);
+
   useEffect(() => {
     if (!document.querySelector('script[src="https://cdn.tailwindcss.com"]')) {
       const script = document.createElement("script");
@@ -1999,39 +2043,54 @@ export default function App() {
         </div>
 
         {/* 恢復 Footer 區域 - 調整手機版 padding */}
-        <div className="p-2 md:p-3 bg-white border-t border-slate-200 text-xs text-slate-500 flex flex-col md:flex-row justify-between items-center gap-2">
-            <span className="font-bold">製作者：樂多綠Gamecaster</span>
-            <div className="flex flex-col md:flex-row gap-2 md:gap-4 text-center md:text-left items-center">
-                <a href="https://www.youtube.com/@%E6%A8%82%E5%A4%9A%E7%B6%A0" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-red-600 transition-colors font-bold">
-                    <Youtube size={14} /> YouTube
-                </a>
-                <a href="https://www.facebook.com/midaylovesworld/" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold">
-                   <Facebook size={14} /> 樂多綠Facebook
-                </a>
-                <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold">
-                   <ExternalLink size={14} /> 薑餅人對戰卡牌/台灣
-                </a>
-            </div>
-            {/* 新增：右下角隱藏的登入/登出按鈕 */}
-            <div className="flex-1 flex justify-end">
-              {isAdmin ? (
-                <button 
-                  onClick={handleLogout} 
-                  className="p-1 text-slate-300 hover:text-red-500 transition-colors"
-                  title="登出管理員"
-                >
-                  <LogOut size={16} />
-                </button>
-              ) : (
-                <button 
-                  onClick={() => setShowLoginModal(true)} 
-                  className="p-1 text-slate-200 hover:text-slate-400 transition-colors"
-                  title="管理員登入"
-                >
-                  <Lock size={16} />
-                </button>
-              )}
-            </div>
+        <div className="bg-white border-t border-slate-200 text-xs text-slate-500 p-2 md:p-3">
+          {/* 手機版佈局 */}
+          <div className="md:hidden flex flex-col gap-1.5">
+              <div className="font-bold">製作者：樂多綠Gamecaster</div>
+              <div className="flex items-center gap-4">
+                  <a href="https://www.youtube.com/@%E6%A8%82%E5%A4%9A%E7%B6%A0" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-red-600 transition-colors font-bold">
+                      <Youtube size={14} /> YouTube
+                  </a>
+                  <a href="https://www.facebook.com/midaylovesworld/" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold">
+                      <Facebook size={14} /> 樂多綠Facebook
+                  </a>
+              </div>
+              <div className="flex items-center justify-between">
+                  <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold">
+                      <ExternalLink size={14} /> 薑餅人對戰卡牌/台灣
+                  </a>
+                  {/* 手機版鎖頭 */}
+                  {isAdmin ? (
+                    <button onClick={handleLogout} className="p-1 text-slate-400 hover:text-red-500 transition-colors"><LogOut size={16}/></button>
+                  ) : (
+                    <button onClick={() => setShowLoginModal(true)} className="p-1 text-slate-300 hover:text-slate-500 transition-colors"><Lock size={16}/></button>
+                  )}
+              </div>
+          </div>
+
+          {/* 桌面版佈局 */}
+          <div className="hidden md:flex flex-row justify-between items-center gap-4">
+              <span className="font-bold">製作者：樂多綠Gamecaster</span>
+              <div className="flex gap-4">
+                  <a href="https://www.youtube.com/@%E6%A8%82%E5%A4%9A%E7%B6%A0" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-red-600 transition-colors font-bold">
+                      <Youtube size={14} /> YouTube
+                  </a>
+                  <a href="https://www.facebook.com/midaylovesworld/" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold">
+                      <Facebook size={14} /> 樂多綠Facebook
+                  </a>
+                  <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold">
+                      <ExternalLink size={14} /> 薑餅人對戰卡牌/台灣
+                  </a>
+              </div>
+              {/* 桌面版鎖頭 */}
+              <div className="flex justify-end">
+                {isAdmin ? (
+                  <button onClick={handleLogout} className="p-1 text-slate-400 hover:text-red-500 transition-colors" title="登出"><LogOut size={16}/></button>
+                ) : (
+                  <button onClick={() => setShowLoginModal(true)} className="p-1 text-slate-300 hover:text-slate-500 transition-colors" title="管理員登入"><Lock size={16}/></button>
+                )}
+              </div>
+          </div>
         </div>
       </div>
 
