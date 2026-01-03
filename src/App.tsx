@@ -131,13 +131,13 @@ const CARD_SERIES_OPTIONS = [
   "P",
 ];
 
-// 稀有度定義
+// 稀有度定義 (SEC 改為 EXR)
 const CARD_RARITIES = {
   C: "C (Common)",
   R: "R (Rare)",
   SR: "SR (Super Rare)",
   UR: "UR (Ultra Rare)",
-  SEC: "Extra (Secret)",
+  EXR: "EXR (Extra Rare)", 
 };
 
 // 牌背圖片路徑
@@ -188,7 +188,7 @@ const getCardColorStyles = (color) => {
 
 const getRarityStyle = (rarity) => {
     switch (rarity) {
-        case 'SEC': return "bg-gradient-to-r from-rose-400 to-red-500 text-white border-rose-600 shadow-rose-200";
+        case 'EXR': return "bg-gradient-to-r from-rose-400 to-red-500 text-white border-rose-600 shadow-rose-200"; // EXR style
         case 'UR': return "bg-gradient-to-r from-yellow-400 to-amber-500 text-white border-amber-600 shadow-amber-200";
         case 'SR': return "bg-slate-700 text-white border-slate-800";
         case 'R': return "bg-blue-100 text-blue-800 border-blue-300";
@@ -426,6 +426,7 @@ const PackOpenerModal = ({ allCards, onClose }) => {
   const [selectedSeries, setSelectedSeries] = useState("ALL");
   const [openedCards, setOpenedCards] = useState([]);
   const [flippedIndices, setFlippedIndices] = useState({});
+  const [isOpening, setIsOpening] = useState(false); // 新增：是否正在開封動畫中
 
   // 篩選可用的系列 (排除 ST 和 P)
   const availableSeries = useMemo(() => {
@@ -438,7 +439,7 @@ const PackOpenerModal = ({ allCards, onClose }) => {
 
   const getRarityProb = () => {
     const r = Math.random() * 100;
-    if (r < 1) return 'SEC';  // 1%
+    if (r < 1) return 'EXR';  // 1%
     if (r < 6) return 'UR';   // 1 + 5 = 6%
     if (r < 16) return 'SR';  // 6 + 10 = 16%
     if (r < 36) return 'R';   // 16 + 20 = 36%
@@ -446,7 +447,6 @@ const PackOpenerModal = ({ allCards, onClose }) => {
   };
 
   const openPack = () => {
-    // 初始過濾：排除 ST 和 P 系列
     let pool = allCards.filter(c => !['ST', 'P'].includes(c.series));
     
     if (selectedSeries !== "ALL") {
@@ -465,46 +465,54 @@ const PackOpenerModal = ({ allCards, onClose }) => {
         return;
     }
 
-    const shuffledOthers = fisherYatesShuffle(otherCards);
-    const selectedOther = shuffledOthers[0]; 
-
-    const selectedIDs = new Set();
-    if (selectedOther) selectedIDs.add(selectedOther.id);
-
-    const selectedCookies = [];
-
-    const targetRarity = getRarityProb();
-    let targetPool = cookieCards.filter(c => (c.rarity || 'C') === targetRarity);
+    // 開始動畫
+    setIsOpening(true);
+    setOpenedCards([]); // 清空舊卡
     
-    if (targetPool.length === 0) {
-        targetPool = cookieCards; 
-    }
+    setTimeout(() => {
+        // 延遲執行抽卡邏輯，模擬開包過程
+        const shuffledOthers = fisherYatesShuffle(otherCards);
+        const selectedOther = shuffledOthers[0]; 
 
-    const rareCard = targetPool[Math.floor(Math.random() * targetPool.length)];
-    if (rareCard) {
-        selectedCookies.push(rareCard);
-        selectedIDs.add(rareCard.id);
-    }
+        const selectedIDs = new Set();
+        if (selectedOther) selectedIDs.add(selectedOther.id);
 
-    let commonPool = cookieCards.filter(c => (c.rarity || 'C') === 'C' && !selectedIDs.has(c.id));
-    
-    if (commonPool.length < 3) {
-        commonPool = cookieCards.filter(c => !selectedIDs.has(c.id));
-    }
+        const selectedCookies = [];
 
-    const shuffledCommons = fisherYatesShuffle(commonPool);
-    const commonsToTake = shuffledCommons.slice(0, 3);
-    selectedCookies.push(...commonsToTake);
+        const targetRarity = getRarityProb();
+        let targetPool = cookieCards.filter(c => (c.rarity || 'C') === targetRarity);
+        
+        if (targetPool.length === 0) {
+            targetPool = cookieCards; 
+        }
 
-    while (selectedCookies.length < 4) {
-         const randomC = cookieCards[Math.floor(Math.random() * cookieCards.length)];
-         selectedCookies.push(randomC);
-    }
+        const rareCard = targetPool[Math.floor(Math.random() * targetPool.length)];
+        if (rareCard) {
+            selectedCookies.push(rareCard);
+            selectedIDs.add(rareCard.id);
+        }
 
-    const finalPack = fisherYatesShuffle([...selectedCookies, selectedOther]);
+        let commonPool = cookieCards.filter(c => (c.rarity || 'C') === 'C' && !selectedIDs.has(c.id));
+        
+        if (commonPool.length < 3) {
+            commonPool = cookieCards.filter(c => !selectedIDs.has(c.id));
+        }
 
-    setOpenedCards(finalPack);
-    setFlippedIndices({});
+        const shuffledCommons = fisherYatesShuffle(commonPool);
+        const commonsToTake = shuffledCommons.slice(0, 3);
+        selectedCookies.push(...commonsToTake);
+
+        while (selectedCookies.length < 4) {
+             const randomC = cookieCards[Math.floor(Math.random() * cookieCards.length)];
+             selectedCookies.push(randomC);
+        }
+
+        const finalPack = fisherYatesShuffle([...selectedCookies, selectedOther]);
+
+        setOpenedCards(finalPack);
+        setFlippedIndices({});
+        setIsOpening(false); // 結束動畫
+    }, 1200); // 1.2秒動畫
   };
 
   const handleCardClick = (index) => {
@@ -516,7 +524,7 @@ const PackOpenerModal = ({ allCards, onClose }) => {
     <div 
         key={index} 
         onClick={() => handleCardClick(index)}
-        className="w-[30vw] h-[40vw] md:w-48 md:h-64 cursor-pointer perspective-1000 group relative flex-shrink-0"
+        className="w-[30vw] h-[40vw] md:w-48 md:h-64 cursor-pointer perspective-1000 group relative flex-shrink-0 animate-in zoom-in duration-500"
     >
         <div className={`w-full h-full transition-all duration-500 transform-style-3d relative ${flippedIndices[index] ? 'rotate-y-180' : ''}`}>
             {/* 背面 (Face Down) */}
@@ -560,25 +568,38 @@ const PackOpenerModal = ({ allCards, onClose }) => {
             className="bg-slate-700 text-white border border-slate-600 rounded-lg px-4 py-2 outline-none font-bold"
             value={selectedSeries}
             onChange={(e) => setSelectedSeries(e.target.value)}
+            disabled={isOpening}
           >
             <option value="ALL">全部卡池</option>
             {availableSeries.map(s => <option key={s} value={s}>{s} 系列</option>)}
           </select>
           <button 
             onClick={openPack}
-            className="bg-yellow-500 hover:bg-yellow-400 text-slate-900 px-6 py-2 rounded-lg font-black flex items-center gap-2 shadow-lg transition-transform active:scale-95"
+            disabled={isOpening}
+            className="bg-yellow-500 hover:bg-yellow-400 disabled:bg-yellow-700 disabled:text-slate-500 text-slate-900 px-6 py-2 rounded-lg font-black flex items-center gap-2 shadow-lg transition-transform active:scale-95"
           >
-            <PackageOpen size={20} /> 開啟卡包 / Open Pack
+            {isOpening ? "開封中..." : <><PackageOpen size={20} /> 開啟卡包 / Open Pack</>}
           </button>
         </div>
 
-        <div className="flex-1 flex items-center justify-center">
-          {openedCards.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center min-h-[400px]">
+          {isOpening ? (
+             <div className="animate-bounce">
+                <div className="w-48 h-64 bg-gradient-to-tr from-blue-600 to-purple-600 rounded-xl border-4 border-yellow-400 shadow-2xl flex items-center justify-center animate-pulse">
+                    <img src={CARD_BACK_URL} className="w-full h-full object-cover rounded-lg opacity-80" alt="Pack" />
+                </div>
+             </div>
+          ) : openedCards.length === 0 ? (
             <div className="text-slate-500 flex flex-col items-center">
                 <PackageOpen size={64} className="mb-4 opacity-20" />
                 <p>選擇系列並點擊「開啟卡包」</p>
                 <p className="text-xs mt-2 opacity-60">配率：4 張餅乾卡 (含1張稀有位) + 1 張其他卡片</p>
-                {/* 機率顯示已移除 */}
+                <div className="flex gap-2 mt-2 text-[10px] opacity-50">
+                    <span>EXR: 1%</span>
+                    <span>UR: 5%</span>
+                    <span>SR: 10%</span>
+                    <span>R: 20%</span>
+                </div>
             </div>
           ) : (
              <div className="flex flex-col items-center gap-4 md:gap-6 w-full">
@@ -662,7 +683,7 @@ const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
             <p>
               請將您的卡片資料整理為 <strong>JSON 陣列</strong> 格式貼入下方。
               <br />
-              支援欄位：id, series, number, name, type, color, level, rarity (C, R, SR, UR, SEC), isFlip, isExtra...
+              支援欄位：id, series, number, name, type, color, level, rarity (C, R, SR, UR, EXR), isFlip, isExtra...
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
@@ -1775,9 +1796,8 @@ export default function App() {
     search: "",
     type: "ALL",
     color: "ALL",
-    level: "ALL",
     series: "ALL",
-    rarity: "ALL", // 新增稀有度篩選
+    levelOrRarity: "ALL", // 合併後的狀態
     showExtra: false, 
     showFlip: false, 
     showAncient: false,
@@ -2197,12 +2217,19 @@ export default function App() {
             ? card.series.startsWith("ST")
             : card.series === filters.series;
 
-        const matchLevel =
-          filters.level === "ALL" || card.level === filters.level;
-
-        // 新增：稀有度篩選
-        const matchRarity = 
-          filters.rarity === "ALL" || card.rarity === filters.rarity;
+        // 合併等級與稀有度篩選
+        const matchLevelOrRarity = (() => {
+          if (filters.levelOrRarity === "ALL") return true;
+          // Check if it's a level
+          if (Object.values(CARD_LEVELS).includes(filters.levelOrRarity)) {
+              return card.level === filters.levelOrRarity;
+          }
+          // Check if it's a rarity key
+          if (Object.keys(CARD_RARITIES).includes(filters.levelOrRarity)) {
+             return card.rarity === filters.levelOrRarity;
+          }
+          return false;
+        })();
 
         const matchExtra = filters.showExtra ? card.isExtra : true;
         const matchFlip = filters.showFlip ? card.isFlip : true;
@@ -2216,8 +2243,7 @@ export default function App() {
           matchType &&
           matchColor &&
           matchSeries &&
-          matchLevel &&
-          matchRarity && // 加入判斷
+          matchLevelOrRarity && // 更新此處
           matchExtra &&
           matchFlip &&
           matchAncient &&
@@ -2358,9 +2384,15 @@ export default function App() {
                   <option value="ALL">全部系列</option>
                   {CARD_SERIES_OPTIONS.map((s) => (<option key={s} value={s}>{s}</option>))}
                 </select></div>
-              <div className="relative flex-1"><Gem className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.rarity} onChange={(e) => setFilters({...filters, rarity: e.target.value})}>
-                  <option value="ALL">全部稀有度</option>
-                  {Object.entries(CARD_RARITIES).map(([k, v]) => (<option key={k} value={k}>{v}</option>))}
+              {/* 合併後的等級/稀有度篩選器 */}
+              <div className="relative flex-1"><Gem className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.levelOrRarity} onChange={(e) => setFilters({...filters, levelOrRarity: e.target.value})}>
+                  <option value="ALL">全部等級/稀有度</option>
+                  <optgroup label="等級 (Levels)">
+                    {Object.values(CARD_LEVELS).map((l) => (<option key={l} value={l}>{l}</option>))}
+                  </optgroup>
+                  <optgroup label="稀有度 (Rarities)">
+                    {Object.entries(CARD_RARITIES).map(([k, v]) => (<option key={k} value={k}>{v}</option>))}
+                  </optgroup>
                 </select></div>
             </div>
             {/* checkbox 篩選列 */}
@@ -2588,7 +2620,7 @@ export default function App() {
                ※FLIP卡最多16張
               </div>
               <ul className="text-xs text-orange-700 space-y-1 list-disc pl-4">
-                {nonFlipCookieCount < 20 && <li>主牌組建議至少 20 張餅乾卡 (目前 {nonFlipCookieCount})<span className="text-[10px] opacity-75 ml-1">(不含 FLIP)</span></li>}
+                {nonFlipCookieCount < 20 && <li>主牌組建議至少 22 張餅乾卡 (目前 {nonFlipCookieCount})<span className="text-[10px] opacity-75 ml-1">(不含 FLIP)</span></li>}
                 {deck.main.length > LIMITS.MAIN && <li className="text-red-600 font-bold">主牌組已超過上限 ({deck.main.length}/60)</li>}
                 {deck.extra.length === LIMITS.EXTRA && <li className="text-red-600 font-bold">額外牌組已達上限</li>}
                 {flipCount === LIMITS.FLIP && <li className="text-red-600 font-bold">Flip 卡片已達上限 ({LIMITS.FLIP})</li>}
