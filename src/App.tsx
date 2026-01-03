@@ -140,6 +140,7 @@ const CARD_RARITIES = {
   SEC: "Extra (Secret)",
 };
 
+// 牌背圖片路徑
 const CARD_BACK_URL = "https://static.wixstatic.com/media/2295bf_b9aee85e881243d99276b2f571927305~mv2.png";
 
 const INITIAL_CARDS = [
@@ -420,13 +421,18 @@ const DrawTestModal = ({ deck, onClose }) => {
   );
 };
 
+// --- 功能 2: 開卡包模擬器 ---
 const PackOpenerModal = ({ allCards, onClose }) => {
   const [selectedSeries, setSelectedSeries] = useState("ALL");
   const [openedCards, setOpenedCards] = useState([]);
   const [flippedIndices, setFlippedIndices] = useState({});
 
+  // 篩選可用的系列 (排除 ST 和 P)
   const availableSeries = useMemo(() => {
-    const seriesSet = new Set(allCards.map(c => c.series));
+    const seriesSet = new Set(allCards
+        .filter(c => !['ST', 'P'].includes(c.series))
+        .map(c => c.series)
+    );
     return Array.from(seriesSet).sort();
   }, [allCards]);
 
@@ -440,9 +446,11 @@ const PackOpenerModal = ({ allCards, onClose }) => {
   };
 
   const openPack = () => {
-    let pool = allCards;
+    // 初始過濾：排除 ST 和 P 系列
+    let pool = allCards.filter(c => !['ST', 'P'].includes(c.series));
+    
     if (selectedSeries !== "ALL") {
-      pool = allCards.filter(c => c.series === selectedSeries);
+      pool = pool.filter(c => c.series === selectedSeries);
     }
 
     const cookieCards = pool.filter(c => c.type === CARD_TYPES.COOKIE);
@@ -503,6 +511,38 @@ const PackOpenerModal = ({ allCards, onClose }) => {
     setFlippedIndices(prev => ({ ...prev, [index]: true }));
   };
 
+  // 渲染單張卡片
+  const renderCard = (card, index) => (
+    <div 
+        key={index} 
+        onClick={() => handleCardClick(index)}
+        className="w-[30vw] h-[40vw] md:w-48 md:h-64 cursor-pointer perspective-1000 group relative flex-shrink-0"
+    >
+        <div className={`w-full h-full transition-all duration-500 transform-style-3d relative ${flippedIndices[index] ? 'rotate-y-180' : ''}`}>
+            {/* 背面 (Face Down) */}
+            <div className="absolute inset-0 backface-hidden rounded-lg overflow-hidden border-2 border-slate-600 shadow-xl group-hover:scale-105 transition-transform">
+                <img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" />
+            </div>
+            {/* 正面 (Face Up) */}
+            <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-lg overflow-hidden border-2 border-white/20 shadow-2xl bg-white relative">
+                {card.imageUrl ? (
+                    <img src={card.imageUrl} className="w-full h-full object-cover" alt={card.name} />
+                ) : (
+                    <div className={`w-full h-full p-2 flex flex-col justify-between ${getCardColorStyles(card.color)}`}>
+                        <span className="font-bold text-sm">{card.name}</span>
+                        <span className="font-mono text-xs">{card.id}</span>
+                    </div>
+                )}
+                {card.rarity && card.rarity !== 'C' && (
+                    <div className={`absolute top-1 right-1 text-[10px] font-bold px-1.5 py-0.5 rounded shadow border ${getRarityStyle(card.rarity)}`}>
+                        {card.rarity}
+                    </div>
+                )}
+            </div>
+        </div>
+    </div>
+  );
+
   return (
     <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-slate-800 rounded-xl shadow-2xl w-full max-w-5xl p-6 min-h-[600px] flex flex-col" onClick={e => e.stopPropagation()}>
@@ -538,44 +578,19 @@ const PackOpenerModal = ({ allCards, onClose }) => {
                 <PackageOpen size={64} className="mb-4 opacity-20" />
                 <p>選擇系列並點擊「開啟卡包」</p>
                 <p className="text-xs mt-2 opacity-60">配率：4 張餅乾卡 (含1張稀有位) + 1 張其他卡片</p>
-                <div className="flex gap-2 mt-2 text-[10px] opacity-50">
-                    <span>SEC: 1%</span>
-                    <span>UR: 5%</span>
-                    <span>SR: 10%</span>
-                    <span>R: 20%</span>
-                </div>
+                {/* 機率顯示已移除 */}
             </div>
           ) : (
-            <div className="grid grid-cols-5 gap-2 md:gap-4 w-full px-2 md:px-10">
-              {openedCards.map((card, index) => (
-                <div 
-                    key={index} 
-                    onClick={() => handleCardClick(index)}
-                    className="aspect-[3/4] cursor-pointer perspective-1000 group relative"
-                >
-                    <div className={`w-full h-full transition-all duration-500 transform-style-3d relative ${flippedIndices[index] ? 'rotate-y-180' : ''}`}>
-                        <div className="absolute inset-0 backface-hidden rounded-lg overflow-hidden border-2 border-slate-600 shadow-xl group-hover:scale-105 transition-transform">
-                            <img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" />
-                        </div>
-                        <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-lg overflow-hidden border-2 border-white/20 shadow-2xl bg-white relative">
-                            {card.imageUrl ? (
-                                <img src={card.imageUrl} className="w-full h-full object-cover" alt={card.name} />
-                            ) : (
-                                <div className={`w-full h-full p-2 flex flex-col justify-between ${getCardColorStyles(card.color)}`}>
-                                    <span className="font-bold text-sm">{card.name}</span>
-                                    <span className="font-mono text-xs">{card.id}</span>
-                                </div>
-                            )}
-                            {card.rarity && card.rarity !== 'C' && (
-                                <div className={`absolute top-1 right-1 text-[10px] font-bold px-1.5 py-0.5 rounded shadow border ${getRarityStyle(card.rarity)}`}>
-                                    {card.rarity}
-                                </div>
-                            )}
-                        </div>
-                    </div>
+             <div className="flex flex-col items-center gap-4 md:gap-6 w-full">
+                {/* 上排 3 張 */}
+                <div className="flex justify-center gap-2 md:gap-6">
+                    {openedCards.slice(0, 3).map((card, index) => renderCard(card, index))}
                 </div>
-              ))}
-            </div>
+                {/* 下排 2 張 */}
+                <div className="flex justify-center gap-2 md:gap-6">
+                    {openedCards.slice(3, 5).map((card, index) => renderCard(card, index + 3))}
+                </div>
+             </div>
           )}
         </div>
       </div>
@@ -2509,7 +2524,7 @@ export default function App() {
           </div>
         </div>
         
-        {/* 測試工具箱 / Test Toolkit (所有人都可見) */}
+        {/* 新增：測試工具箱 / Test Toolkit (所有人都可見) */}
         <div className="p-2 bg-slate-700 border-b border-slate-600">
             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-2 flex items-center gap-1">
                 <UserCog size={12} /> 測試工具箱 / Test Toolkit
@@ -2533,6 +2548,21 @@ export default function App() {
                 </button>
             </div>
         </div>
+
+        {/* 新增：管理員工具箱 (僅限管理員可見) */}
+        {isAdmin && (
+            <div className="p-2 bg-slate-800 border-b border-slate-700">
+                <div className="text-xs font-bold text-yellow-500 uppercase tracking-widest mb-2 px-2 flex items-center gap-1">
+                    <UserCog size={12} /> 管理員操作
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                    {/* 未來可擴充其他管理功能 */}
+                    <div className="col-span-2 text-center text-xs text-slate-500 italic">
+                        目前管理功能整合於上方操作列
+                    </div>
+                </div>
+            </div>
+        )}
 
         <div className="flex-1 overflow-y-auto p-3 space-y-6 bg-slate-50 overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
           <section>
