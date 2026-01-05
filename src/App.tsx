@@ -45,6 +45,7 @@ import {
   Printer,
   Repeat,
   Gem,
+  Languages, // 新增：翻譯圖示
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -161,6 +162,8 @@ const INITIAL_CARDS = [
     isSoulJam: false,
     isForbidden: false,
     isLimitOne: false,
+    effectText: "", // 新增：效果文本
+    showEffect: false, // 新增：是否顯示效果
     imageUrl: null,
   },
 ];
@@ -188,7 +191,7 @@ const getCardColorStyles = (color) => {
 
 const getRarityStyle = (rarity) => {
     switch (rarity) {
-        case 'EXR': return "bg-gradient-to-r from-rose-400 to-red-500 text-white border-rose-600 shadow-rose-200"; // EXR style
+        case 'EXR': return "bg-gradient-to-r from-rose-400 to-red-500 text-white border-rose-600 shadow-rose-200"; 
         case 'UR': return "bg-gradient-to-r from-yellow-400 to-amber-500 text-white border-amber-600 shadow-amber-200";
         case 'SR': return "bg-slate-700 text-white border-slate-800";
         case 'R': return "bg-blue-100 text-blue-800 border-blue-300";
@@ -421,14 +424,12 @@ const DrawTestModal = ({ deck, onClose }) => {
   );
 };
 
-// --- 功能 2: 開卡包模擬器 ---
 const PackOpenerModal = ({ allCards, onClose }) => {
   const [selectedSeries, setSelectedSeries] = useState("ALL");
   const [openedCards, setOpenedCards] = useState([]);
   const [flippedIndices, setFlippedIndices] = useState({});
-  const [isOpening, setIsOpening] = useState(false); // 新增：是否正在開封動畫中
+  const [isOpening, setIsOpening] = useState(false); 
 
-  // 篩選可用的系列 (排除 ST 和 P)
   const availableSeries = useMemo(() => {
     const seriesSet = new Set(allCards
         .filter(c => !['ST', 'P'].includes(c.series))
@@ -439,11 +440,11 @@ const PackOpenerModal = ({ allCards, onClose }) => {
 
   const getRarityProb = () => {
     const r = Math.random() * 100;
-    if (r < 1) return 'EXR';  // 1%
-    if (r < 6) return 'UR';   // 1 + 5 = 6%
-    if (r < 16) return 'SR';  // 6 + 10 = 16%
-    if (r < 36) return 'R';   // 16 + 20 = 36%
-    return 'C';               // 64% (剩餘機率)
+    if (r < 1) return 'EXR';  
+    if (r < 6) return 'UR';   
+    if (r < 16) return 'SR'; 
+    if (r < 36) return 'R';  
+    return 'C';               
   };
 
   const openPack = () => {
@@ -465,12 +466,10 @@ const PackOpenerModal = ({ allCards, onClose }) => {
         return;
     }
 
-    // 開始動畫
     setIsOpening(true);
-    setOpenedCards([]); // 清空舊卡
+    setOpenedCards([]); 
     
     setTimeout(() => {
-        // 延遲執行抽卡邏輯，模擬開包過程
         const shuffledOthers = fisherYatesShuffle(otherCards);
         const selectedOther = shuffledOthers[0]; 
 
@@ -511,15 +510,14 @@ const PackOpenerModal = ({ allCards, onClose }) => {
 
         setOpenedCards(finalPack);
         setFlippedIndices({});
-        setIsOpening(false); // 結束動畫
-    }, 1200); // 1.2秒動畫
+        setIsOpening(false); 
+    }, 1200); 
   };
 
   const handleCardClick = (index) => {
     setFlippedIndices(prev => ({ ...prev, [index]: true }));
   };
 
-  // 渲染單張卡片
   const renderCard = (card, index) => (
     <div 
         key={index} 
@@ -527,11 +525,9 @@ const PackOpenerModal = ({ allCards, onClose }) => {
         className="w-[30vw] h-[40vw] md:w-48 md:h-64 cursor-pointer perspective-1000 group relative flex-shrink-0 animate-in zoom-in duration-500"
     >
         <div className={`w-full h-full transition-all duration-500 transform-style-3d relative ${flippedIndices[index] ? 'rotate-y-180' : ''}`}>
-            {/* 背面 (Face Down) */}
             <div className="absolute inset-0 backface-hidden rounded-lg overflow-hidden border-2 border-slate-600 shadow-xl group-hover:scale-105 transition-transform">
                 <img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" />
             </div>
-            {/* 正面 (Face Up) */}
             <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-lg overflow-hidden border-2 border-white/20 shadow-2xl bg-white relative">
                 {card.imageUrl ? (
                     <img src={card.imageUrl} className="w-full h-full object-cover" alt={card.name} />
@@ -594,20 +590,12 @@ const PackOpenerModal = ({ allCards, onClose }) => {
                 <PackageOpen size={64} className="mb-4 opacity-20" />
                 <p>選擇系列並點擊「開啟卡包」</p>
                 <p className="text-xs mt-2 opacity-60">配率：4 張餅乾卡 (含1張稀有位) + 1 張其他卡片</p>
-                <div className="flex gap-2 mt-2 text-[10px] opacity-50">
-                    <span>EXR: 1%</span>
-                    <span>UR: 5%</span>
-                    <span>SR: 10%</span>
-                    <span>R: 20%</span>
-                </div>
             </div>
           ) : (
              <div className="flex flex-col items-center gap-4 md:gap-6 w-full">
-                {/* 上排 3 張 */}
                 <div className="flex justify-center gap-2 md:gap-6">
                     {openedCards.slice(0, 3).map((card, index) => renderCard(card, index))}
                 </div>
-                {/* 下排 2 張 */}
                 <div className="flex justify-center gap-2 md:gap-6">
                     {openedCards.slice(3, 5).map((card, index) => renderCard(card, index + 3))}
                 </div>
@@ -659,7 +647,9 @@ const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
     "isBeast": false,
     "isSoulJam": false,
     "isForbidden": false,
-    "isLimitOne": false
+    "isLimitOne": false,
+    "effectText": "此卡召喚時，可以抽一張牌。",
+    "showEffect": true
   }
 ]`;
 
@@ -683,7 +673,7 @@ const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
             <p>
               請將您的卡片資料整理為 <strong>JSON 陣列</strong> 格式貼入下方。
               <br />
-              支援欄位：id, series, number, name, type, color, level, rarity (C, R, SR, UR, EXR), isFlip, isExtra...
+              支援欄位：id, series, number, name, type, color, level, rarity (C, R, SR, UR, EXR), isFlip, isExtra, effectText (英文效果), showEffect (true/false)
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
@@ -725,6 +715,8 @@ const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
 };
 
 const CardDetailModal = ({ card, onClose }) => {
+  const [showTranslation, setShowTranslation] = useState(false);
+
   if (!card) return null;
   return (
     <div
@@ -741,38 +733,74 @@ const CardDetailModal = ({ card, onClose }) => {
         >
           <X size={32} />
         </button>
-        {card.imageUrl ? (
-          <img
-            src={card.imageUrl}
-            alt={card.name}
-            className="w-full h-auto rounded-lg shadow-2xl border-2 border-white/20"
-          />
+
+        {/* 翻譯切換按鈕 (如果開啟顯示功能) */}
+        {card.showEffect && (
+           <button
+             onClick={() => setShowTranslation(!showTranslation)}
+             className="absolute top-4 right-4 bg-white/90 text-slate-800 p-2 rounded-full shadow-lg z-50 hover:bg-blue-50 transition-colors flex items-center gap-2 font-bold text-xs border border-slate-200"
+             title="切換英文效果 / Toggle English Effect"
+           >
+             <Languages size={18} className="text-blue-600" />
+             {showTranslation ? "Show Image" : "English Effect"}
+           </button>
+        )}
+
+        {showTranslation && card.effectText ? (
+           // 顯示翻譯文本模式
+           <div className={`w-full aspect-[3/4] rounded-xl p-6 flex flex-col shadow-2xl border-8 ${getCardColorStyles(card.color)} bg-white overflow-y-auto relative`}>
+              <div className="mt-8">
+                  <h2 className="text-2xl font-bold mb-4 border-b pb-2 flex items-center gap-2 text-slate-800">
+                     <Languages className="text-blue-500"/> English Effect
+                  </h2>
+                  <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                      <p className="whitespace-pre-wrap text-lg leading-relaxed font-serif text-slate-800">
+                         {card.effectText}
+                      </p>
+                  </div>
+              </div>
+              
+              {/* 保留底部的卡片資訊供參考 */}
+              <div className="mt-auto pt-4 border-t border-slate-200">
+                 <h1 className="text-xl font-bold text-slate-400">{card.name}</h1>
+                 <p className="text-sm font-mono text-slate-400">{card.id}</p>
+              </div>
+           </div>
         ) : (
-          <div
-            className={`w-full aspect-[3/4] rounded-xl p-8 flex flex-col shadow-2xl border-8 ${getCardColorStyles(
-              card.color
-            )} bg-white`}
-          >
-            <h1 className="text-4xl font-bold mb-2">{card.name}</h1>
-            <p className="text-xl font-mono opacity-60 mb-8">{card.id}</p>
-            <div className="flex flex-wrap gap-2 mt-4">
-              {card.rarity && <span className={`px-3 py-1 rounded-full font-bold text-xs border shadow-sm ${getRarityStyle(card.rarity)}`}>{CARD_RARITIES[card.rarity]}</span>}
-              {card.level && (
-                <span className="px-3 py-1 bg-yellow-400 text-yellow-900 rounded-full font-bold">
-                  {card.level}
-                </span>
-              )}
-               {card.isAncient && <span className="px-2 py-1 bg-amber-100 text-amber-800 rounded font-bold text-xs border border-amber-300">上古</span>}
-               {card.isDragon && <span className="px-2 py-1 bg-red-100 text-red-800 rounded font-bold text-xs border border-red-300">龍族</span>}
-               {card.isBeast && <span className="px-2 py-1 bg-stone-800 text-stone-100 rounded font-bold text-xs border border-stone-600">野獸</span>}
-               {card.isSoulJam && <span className="px-2 py-1 bg-pink-100 text-pink-800 rounded font-bold text-xs border border-pink-300">靈魂果醬</span>}
-               {card.isForbidden && <span className="px-2 py-1 bg-red-600 text-white rounded font-bold text-xs flex items-center gap-1"><Ban size={12}/> 禁止卡</span>}
-               {card.isLimitOne && <span className="px-2 py-1 bg-orange-500 text-white rounded font-bold text-xs flex items-center gap-1"><AlertOctagon size={12}/> Limit 1</span>}
-            </div>
-            <div className="text-2xl opacity-40 text-center mt-20">
-              無圖片預覽
-            </div>
-          </div>
+           // 顯示圖片模式 (原先邏輯)
+           card.imageUrl ? (
+              <img
+                src={card.imageUrl}
+                alt={card.name}
+                className="w-full h-auto rounded-lg shadow-2xl border-2 border-white/20"
+              />
+            ) : (
+              <div
+                className={`w-full aspect-[3/4] rounded-xl p-8 flex flex-col shadow-2xl border-8 ${getCardColorStyles(
+                  card.color
+                )} bg-white`}
+              >
+                <h1 className="text-4xl font-bold mb-2">{card.name}</h1>
+                <p className="text-xl font-mono opacity-60 mb-8">{card.id}</p>
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {card.rarity && <span className={`px-3 py-1 rounded-full font-bold text-xs border shadow-sm ${getRarityStyle(card.rarity)}`}>{CARD_RARITIES[card.rarity]}</span>}
+                  {card.level && (
+                    <span className="px-3 py-1 bg-yellow-400 text-yellow-900 rounded-full font-bold">
+                      {card.level}
+                    </span>
+                  )}
+                   {card.isAncient && <span className="px-2 py-1 bg-amber-100 text-amber-800 rounded font-bold text-xs border border-amber-300">上古</span>}
+                   {card.isDragon && <span className="px-2 py-1 bg-red-100 text-red-800 rounded font-bold text-xs border border-red-300">龍族</span>}
+                   {card.isBeast && <span className="px-2 py-1 bg-stone-800 text-stone-100 rounded font-bold text-xs border border-stone-600">野獸</span>}
+                   {card.isSoulJam && <span className="px-2 py-1 bg-pink-100 text-pink-800 rounded font-bold text-xs border border-pink-300">靈魂果醬</span>}
+                   {card.isForbidden && <span className="px-2 py-1 bg-red-600 text-white rounded font-bold text-xs flex items-center gap-1"><Ban size={12}/> 禁止卡</span>}
+                   {card.isLimitOne && <span className="px-2 py-1 bg-orange-500 text-white rounded font-bold text-xs flex items-center gap-1"><AlertOctagon size={12}/> Limit 1</span>}
+                </div>
+                <div className="text-2xl opacity-40 text-center mt-20">
+                  無圖片預覽
+                </div>
+              </div>
+            )
         )}
       </div>
     </div>
@@ -1217,7 +1245,7 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
     color: CARD_COLORS.RED,
     type: CARD_TYPES.COOKIE,
     level: CARD_LEVELS.LV1,
-    rarity: "C", // 新增：預設稀有度
+    rarity: "C", 
     isFlip: false,
     isExtra: false,
     isAncient: false,
@@ -1226,6 +1254,8 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
     isSoulJam: false,
     isForbidden: false,
     isLimitOne: false,
+    effectText: "", // 新增
+    showEffect: false, // 新增
     imageUrl: "",
   });
 
@@ -1249,7 +1279,9 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
         ...initialData,
         series: derivedSeries,
         number: derivedNumber,
-        rarity: initialData.rarity || "C", // 若舊資料無稀有度，預設 C
+        rarity: initialData.rarity || "C", 
+        effectText: initialData.effectText || "", // 新增
+        showEffect: initialData.showEffect || false, // 新增
       }));
 
       if (initialData.imageUrl) {
@@ -1447,7 +1479,7 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
               </div>
             )}
 
-            {/* 新增：稀有度選擇 */}
+            {/* 稀有度選擇 */}
             <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
                   稀有度 <Gem size={14} className="text-purple-500"/>
@@ -1462,8 +1494,33 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
                   ))}
                 </select>
             </div>
+            
+            {/* 新增：效果文本輸入 */}
+            <div className="col-span-1 md:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
+                  <Languages size={16} /> 英文效果文本 (English Effect)
+                </label>
+                <textarea
+                    className="w-full border rounded p-2 h-24 text-sm font-sans"
+                    placeholder="Enter English effect text here..."
+                    value={formData.effectText}
+                    onChange={(e) => setFormData({...formData, effectText: e.target.value})}
+                />
+                <div className="flex items-center gap-2 mt-2">
+                    <input
+                        type="checkbox"
+                        id="showEffect"
+                        checked={formData.showEffect}
+                        onChange={(e) => setFormData({...formData, showEffect: e.target.checked})}
+                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="showEffect" className="text-sm font-bold text-slate-700 cursor-pointer select-none">
+                        啟用效果文本顯示 (Enable Effect Display)
+                    </label>
+                </div>
+            </div>
 
-            <div className="bg-slate-50 p-4 rounded-lg border">
+            <div className="bg-slate-50 p-4 rounded-lg border col-span-1 md:col-span-2">
                 <div className="grid grid-cols-2 gap-y-3 gap-x-4">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" className="w-5 h-5" checked={formData.isFlip} onChange={(e) => setFormData({ ...formData, isFlip: e.target.checked })} />
