@@ -46,6 +46,7 @@ import {
   Repeat,
   Gem,
   Languages, // 新增：翻譯圖示
+  Swords, // 新增：雙劍圖示 (用於競技場)
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -160,6 +161,7 @@ const INITIAL_CARDS = [
     isDragon: false,
     isBeast: false,
     isSoulJam: false,
+    isArena: false, // 新增：競技場
     isForbidden: false,
     isLimitOne: false,
     effectText: "", // 新增：效果文本
@@ -646,6 +648,7 @@ const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
     "isDragon": false,
     "isBeast": false,
     "isSoulJam": false,
+    "isArena": false,
     "isForbidden": false,
     "isLimitOne": false,
     "effectText": "此卡召喚時，可以抽一張牌。",
@@ -673,7 +676,7 @@ const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
             <p>
               請將您的卡片資料整理為 <strong>JSON 陣列</strong> 格式貼入下方。
               <br />
-              支援欄位：id, series, number, name, type, color, level, rarity (C, R, SR, UR, EXR), isFlip, isExtra, effectText (英文效果), showEffect (true/false)
+              支援欄位：id, series, number, name, type, color, level, rarity (C, R, SR, UR, EXR), isFlip, isExtra, isArena, effectText (英文效果), showEffect (true/false)
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
@@ -796,6 +799,7 @@ const CardDetailModal = ({ card, onClose }) => {
                    {card.isDragon && <span className="px-2 py-1 bg-red-100 text-red-800 rounded font-bold text-xs border border-red-300">龍族</span>}
                    {card.isBeast && <span className="px-2 py-1 bg-stone-800 text-stone-100 rounded font-bold text-xs border border-stone-600">野獸</span>}
                    {card.isSoulJam && <span className="px-2 py-1 bg-pink-100 text-pink-800 rounded font-bold text-xs border border-pink-300">靈魂果醬</span>}
+                   {card.isArena && <span className="px-2 py-1 bg-cyan-100 text-cyan-800 rounded font-bold text-xs border border-cyan-300">競技場</span>}
                    {card.isForbidden && <span className="px-2 py-1 bg-red-600 text-white rounded font-bold text-xs flex items-center gap-1"><Ban size={12}/> 禁止卡</span>}
                    {card.isLimitOne && <span className="px-2 py-1 bg-orange-500 text-white rounded font-bold text-xs flex items-center gap-1"><AlertOctagon size={12}/> Limit 1</span>}
                 </div>
@@ -1255,10 +1259,11 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
     isDragon: false,
     isBeast: false,
     isSoulJam: false,
+    isArena: false, // 新增
     isForbidden: false,
     isLimitOne: false,
-    effectText: "", // 新增
-    showEffect: false, // 新增
+    effectText: "", 
+    showEffect: false, 
     imageUrl: "",
   });
 
@@ -1283,8 +1288,9 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
         series: derivedSeries,
         number: derivedNumber,
         rarity: initialData.rarity || "C", 
-        effectText: initialData.effectText || "", // 新增
-        showEffect: initialData.showEffect || false, // 新增
+        effectText: initialData.effectText || "", 
+        showEffect: initialData.showEffect || false, 
+        isArena: initialData.isArena || false, // 新增
       }));
 
       if (initialData.imageUrl) {
@@ -1549,6 +1555,11 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
                     <input type="checkbox" className="w-5 h-5" checked={formData.isSoulJam} onChange={(e) => setFormData({ ...formData, isSoulJam: e.target.checked })} />
                     <span>靈魂果醬</span>
                   </label>
+                  {/* 新增：競技場 (Arena) */}
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" className="w-5 h-5" checked={formData.isArena} onChange={(e) => setFormData({ ...formData, isArena: e.target.checked })} />
+                    <span>競技場 (Arena)</span>
+                  </label>
                 </div>
                 <div className="mt-4 pt-4 border-t border-slate-200 grid grid-cols-2 gap-y-3 gap-x-4">
                     <label className="flex items-center gap-2 cursor-pointer text-red-600 font-bold">
@@ -1777,6 +1788,7 @@ const CardItem = React.memo(({
               {card.isDragon && <span className="text-[10px] md:text-xs font-bold bg-red-100 text-red-800 px-1 rounded border border-red-300">龍族</span>}
               {card.isBeast && <span className="text-[10px] md:text-xs font-bold bg-stone-800 text-stone-100 px-1 rounded border border-stone-600">野獸</span>}
               {card.isSoulJam && <span className="text-[10px] md:text-xs font-bold bg-pink-100 text-pink-800 px-1 rounded border border-pink-300">靈魂果醬</span>}
+              {card.isArena && <span className="text-[10px] md:text-xs font-bold bg-cyan-100 text-cyan-800 px-1 rounded border border-cyan-300">競技場</span>}
               
               {card.isForbidden && <span className="flex items-center gap-0.5 text-[10px] bg-red-600 text-white px-1.5 rounded font-bold"><Ban size={10}/> 禁止</span>}
               {card.isLimitOne && <span className="flex items-center gap-0.5 text-[10px] bg-orange-500 text-white px-1.5 rounded font-bold"><AlertOctagon size={10}/> Limit 1</span>}
@@ -1856,14 +1868,16 @@ export default function App() {
     search: "",
     type: "ALL",
     color: "ALL",
+    level: "ALL",
     series: "ALL",
-    levelOrRarity: "ALL", // 合併後的狀態
+    rarity: "ALL", // 新增稀有度篩選
     showExtra: false, 
     showFlip: false, 
     showAncient: false,
     showDragon: false,
     showBeast: false,
     showSoulJam: false,
+    showArena: false, // 新增：競技場
   });
   const [toastMsg, setToastMsg] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -2297,19 +2311,21 @@ export default function App() {
         const matchDragon = filters.showDragon ? card.isDragon : true;
         const matchBeast = filters.showBeast ? card.isBeast : true;
         const matchSoulJam = filters.showSoulJam ? card.isSoulJam : true;
+        const matchArena = filters.showArena ? card.isArena : true; // 新增
 
         return (
           matchSearch &&
           matchType &&
           matchColor &&
           matchSeries &&
-          matchLevelOrRarity && // 更新此處
+          matchLevelOrRarity && 
           matchExtra &&
           matchFlip &&
           matchAncient &&
           matchDragon &&
           matchBeast &&
-          matchSoulJam
+          matchSoulJam &&
+          matchArena // 新增
         );
       }),
     [filters, allCards]
@@ -2444,7 +2460,6 @@ export default function App() {
                   <option value="ALL">全部系列</option>
                   {CARD_SERIES_OPTIONS.map((s) => (<option key={s} value={s}>{s}</option>))}
                 </select></div>
-              {/* 合併後的等級/稀有度篩選器 */}
               <div className="relative flex-1"><Gem className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.levelOrRarity} onChange={(e) => setFilters({...filters, levelOrRarity: e.target.value})}>
                   <option value="ALL">全部等級/稀有度</option>
                   <optgroup label="等級 (Levels)">
@@ -2480,6 +2495,11 @@ export default function App() {
               <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
                 <input type="checkbox" className="hidden peer" checked={filters.showSoulJam} onChange={(e) => setFilters({ ...filters, showSoulJam: e.target.checked })} />
                 <span className="text-[10px] bg-pink-100 text-pink-800 px-2 py-1 rounded font-bold border border-pink-300 peer-checked:ring-2 peer-checked:ring-pink-500 opacity-60 peer-checked:opacity-100">靈魂果醬</span>
+              </label>
+              {/* 新增：競技場 (Arena) 篩選按鈕 */}
+              <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
+                <input type="checkbox" className="hidden peer" checked={filters.showArena} onChange={(e) => setFilters({ ...filters, showArena: e.target.checked })} />
+                <span className="text-[10px] bg-cyan-100 text-cyan-800 px-2 py-1 rounded font-bold border border-cyan-300 peer-checked:ring-2 peer-checked:ring-cyan-500 opacity-60 peer-checked:opacity-100">競技場</span>
               </label>
             </div>
           </div>
