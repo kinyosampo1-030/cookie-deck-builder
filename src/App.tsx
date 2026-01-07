@@ -47,7 +47,7 @@ import {
   Gem,
   Languages,
   Swords,
-  Trophy, // 確保 Trophy 已匯入
+  Trophy, // 新增 Trophy 圖標
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -77,30 +77,20 @@ import {
 let app = null;
 let auth = null;
 let db = null;
-const appId = typeof __app_id !== 'undefined' ? __app_id : "my-deck-builder-v1";
+const appId = "my-deck-builder-v1";
 
 // ==========================================
-//  Firebase 設定 (修正版：移除 import.meta 以確保編譯通過)
+//  Firebase 設定
 // ==========================================
-let firebaseConfig = {
-  apiKey: "AIzaSyDK-feks4M0aZaJY4-gFcP_TxVcJLfMuxo",
-  authDomain: "cookierunbraverse.firebaseapp.com",
-  projectId: "cookierunbraverse",
-  storageBucket: "cookierunbraverse.firebasestorage.app",
-  messagingSenderId: "1061622650816",
-  appId: "1:1061622650816:web:b61e2490336b244bf01a25",
-  measurementId: "G-YK70VGHNRN",
+const firebaseConfig = {
+  apiKey: import.meta.env?.VITE_FIREBASE_API_KEY || "AIzaSyDK-feks4M0aZaJY4-gFcP_TxVcJLfMuxo",
+  authDomain: import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN || "cookierunbraverse.firebaseapp.com",
+  projectId: import.meta.env?.VITE_FIREBASE_PROJECT_ID || "cookierunbraverse",
+  storageBucket: import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET || "cookierunbraverse.firebasestorage.app",
+  messagingSenderId: import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID || "1061622650816",
+  appId: import.meta.env?.VITE_FIREBASE_APP_ID || "1:1061622650816:web:b61e2490336b244bf01a25",
+  measurementId: import.meta.env?.VITE_FIREBASE_MEASUREMENT_ID || "G-YK70VGHNRN",
 };
-
-// 嘗試從全域變數讀取配置 (適應不同的部署環境)
-if (typeof __firebase_config !== 'undefined') {
-  try {
-    const configFromEnv = JSON.parse(__firebase_config);
-    if (configFromEnv) firebaseConfig = configFromEnv;
-  } catch (e) {
-    console.warn("全域 Firebase 配置解析失敗，使用預設值");
-  }
-}
 
 try {
   if (firebaseConfig.apiKey) {
@@ -108,7 +98,7 @@ try {
     auth = getAuth(app);
     db = getFirestore(app);
   } else {
-    console.warn("警告：未偵測到 Firebase API Key");
+    console.warn("警告：未偵測到 Firebase API Key，請檢查 .env 設定。");
   }
 } catch (e) {
   console.error("Firebase 初始化失敗:", e);
@@ -146,7 +136,6 @@ const CARD_RARITIES = {
 // 牌背圖片路徑
 const CARD_BACK_URL = "https://static.wixstatic.com/media/2295bf_b9aee85e881243d99276b2f571927305~mv2.png";
 
-// 離線預設資料 (當無法連線時顯示)
 const INITIAL_CARDS = [
   {
     id: "BS1-001",
@@ -1878,8 +1867,7 @@ export default function App() {
     color: "ALL",
     level: "ALL",
     series: "ALL",
-    levelOrRarity: "ALL", // 統一使用這個欄位
-    rarity: "ALL", // 保留舊欄位以防萬一
+    rarity: "ALL", // 新增稀有度篩選
     showExtra: false, 
     showFlip: false, 
     showAncient: false,
@@ -1925,7 +1913,29 @@ export default function App() {
       document.getElementsByTagName('head')[0].appendChild(link);
     };
     setFavicon();
-    // Meta tags logic ...
+    const setMeta = (name, content) => {
+      let element = document.querySelector(`meta[name='${name}']`);
+      if (!element) {
+        element = document.createElement('meta');
+        element.name = name;
+        document.head.appendChild(element);
+      }
+      element.content = content;
+    };
+    const setOgMeta = (property, content) => {
+      let element = document.querySelector(`meta[property='${property}']`);
+      if (!element) {
+        element = document.createElement('meta');
+        element.setAttribute('property', property);
+        document.head.appendChild(element);
+      }
+      element.content = content;
+    };
+    setMeta('description', '專為薑餅人對戰卡牌 (Cookierun: Braverse) 打造的牌組構建器。提供卡片搜尋、牌組組建、圖片輸出與短網址分享功能。');
+    setOgMeta('og:title', 'Cookierun: Braverse Deck Builder');
+    setOgMeta('og:description', '快速組建你的薑餅人對戰卡牌牌組！支援圖片輸出與雲端分享。');
+    setOgMeta('og:image', 'https://cookie-run-braverse-deck-builder.vercel.app/og-image.png');
+    setOgMeta('og:type', 'website');
   }, []);
 
   useEffect(() => {
@@ -1936,34 +1946,17 @@ export default function App() {
     }
   }, []);
 
-  // --- 認證初始化 (優化版) ---
   useEffect(() => {
     if (isOffline) return;
-
     if (!auth) {
       setLoadingError("Firebase 設定錯誤");
       return;
     }
-
     const timeoutId = setTimeout(() => {
       if (!user && !isOffline) setLoadingError("連線逾時，請檢查瀏覽器設定");
-    }, 15000);
-
-    // 完整的初始化流程，優先檢查全域 Token
-    const initAuth = async () => {
-      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-        try {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } catch (error) {
-          console.warn("Custom token failed, falling back to anonymous login");
-          await signInAnonymously(auth);
-        }
-      } else {
-        await signInAnonymously(auth);
-      }
-    };
+    }, 10000);
+    const initAuth = async () => {};
     initAuth();
-
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       if (u) {
         setUser(u);
@@ -1975,50 +1968,22 @@ export default function App() {
         } else {
             setIsAdmin(false);
         }
+      } else {
+        signInAnonymously(auth).catch(err => setLoadingError(`登入失敗: ${err.message}`));
       }
     });
-
     return () => {
       unsubscribe();
       clearTimeout(timeoutId);
     };
   }, [isOffline]);
 
-  // --- Firestore 資料同步 ---
   useEffect(() => {
-    if (isOffline) {
-        if (allCards.length === 0) {
-            setAllCards(INITIAL_CARDS);
-            setIsDataLoaded(true);
-            setToastMsg("已載入離線模擬資料");
-        }
-        return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("cookieadmin") === "true" && !isAdmin) {
+      // setIsAdmin(true); 
     }
-    
-    // 必須等待 user 和 db 都準備好
-    if (!user || !db) return;
-
-    // 確保使用正確的路徑結構: /artifacts/{appId}/public/data/{collectionName}
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'cards'));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const cards = snapshot.docs.map(doc => doc.data());
-      cards.sort((a, b) => a.id.localeCompare(b.id));
-      setAllCards(cards);
-      setIsDataLoaded(true); 
-    }, (error) => { 
-      console.error("Firestore sync error:", error); 
-      // 只有在真的失敗時才顯示錯誤，避免初始化時的短暫閃爍
-      if (error.code !== 'permission-denied') {
-          setToastMsg("連線資料庫失敗，請檢查網路"); 
-      }
-    });
-    
-    return () => unsubscribe();
-  }, [user, isOffline]);
-
-  // ... (省略中間未變更的邏輯，如 admin login, logout, shared deck loading, card handling 等) ...
-  // 注意：以下是核心邏輯的保留，確保功能運作
+  }, [isAdmin]);
 
   const handleAdminLogin = async (email, password) => {
       await signInWithEmailAndPassword(auth, email, password);
@@ -2030,6 +1995,73 @@ export default function App() {
           setToastMsg("已登出管理員模式");
       }
   };
+
+  useEffect(() => {
+    if (isOffline) {
+        if (allCards.length === 0) {
+            setAllCards(INITIAL_CARDS);
+            setIsDataLoaded(true);
+            setToastMsg("已載入離線模擬資料");
+        }
+        return;
+    }
+    if (!user || !db) return;
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'cards'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const cards = snapshot.docs.map(doc => doc.data());
+      cards.sort((a, b) => a.id.localeCompare(b.id));
+      setAllCards(cards);
+      setIsDataLoaded(true); 
+    }, (error) => { console.error("Firestore sync error:", error); setToastMsg("連線資料庫失敗，請檢查網路"); });
+    return () => unsubscribe();
+  }, [user, isOffline]);
+
+  useEffect(() => {
+    if (allCards.length === 0) return; 
+    const params = new URLSearchParams(window.location.search);
+    const shortId = params.get('s');
+    if (shortId && db) {
+        const loadSharedDeck = async () => {
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'shared_decks', shortId);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const decoded = docSnap.data();
+                    if (decoded.m && decoded.e) {
+                        const mainCards = [], extraCards = [];
+                        decoded.m.forEach(id => { const c = allCards.find(c => c.id === id); if (c) mainCards.push(c); });
+                        decoded.e.forEach(id => { const c = allCards.find(c => c.id === id); if (c) extraCards.push(c); });
+                        setDeck({ main: mainCards, extra: extraCards });
+                        if (decoded.n) setDeckName(decoded.n);
+                        setToastMsg('已成功載入分享的牌組！');
+                    }
+                } else {
+                    setToastMsg('找不到該分享的牌組，可能已被刪除');
+                }
+            } catch (e) {
+                console.error("載入短網址失敗", e);
+                setToastMsg('載入牌組時發生錯誤');
+            }
+        };
+        loadSharedDeck();
+        return;
+    }
+    const deckData = params.get('d');
+    if (deckData) {
+      try {
+        const decodedString = decodeURIComponent(atob(deckData));
+        const decoded = JSON.parse(decodedString);
+        if (decoded.m && decoded.e) {
+          const mainCards = [], extraCards = [];
+          decoded.m.forEach(id => { const c = allCards.find(c => c.id === id); if (c) mainCards.push(c); });
+          decoded.e.forEach(id => { const c = allCards.find(c => c.id === id); if (c) extraCards.push(c); });
+          setDeck({ main: mainCards, extra: extraCards });
+          if (decoded.n) setDeckName(decoded.n);
+          setToastMsg('已成功載入分享的牌組！');
+        }
+      } catch (e) { console.error("牌組載入失敗", e); }
+    }
+  }, [allCards, db]);
 
   const getCardCount = useCallback((cardId) => {
      return deck.main.filter(c => c.id === cardId).length + deck.extra.filter(c => c.id === cardId).length;
@@ -2212,6 +2244,32 @@ export default function App() {
     setShowAddModal(true);
   };
 
+  const initializeDatabase = async () => {
+    if (isOffline) {
+        setAllCards(INITIAL_CARDS);
+        setToastMsg("離線模式：已重置為預設資料");
+        return;
+    }
+    if (!user || !db || !confirm("確定匯入預設資料？")) return;
+    setIsProcessing(true);
+    const batch = writeBatch(db);
+    try {
+      INITIAL_CARDS.forEach((card) =>
+        batch.set(
+          doc(db, "artifacts", appId, "public", "data", "cards", card.id),
+          card
+        )
+      );
+      await batch.commit();
+      setToastMsg("匯入成功");
+    } catch (err) {
+      console.error(err);
+      setToastMsg("匯入失敗");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const filteredCards = useMemo(
     () =>
       allCards.filter((card) => {
@@ -2233,9 +2291,11 @@ export default function App() {
         // 合併等級與稀有度篩選
         const matchLevelOrRarity = (() => {
           if (filters.levelOrRarity === "ALL") return true;
+          // Check if it's a level
           if (Object.values(CARD_LEVELS).includes(filters.levelOrRarity)) {
               return card.level === filters.levelOrRarity;
           }
+          // Check if it's a rarity key
           if (Object.keys(CARD_RARITIES).includes(filters.levelOrRarity)) {
              return card.rarity === filters.levelOrRarity;
           }
@@ -2295,6 +2355,7 @@ export default function App() {
 
   const groupedMainDeck = useMemo(() => groupCards(deck.main), [deck.main]);
   const groupedExtraDeck = useMemo(() => groupCards(deck.extra), [deck.extra]);
+  const flipCount = getFlipCount();
 
   if (loadingError && !isOffline) {
     return (
