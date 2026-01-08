@@ -12,7 +12,6 @@ import {
   Palette,
   RotateCw,
   Plus,
-  Minus, // 新增 Minus icon
   X,
   Image as ImageIcon,
   Upload,
@@ -46,7 +45,7 @@ import {
   Printer,
   Repeat,
   Gem,
-  Languages,
+  Languages, // 新增：翻譯圖示
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -224,22 +223,6 @@ const getExportSortWeight = (card) => {
   return 800;
 };
 
-// 新增：牌組清單排序權重 (Deck List Sorting)
-const getDeckListSortWeight = (card) => {
-    // 順序: 餅乾 (LV1->LV2->LV3) -> 道具 -> 陷阱 -> 場景
-    if (card.type === CARD_TYPES.COOKIE) {
-        if (card.level === CARD_LEVELS.LV1) return 10;
-        if (card.level === CARD_LEVELS.LV2) return 20;
-        if (card.level === CARD_LEVELS.LV3) return 30;
-        return 40; // 其他等級或無等級餅乾
-    }
-    if (card.type === CARD_TYPES.ITEM) return 50;
-    if (card.type === CARD_TYPES.TRAP) return 60;
-    if (card.type === CARD_TYPES.SCENE) return 70;
-    return 100; // 其他
-};
-
-
 const compressImage = (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -292,7 +275,6 @@ const Toast = ({ message, onClose }) => {
   );
 };
 
-// ... (LoginModal, DrawTestModal, PackOpenerModal, BulkImportModal, CardDetailModal, ExportModal, AddCardModal unchanged) ...
 const LoginModal = ({ onClose, onLogin }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -632,8 +614,7 @@ const PackOpenerModal = ({ allCards, onClose }) => {
 };
 
 const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
-    // ... existing code ...
-    const [jsonInput, setJsonInput] = useState("");
+  const [jsonInput, setJsonInput] = useState("");
 
   const handleImport = () => {
     try {
@@ -741,8 +722,7 @@ const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
 };
 
 const CardDetailModal = ({ card, onClose }) => {
-    // ... existing code ...
-    const [showTranslation, setShowTranslation] = useState(false);
+  const [showTranslation, setShowTranslation] = useState(false);
 
   if (!card) return null;
   return (
@@ -839,7 +819,6 @@ const CardDetailModal = ({ card, onClose }) => {
 };
 
 const ExportModal = ({ deck, deckName, onClose }) => {
-    // ... existing code ...
   const [activeTab, setActiveTab] = useState("image");
   const exportRef = useRef(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -1270,8 +1249,7 @@ const ExportModal = ({ deck, deckName, onClose }) => {
 };
 
 const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
-    // ... existing code ...
-    const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState({
     series: "BS1",
     number: "",
     name: "",
@@ -1654,8 +1632,6 @@ const CardItem = React.memo(({
   onView,
   onEdit,
   onDelete,
-  onIncrease, // 新增：增加數量
-  onDecrease, // 新增：減少數量
   count = 0,
   compact = false,
 }) => {
@@ -1691,12 +1667,7 @@ const CardItem = React.memo(({
       e.stopPropagation();
       return;
     }
-    // 如果在 compact 模式下有點擊，預設行為改為檢視，避免誤刪
-    if (compact) {
-        onView(card);
-    } else {
-        onClick(card);
-    }
+    onClick(card);
   };
 
   return (
@@ -1728,7 +1699,7 @@ const CardItem = React.memo(({
 
       <div
         className={`relative z-10 w-full ${
-          compact ? "flex items-center gap-2" : ""
+          compact ? "flex items-center gap-3" : ""
         }`}
       >
         {compact && card.imageUrl && (
@@ -1742,7 +1713,7 @@ const CardItem = React.memo(({
           </div>
         )}
 
-        <div className={`flex-1 min-w-0 ${compact ? "" : ""}`}>
+        <div className={`flex-1 ${compact ? "" : ""}`}>
           <div
             className={`flex justify-between items-start ${
               compact ? "flex-col-reverse justify-center" : "mb-1"
@@ -1782,7 +1753,7 @@ const CardItem = React.memo(({
                 </span>
               )}
               {compact && (
-                <span className="font-mono font-black text-black text-[10px] bg-white/50 px-1 rounded -ml-0.5">
+                <span className="font-mono font-black text-black text-sm bg-white/50 px-1 rounded -ml-0.5">
                   {card.id}
                 </span>
               )}
@@ -1828,27 +1799,6 @@ const CardItem = React.memo(({
             </div>
           )}
         </div>
-
-        {/* Compact Mode: +/- Buttons */}
-        {compact && (
-            <div className="flex items-center gap-1 ml-1 shrink-0">
-                 <button 
-                    onClick={(e) => { e.stopPropagation(); onDecrease(card); }}
-                    className="w-6 h-6 flex items-center justify-center bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-md transition-colors"
-                 >
-                    <Minus size={14} />
-                 </button>
-                 <div className="w-6 text-center font-bold text-sm bg-white border border-slate-200 rounded px-1 min-w-[1.5rem]">
-                    {count}
-                 </div>
-                 <button 
-                    onClick={(e) => { e.stopPropagation(); onIncrease(card); }}
-                    className="w-6 h-6 flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
-                 >
-                    <Plus size={14} />
-                 </button>
-            </div>
-        )}
       </div>
 
       {!compact && onEdit && onDelete && (
@@ -1876,8 +1826,7 @@ const CardItem = React.memo(({
         </div>
       )}
 
-      {/* 如果不是 compact 模式，計數顯示在右上角 (原有邏輯) */}
-      {!compact && count > 0 && (
+      {count > 0 && (
         <div className="absolute -top-2 -right-2 bg-slate-800 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-md border-2 border-white z-10">
           {count}
         </div>
@@ -1886,10 +1835,33 @@ const CardItem = React.memo(({
   );
 });
 
-// ... (StatBadge and App component start) ...
+const StatBadge = ({
+  icon: Icon,
+  label,
+  current,
+  max,
+  color = "blue",
+  warningAtFull = true,
+}) => {
+  const isFull = current >= max;
+  const colorStyle =
+    isFull && warningAtFull
+      ? "bg-red-50 text-red-600 border-red-200"
+      : `bg-${color}-50 text-${color}-700 border-${color}-200`;
+  return (
+    <div
+      className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border ${colorStyle}`}
+    >
+      <Icon size={16} />
+      <span>{label}:</span>
+      <span className={isFull ? "font-bold" : ""}>
+        {current} / {max}
+      </span>
+    </div>
+  );
+};
 
 export default function App() {
-  // ... (State hooks unchanged) ...
   const [user, setUser] = useState(null);
   const [loadingError, setLoadingError] = useState(null);
   const [allCards, setAllCards] = useState([]);
@@ -1902,15 +1874,15 @@ export default function App() {
     color: "ALL",
     level: "ALL",
     series: "ALL",
-    rarity: "ALL", 
-    levelOrRarity: "ALL",
+    rarity: "ALL", // 新增稀有度篩選
+    levelOrRarity: "ALL", // 修正：加入此欄位並設定預設值為 ALL
     showExtra: false, 
     showFlip: false, 
     showAncient: false,
     showDragon: false,
     showBeast: false,
     showSoulJam: false,
-    showArena: false, 
+    showArena: false, // 新增：競技場
   });
   const [toastMsg, setToastMsg] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -1934,19 +1906,46 @@ export default function App() {
 
   const LIMITS = { MAIN: 60, EXTRA: 6, COPY: 4, FLIP: 16 };
 
-  // ... (Other hooks and functions unchanged until displayedCards) ...
   const closeToast = useCallback(() => {
     setToastMsg(null);
   }, []);
 
   // --- SEO & Metadata ---
   useEffect(() => {
-    // ...
     document.title = "Cookierun: Braverse Deck Builder | 薑餅人對戰卡牌組構建器";
-    // ...
+    const setFavicon = () => {
+      const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+      link.type = 'image/svg+xml';
+      link.rel = 'icon';
+      link.href = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍪</text></svg>`;
+      document.getElementsByTagName('head')[0].appendChild(link);
+    };
+    setFavicon();
+    const setMeta = (name, content) => {
+      let element = document.querySelector(`meta[name='${name}']`);
+      if (!element) {
+        element = document.createElement('meta');
+        element.name = name;
+        document.head.appendChild(element);
+      }
+      element.content = content;
+    };
+    const setOgMeta = (property, content) => {
+      let element = document.querySelector(`meta[property='${property}']`);
+      if (!element) {
+        element = document.createElement('meta');
+        element.setAttribute('property', property);
+        document.head.appendChild(element);
+      }
+      element.content = content;
+    };
+    setMeta('description', '專為薑餅人對戰卡牌 (Cookierun: Braverse) 打造的牌組構建器。提供卡片搜尋、牌組組建、圖片輸出與短網址分享功能。');
+    setOgMeta('og:title', 'Cookierun: Braverse Deck Builder');
+    setOgMeta('og:description', '快速組建你的薑餅人對戰卡牌牌組！支援圖片輸出與雲端分享。');
+    setOgMeta('og:image', 'https://cookie-run-braverse-deck-builder.vercel.app/og-image.png');
+    setOgMeta('og:type', 'website');
   }, []);
 
-  // ... (Auth useEffects unchanged) ...
   useEffect(() => {
     if (!document.querySelector('script[src="https://cdn.tailwindcss.com"]')) {
       const script = document.createElement("script");
@@ -2146,7 +2145,6 @@ export default function App() {
     if (confirm("確定要清空所有牌組嗎？")) setDeck({ main: [], extra: [] });
   };
 
-  // ... (handleShareClick, handleSaveCard, handleBulkImport, handleDeleteCard, openEditModal, initializeDatabase unchanged) ...
   const handleShareClick = () => {
     if (deck.main.length > LIMITS.MAIN) {
       if (window.confirm("主牌組張數已超過 60 張上限，確定要繼續分享/輸出嗎？")) {
@@ -2280,7 +2278,7 @@ export default function App() {
     }
   };
 
-  // ... (filteredCards, displayedCards effects) ...
+  // 關鍵修復：這裡加入了 ( || "") 的防呆機制，避免因為資料不完整導致 crash
   const filteredCards = useMemo(
     () =>
       allCards.filter((card) => {
@@ -2299,11 +2297,14 @@ export default function App() {
             ? (card.series || "").startsWith("ST")
             : card.series === filters.series;
 
+        // 合併等級與稀有度篩選
         const matchLevelOrRarity = (() => {
           if (filters.levelOrRarity === "ALL") return true;
+          // Check if it's a level
           if (Object.values(CARD_LEVELS).includes(filters.levelOrRarity)) {
               return card.level === filters.levelOrRarity;
           }
+          // Check if it's a rarity key
           if (Object.keys(CARD_RARITIES).includes(filters.levelOrRarity)) {
              return card.rarity === filters.levelOrRarity;
           }
@@ -2316,7 +2317,7 @@ export default function App() {
         const matchDragon = filters.showDragon ? card.isDragon : true;
         const matchBeast = filters.showBeast ? card.isBeast : true;
         const matchSoulJam = filters.showSoulJam ? card.isSoulJam : true;
-        const matchArena = filters.showArena ? card.isArena : true; 
+        const matchArena = filters.showArena ? card.isArena : true; // 新增：競技場篩選
 
         return (
           matchSearch &&
@@ -2361,39 +2362,10 @@ export default function App() {
     return () => observer.disconnect();
   }, [displayedCards]);
 
-  // 修改：Deck List 分組邏輯
-  const groupedDeckLists = useMemo(() => {
-    // 1. 分離 Main Deck (Normal) 與 FLIP cards
-    const mainNormal = deck.main.filter(c => !c.isFlip);
-    const mainFlip = deck.main.filter(c => c.isFlip);
-
-    // 2. 對 Main Deck (Normal) 進行分組並排序
-    const groupedNormal = groupCards(mainNormal).sort((a, b) => {
-         const wA = getDeckListSortWeight(a);
-         const wB = getDeckListSortWeight(b);
-         if (wA !== wB) return wA - wB;
-         // 權重相同時，預設 ID 排序
-         return a.id.localeCompare(b.id);
-    });
-
-    // 3. FLIP Deck 分組
-    const groupedFlip = groupCards(mainFlip);
-
-    // 4. Extra Deck 分組
-    const groupedExtra = groupCards(deck.extra);
-
-    return {
-        normal: groupedNormal,
-        flip: groupedFlip,
-        extra: groupedExtra,
-        normalCount: mainNormal.length,
-        flipCount: mainFlip.length
-    };
-  }, [deck.main, deck.extra]);
-
+  const groupedMainDeck = useMemo(() => groupCards(deck.main), [deck.main]);
+  const groupedExtraDeck = useMemo(() => groupCards(deck.extra), [deck.extra]);
   const flipCount = getFlipCount();
 
-  // ... (Render and return) ...
   if (loadingError && !isOffline) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-slate-50 p-4 text-center">
@@ -2419,7 +2391,6 @@ export default function App() {
 
   return (
     <div className="flex fixed inset-0 flex-col md:flex-row bg-slate-50 overflow-hidden font-sans text-slate-900 overscroll-contain h-[100dvh]">
-      {/* ... (Modals) ... */}
       {viewingCard && (
         <CardDetailModal
           card={viewingCard}
@@ -2456,7 +2427,7 @@ export default function App() {
 
       {/* 左側：卡片清單 (手機上為滿版，桌面版在左側) */}
       <div className="flex-1 flex flex-col min-w-0 border-r border-slate-200 min-h-0">
-        {/* ... (Header) ... */}
+        {/* Header 區域 */}
         <div className="p-3 md:p-4 bg-white border-b border-slate-200 shadow-sm z-10 space-y-2 md:space-y-3 shrink-0">
           <div className="flex justify-between items-start">
             <div className="flex flex-col">
@@ -2542,6 +2513,7 @@ export default function App() {
                 <input type="checkbox" className="hidden peer" checked={filters.showSoulJam} onChange={(e) => setFilters({ ...filters, showSoulJam: e.target.checked })} />
                 <span className="text-[10px] bg-pink-100 text-pink-800 px-2 py-1 rounded font-bold border border-pink-300 peer-checked:ring-2 peer-checked:ring-pink-500 opacity-60 peer-checked:opacity-100">靈魂果醬</span>
               </label>
+              {/* 新增：競技場 (Arena) 篩選按鈕 */}
               <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
                 <input type="checkbox" className="hidden peer" checked={filters.showArena} onChange={(e) => setFilters({ ...filters, showArena: e.target.checked })} />
                 <span className="text-[10px] bg-cyan-100 text-cyan-800 px-2 py-1 rounded font-bold border border-cyan-300 peer-checked:ring-2 peer-checked:ring-cyan-500 opacity-60 peer-checked:opacity-100">競技場</span>
@@ -2580,8 +2552,8 @@ export default function App() {
 
         {/* Footer 區域 */}
         <div className="bg-white border-t border-slate-200 text-xs text-slate-500 p-2 md:p-3">
-            {/* ... (Footer content unchanged) ... */}
-            <div className="md:hidden flex flex-col gap-1.5">
+          {/* 手機版佈局 */}
+          <div className="md:hidden flex flex-col gap-1.5">
               <div className="font-bold">製作者：樂多綠Gamecaster</div>
               <div className="flex items-center gap-4">
                   <a href="https://www.youtube.com/@%E6%A8%82%E5%A4%9A%E7%B6%A0" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-red-600 transition-colors font-bold">
@@ -2603,6 +2575,7 @@ export default function App() {
               </div>
           </div>
 
+          {/* 桌面版佈局 */}
           <div className="hidden md:flex flex-row justify-between items-center gap-4">
               <span className="font-bold">製作者：樂多綠Gamecaster</span>
               <div className="flex gap-4">
@@ -2680,7 +2653,7 @@ export default function App() {
           </div>
         </div>
         
-        {/* ... (Test Toolkit and Admin Tools unchanged) ... */}
+        {/* 新增：測試工具箱 / Test Toolkit (所有人都可見) */}
         <div className="p-2 bg-slate-700 border-b border-slate-600">
             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-2 flex items-center gap-1">
                 <UserCog size={12} /> 測試工具箱 / Test Toolkit
@@ -2705,6 +2678,7 @@ export default function App() {
             </div>
         </div>
 
+        {/* 新增：管理員工具箱 (僅限管理員可見) */}
         {isAdmin && (
             <div className="p-2 bg-slate-800 border-b border-slate-700">
                 <div className="text-xs font-bold text-yellow-500 uppercase tracking-widest mb-2 px-2 flex items-center gap-1">
@@ -2720,86 +2694,22 @@ export default function App() {
         )}
 
         <div className="flex-1 overflow-y-auto p-3 space-y-6 bg-slate-50 overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
-          {/* Main Deck (Normal) Section */}
           <section>
             <h3 className={`text-xs font-bold uppercase tracking-wider mb-2 px-1 flex justify-between ${deck.main.length > 60 ? "text-red-600" : "text-slate-400"}`}>
-                主牌組清單 <span>{groupedDeckLists.normalCount} 張</span>
+                主牌組清單 <span>{deck.main.length} / {LIMITS.MAIN}</span>
             </h3>
-            <div className={`space-y-2 min-h-[50px] ${deck.main.length > 60 ? "border-2 border-red-100 rounded-lg p-1 bg-red-50/30" : ""}`}>
-              {groupedDeckLists.normal.length === 0 ? (
-                  <div className="h-20 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center text-slate-400 text-sm bg-slate-100">
-                      <Layers size={24} className="mb-1 opacity-50"/><span>點擊左側卡片加入</span>
-                  </div>
-              ) : (
-                  groupedDeckLists.normal.map(group => (
-                      <CardItem 
-                          key={`main-group-${group.id}`} 
-                          card={group} 
-                          compact={true} 
-                          count={group.stackCount} 
-                          onView={setViewingCard}
-                          onIncrease={addToDeck}
-                          onDecrease={(c) => removeFromDeck(c, false)}
-                      />
-                  ))
-              )}
+            <div className={`space-y-2 min-h-[100px] ${deck.main.length > 60 ? "border-2 border-red-100 rounded-lg p-1 bg-red-50/30" : ""}`}>
+              {groupedMainDeck.length === 0 ? <div className="h-24 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center text-slate-400 text-sm bg-slate-100"><Layers size={24} className="mb-1 opacity-50"/><span>點擊左側卡片加入</span></div> : 
+               groupedMainDeck.map(group => <CardItem key={`main-group-${group.id}`} card={group} compact={true} count={group.stackCount} onClick={(c) => removeFromDeck(c, false)} onView={setViewingCard} />)}
             </div>
           </section>
-
-          {/* FLIP Deck Section */}
           <section>
-             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 px-1 flex justify-between items-center bg-slate-200 py-1 rounded">
-                <span className="flex items-center gap-1"><RotateCw size={14}/> FLIP 卡片</span> 
-                <span>{groupedDeckLists.flipCount} / {LIMITS.FLIP}</span>
-             </h3>
-             <div className="space-y-2 min-h-[50px]">
-                {groupedDeckLists.flip.length === 0 ? (
-                     <div className="h-16 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center text-slate-400 text-sm bg-slate-50">
-                        <span>暫無 FLIP 卡片</span>
-                     </div>
-                ) : (
-                    groupedDeckLists.flip.map(group => (
-                        <CardItem 
-                            key={`flip-group-${group.id}`} 
-                            card={group} 
-                            compact={true} 
-                            count={group.stackCount} 
-                            onView={setViewingCard}
-                            onIncrease={addToDeck}
-                            onDecrease={(c) => removeFromDeck(c, false)}
-                        />
-                    ))
-                )}
-             </div>
-          </section>
-
-          {/* Extra Deck Section */}
-          <section>
-            <h3 className="text-xs font-bold text-purple-700 uppercase tracking-wider mb-2 px-1 flex justify-between items-center bg-purple-100 py-1 rounded">
-                <span className="flex items-center gap-1"><Zap size={14}/> 額外牌組 (Extra)</span>
-                <span>{deck.extra.length} / {LIMITS.EXTRA}</span>
-            </h3>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-1 flex justify-between">額外牌組 <span>{deck.extra.length} / {LIMITS.EXTRA}</span></h3>
             <div className="space-y-2">
-                 {groupedDeckLists.extra.length === 0 ? (
-                     <div className="h-16 border-2 border-dashed border-purple-200 rounded-lg flex items-center justify-center text-purple-400 text-sm bg-purple-50">
-                        <span>加入額外牌組卡片</span>
-                     </div>
-                 ) : (
-                     groupedDeckLists.extra.map(group => (
-                         <CardItem 
-                            key={`extra-group-${group.id}`} 
-                            card={group} 
-                            compact={true} 
-                            count={group.stackCount} 
-                            onView={setViewingCard}
-                            onIncrease={addToDeck}
-                            onDecrease={(c) => removeFromDeck(c, true)}
-                         />
-                     ))
-                 )}
+                 {groupedExtraDeck.length === 0 ? <div className="h-16 border-2 border-dashed border-purple-200 rounded-lg flex items-center justify-center text-purple-400 text-sm bg-purple-50"><span>加入額外牌組卡片</span></div> : 
+                 groupedExtraDeck.map(group => <CardItem key={`extra-group-${group.id}`} card={group} compact={true} count={group.stackCount} onClick={(c) => removeFromDeck(c, true)} onView={setViewingCard} />)}
             </div>
           </section>
-
           <section className="bg-orange-50 p-3 rounded-lg border border-orange-200">
               <h4 className="flex items-center gap-2 text-orange-800 font-bold text-sm mb-1"><AlertTriangle size={14} /> 牌組檢查</h4>
               <div className="text-[11px] text-orange-800/70 font-mono mb-2 border-b border-orange-200 pb-2 leading-relaxed">
