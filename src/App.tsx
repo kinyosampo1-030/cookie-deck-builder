@@ -45,7 +45,12 @@ import {
   Printer,
   Repeat,
   Gem,
-  Languages, // 新增：翻譯圖示
+  Languages,
+  Crown,      // 新增：上古圖示
+  Flame,      // 新增：龍族圖示
+  PawPrint,   // 新增：野獸圖示
+  Sparkles,   // 新增：靈魂果醬圖示
+  Swords,     // 新增：競技場圖示
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -223,6 +228,20 @@ const getExportSortWeight = (card) => {
   return 800;
 };
 
+// 新增：側邊欄顯示排序權重
+const getDisplaySortWeight = (card) => {
+    if (card.type === CARD_TYPES.COOKIE) {
+        if (card.level === CARD_LEVELS.LV1) return 1;
+        if (card.level === CARD_LEVELS.LV2) return 2;
+        if (card.level === CARD_LEVELS.LV3) return 3;
+        return 4; // 其他等級
+    }
+    if (card.type === CARD_TYPES.ITEM) return 5;
+    if (card.type === CARD_TYPES.TRAP) return 6;
+    if (card.type === CARD_TYPES.SCENE) return 7;
+    return 8;
+};
+
 const compressImage = (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -256,6 +275,9 @@ const fisherYatesShuffle = (array) => {
 };
 
 // --- Modals & Components ---
+// ... (Toast, LoginModal, DrawTestModal, PackOpenerModal, BulkImportModal, CardDetailModal, ExportModal, AddCardModal, CardItem, StatBadge components remain unchanged) ...
+// 為了節省篇幅，這部分不重複，請保留原有 component code
+// 但必須完整保留所有 Component 定義，這裡我會完整貼上以確保檔案完整性
 
 const Toast = ({ message, onClose }) => {
   useEffect(() => {
@@ -1249,7 +1271,9 @@ const ExportModal = ({ deck, deckName, onClose }) => {
 };
 
 const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
-  const [formData, setFormData] = useState({
+    // ... (保留 AddCardModal 的完整內容)
+    // 為了縮短回應，這裡省略 AddCardModal 的程式碼，請確保複製完整的 Component
+    const [formData, setFormData] = useState({
     series: "BS1",
     number: "",
     name: "",
@@ -1624,6 +1648,8 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
     </div>
   );
 };
+// ... (CardItem, StatBadge, App component structure updates) ...
+// 同樣，CardItem 與 StatBadge 必須保留，這裡為了完整性會貼上
 
 // 使用 React.memo 優化卡片組件，減少列表重繪
 const CardItem = React.memo(({
@@ -1910,7 +1936,8 @@ export default function App() {
     setToastMsg(null);
   }, []);
 
-  // --- SEO & Metadata ---
+  // ... (SEO, Firebase auth, effects remain unchanged) ...
+  // 保留 useEffects
   useEffect(() => {
     document.title = "Cookierun: Braverse Deck Builder | 薑餅人對戰卡牌組構建器";
     const setFavicon = () => {
@@ -2071,6 +2098,8 @@ export default function App() {
     }
   }, [allCards, db]);
 
+  // ... (getCardCount, getFlipCount, counts, addToDeck, removeFromDeck, etc.) ...
+  
   const getCardCount = useCallback((cardId) => {
      return deck.main.filter(c => c.id === cardId).length + deck.extra.filter(c => c.id === cardId).length;
   }, [deck]);
@@ -2278,7 +2307,7 @@ export default function App() {
     }
   };
 
-  // 關鍵修復：這裡加入了 ( || "") 的防呆機制，避免因為資料不完整導致 crash
+  // ... (filteredCards, displayedCards effects) ...
   const filteredCards = useMemo(
     () =>
       allCards.filter((card) => {
@@ -2362,8 +2391,28 @@ export default function App() {
     return () => observer.disconnect();
   }, [displayedCards]);
 
-  const groupedMainDeck = useMemo(() => groupCards(deck.main), [deck.main]);
+  // --- 重構：右側牌組清單的資料準備 ---
+  // 1. 分離一般卡片與 FLIP 卡片 (兩者都來自 deck.main)
+  const mainDeckNormal = useMemo(() => deck.main.filter(c => !c.isFlip), [deck.main]);
+  const mainDeckFlip = useMemo(() => deck.main.filter(c => c.isFlip), [deck.main]);
+
+  // 2. 分組並排序一般卡片 (使用新的排序邏輯)
+  const groupedMainDeckNormal = useMemo(() => {
+      const groups = groupCards(mainDeckNormal);
+      return groups.sort((a, b) => {
+          const wA = getDisplaySortWeight(a);
+          const wB = getDisplaySortWeight(b);
+          if (wA !== wB) return wA - wB;
+          return a.id.localeCompare(b.id);
+      });
+  }, [mainDeckNormal]);
+
+  // 3. 分組 FLIP 卡片 (FLIP 卡通常依 ID 排序即可)
+  const groupedMainDeckFlip = useMemo(() => groupCards(mainDeckFlip), [mainDeckFlip]);
+
+  // 4. 分組額外卡片
   const groupedExtraDeck = useMemo(() => groupCards(deck.extra), [deck.extra]);
+  
   const flipCount = getFlipCount();
 
   if (loadingError && !isOffline) {
@@ -2478,7 +2527,7 @@ export default function App() {
             </div>
             {/* checkbox 篩選列 */}
             <div className="flex flex-wrap gap-3 mt-2 pl-1 select-none items-center">
-              {/* Extra Filter - Enhanced */}
+              {/* Extra Filter */}
               <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
                 <input type="checkbox" className="hidden peer" checked={filters.showExtra} onChange={(e) => setFilters({ ...filters, showExtra: e.target.checked })} />
                 <span className="flex items-center gap-1.5 text-xs md:text-sm uppercase tracking-wider bg-purple-100 text-purple-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-purple-300 peer-checked:bg-purple-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-purple-400 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
@@ -2486,7 +2535,7 @@ export default function App() {
                 </span>
               </label>
 
-              {/* Flip Filter - Enhanced */}
+              {/* Flip Filter */}
               <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
                 <input type="checkbox" className="hidden peer" checked={filters.showFlip} onChange={(e) => setFilters({ ...filters, showFlip: e.target.checked })} />
                 <span className="flex items-center gap-1.5 text-xs md:text-sm bg-slate-200 text-slate-700 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-slate-300 peer-checked:bg-slate-800 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-slate-500 opacity-70 peer-checked:opacity-100 font-bold tracking-wider shadow-sm transition-all">
@@ -2497,26 +2546,44 @@ export default function App() {
               {/* 分隔線 (僅在桌面版顯示) */}
               <div className="h-6 w-px bg-slate-300 mx-1 hidden md:block"></div>
 
+              {/* Ancient Filter (上古) */}
               <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
                 <input type="checkbox" className="hidden peer" checked={filters.showAncient} onChange={(e) => setFilters({ ...filters, showAncient: e.target.checked })} />
-                <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-1 rounded font-bold border border-amber-300 peer-checked:ring-2 peer-checked:ring-amber-500 opacity-60 peer-checked:opacity-100">上古</span>
+                <span className="flex items-center gap-1.5 text-xs md:text-sm bg-amber-100 text-amber-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-amber-300 peer-checked:bg-amber-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-amber-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
+                  <Crown size={16} className="w-3 h-3 md:w-4 md:h-4" /> 上古
+                </span>
               </label>
+
+              {/* Dragon Filter (龍族) */}
               <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
                 <input type="checkbox" className="hidden peer" checked={filters.showDragon} onChange={(e) => setFilters({ ...filters, showDragon: e.target.checked })} />
-                <span className="text-[10px] bg-red-100 text-red-800 px-2 py-1 rounded font-bold border border-red-300 peer-checked:ring-2 peer-checked:ring-red-500 opacity-60 peer-checked:opacity-100">龍族</span>
+                <span className="flex items-center gap-1.5 text-xs md:text-sm bg-red-100 text-red-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-red-300 peer-checked:bg-red-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-red-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
+                  <Flame size={16} className="w-3 h-3 md:w-4 md:h-4" /> 龍族
+                </span>
               </label>
+
+              {/* Beast Filter (野獸) */}
               <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
                 <input type="checkbox" className="hidden peer" checked={filters.showBeast} onChange={(e) => setFilters({ ...filters, showBeast: e.target.checked })} />
-                <span className="text-[10px] bg-stone-800 text-stone-100 px-2 py-1 rounded font-bold border border-stone-600 peer-checked:ring-2 peer-checked:ring-stone-500 opacity-60 peer-checked:opacity-100">野獸</span>
+                <span className="flex items-center gap-1.5 text-xs md:text-sm bg-stone-200 text-stone-800 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-stone-300 peer-checked:bg-stone-700 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-stone-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
+                  <PawPrint size={16} className="w-3 h-3 md:w-4 md:h-4" /> 野獸
+                </span>
               </label>
+
+              {/* SoulJam Filter (靈魂果醬) */}
               <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
                 <input type="checkbox" className="hidden peer" checked={filters.showSoulJam} onChange={(e) => setFilters({ ...filters, showSoulJam: e.target.checked })} />
-                <span className="text-[10px] bg-pink-100 text-pink-800 px-2 py-1 rounded font-bold border border-pink-300 peer-checked:ring-2 peer-checked:ring-pink-500 opacity-60 peer-checked:opacity-100">靈魂果醬</span>
+                <span className="flex items-center gap-1.5 text-xs md:text-sm bg-pink-100 text-pink-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-pink-300 peer-checked:bg-pink-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-pink-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
+                  <Sparkles size={16} className="w-3 h-3 md:w-4 md:h-4" /> 靈魂果醬
+                </span>
               </label>
-              {/* 新增：競技場 (Arena) 篩選按鈕 */}
+              
+              {/* Arena Filter (競技場) */}
               <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
                 <input type="checkbox" className="hidden peer" checked={filters.showArena} onChange={(e) => setFilters({ ...filters, showArena: e.target.checked })} />
-                <span className="text-[10px] bg-cyan-100 text-cyan-800 px-2 py-1 rounded font-bold border border-cyan-300 peer-checked:ring-2 peer-checked:ring-cyan-500 opacity-60 peer-checked:opacity-100">競技場</span>
+                <span className="flex items-center gap-1.5 text-xs md:text-sm bg-cyan-100 text-cyan-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-cyan-300 peer-checked:bg-cyan-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-cyan-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
+                  <Swords size={16} className="w-3 h-3 md:w-4 md:h-4" /> 競技場
+                </span>
               </label>
             </div>
           </div>
@@ -2694,22 +2761,41 @@ export default function App() {
         )}
 
         <div className="flex-1 overflow-y-auto p-3 space-y-6 bg-slate-50 overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+          
+          {/* Section 1: 一般卡片 (Normal Cards) */}
           <section>
-            <h3 className={`text-xs font-bold uppercase tracking-wider mb-2 px-1 flex justify-between ${deck.main.length > 60 ? "text-red-600" : "text-slate-400"}`}>
-                主牌組清單 <span>{deck.main.length} / {LIMITS.MAIN}</span>
+            <h3 className={`text-xs font-bold uppercase tracking-wider mb-2 px-1 flex justify-between ${mainDeckNormal.length === 0 ? "text-slate-400" : "text-blue-800"}`}>
+                主要牌組 (一般卡片) <span>{mainDeckNormal.length}</span>
             </h3>
-            <div className={`space-y-2 min-h-[100px] ${deck.main.length > 60 ? "border-2 border-red-100 rounded-lg p-1 bg-red-50/30" : ""}`}>
-              {groupedMainDeck.length === 0 ? <div className="h-24 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center text-slate-400 text-sm bg-slate-100"><Layers size={24} className="mb-1 opacity-50"/><span>點擊左側卡片加入</span></div> : 
-               groupedMainDeck.map(group => <CardItem key={`main-group-${group.id}`} card={group} compact={true} count={group.stackCount} onClick={(c) => removeFromDeck(c, false)} onView={setViewingCard} />)}
+            <div className={`space-y-2 min-h-[50px] ${deck.main.length > 60 ? "border-2 border-red-100 rounded-lg p-1 bg-red-50/30" : ""}`}>
+              {groupedMainDeckNormal.length === 0 ? <div className="h-24 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center text-slate-400 text-sm bg-slate-100"><Layers size={24} className="mb-1 opacity-50"/><span>點擊左側卡片加入</span></div> : 
+               groupedMainDeckNormal.map(group => <CardItem key={`main-group-${group.id}`} card={group} compact={true} count={group.stackCount} onClick={(c) => removeFromDeck(c, false)} onView={setViewingCard} />)}
             </div>
           </section>
+
+          {/* Section 2: FLIP 卡片 (FLIP Cards) */}
           <section>
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-1 flex justify-between">額外牌組 <span>{deck.extra.length} / {LIMITS.EXTRA}</span></h3>
+            <h3 className={`text-xs font-bold uppercase tracking-wider mb-2 px-1 flex justify-between ${groupedMainDeckFlip.length === 0 ? "text-slate-400" : "text-orange-700"}`}>
+                FLIP 區 <span>{mainDeckFlip.length} / {LIMITS.FLIP}</span>
+            </h3>
+            <div className="space-y-2">
+                 {groupedMainDeckFlip.length === 0 ? <div className="h-16 border-2 border-dashed border-orange-200 rounded-lg flex items-center justify-center text-orange-400 text-sm bg-orange-50"><span>加入 FLIP 卡片</span></div> : 
+                 groupedMainDeckFlip.map(group => <CardItem key={`flip-group-${group.id}`} card={group} compact={true} count={group.stackCount} onClick={(c) => removeFromDeck(c, false)} onView={setViewingCard} />)}
+            </div>
+          </section>
+
+          {/* Section 3: 額外牌組 (Extra Deck) */}
+          <section>
+            <h3 className={`text-xs font-bold uppercase tracking-wider mb-2 px-1 flex justify-between ${groupedExtraDeck.length === 0 ? "text-slate-400" : "text-purple-800"}`}>
+                額外牌組 <span>{deck.extra.length} / {LIMITS.EXTRA}</span>
+            </h3>
             <div className="space-y-2">
                  {groupedExtraDeck.length === 0 ? <div className="h-16 border-2 border-dashed border-purple-200 rounded-lg flex items-center justify-center text-purple-400 text-sm bg-purple-50"><span>加入額外牌組卡片</span></div> : 
                  groupedExtraDeck.map(group => <CardItem key={`extra-group-${group.id}`} card={group} compact={true} count={group.stackCount} onClick={(c) => removeFromDeck(c, true)} onView={setViewingCard} />)}
             </div>
           </section>
+
+          {/* Section 4: 牌組檢查 (Deck Check) */}
           <section className="bg-orange-50 p-3 rounded-lg border border-orange-200">
               <h4 className="flex items-center gap-2 text-orange-800 font-bold text-sm mb-1"><AlertTriangle size={14} /> 牌組檢查</h4>
               <div className="text-[11px] text-orange-800/70 font-mono mb-2 border-b border-orange-200 pb-2 leading-relaxed">
