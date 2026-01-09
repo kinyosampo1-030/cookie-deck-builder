@@ -231,6 +231,9 @@ const getExportSortWeight = (card) => {
 
 // 側邊欄顯示排序權重 (依據需求：餅乾LV1>2>3 -> 道具 -> 陷阱 -> 場景)
 const getDisplaySortWeight = (card) => {
+    // 雖然分組邏輯已經過濾掉 FLIP，但保留判斷以防萬一
+    if (card.isFlip) return 100;
+
     if (card.type === CARD_TYPES.COOKIE) {
         if (card.level === CARD_LEVELS.LV1) return 1;
         if (card.level === CARD_LEVELS.LV2) return 2;
@@ -1751,7 +1754,7 @@ const CardItem = React.memo(({
               className={`font-bold leading-tight ${
                 compact
                   ? `truncate w-full text-slate-800 text-sm ${card.isForbidden || card.isLimitOne ? 'text-red-700' : ''}`
-                  : "text-lg md:text-xl line-clamp-1 leading-snug"
+                  : "text-lg md:text-xl line-clamp-1 leading-snug" // 放大字體
               }`}
             >
               {card.name}
@@ -1948,8 +1951,8 @@ export default function App() {
   const loadMoreRef = useRef(null);
 
   // 控制手機版 Header 顯示/隱藏
-const [showHeader, setShowHeader] = useState(true);
-  const scrollContainerRef = useRef(null); // 用於左側清單容器
+  const [showHeader, setShowHeader] = useState(true);
+  const scrollContainerRef = useRef(null);
   const lastScrollY = useRef(0);
 
   useEffect(() => {
@@ -1958,17 +1961,23 @@ const [showHeader, setShowHeader] = useState(true);
 
     const handleScroll = () => {
       const currentScrollY = container.scrollTop;
-      // 當往下捲動超過 50px 且當前位置大於上一次 (代表正在向下滑) -> 隱藏
-      // 當往上捲動 -> 顯示
-      if (currentScrollY > 50 && currentScrollY > lastScrollY.current) {
+      const diff = currentScrollY - lastScrollY.current;
+
+      // 加入緩衝機制，避免因為手指輕微抖動而閃爍
+      // 當往下捲動超過 10px 且目前位置不是在最頂端 (避免誤判) -> 隱藏
+      if (diff > 10 && currentScrollY > 50) {
         setShowHeader(false);
-      } else {
+      } 
+      // 當往上捲動超過 10px -> 顯示
+      else if (diff < -10) {
         setShowHeader(true);
       }
+      
       lastScrollY.current = currentScrollY;
     };
 
-    container.addEventListener("scroll", handleScroll);
+    // passive: true 可以提升手機滑動時的效能
+    container.addEventListener("scroll", handleScroll, { passive: true });
     return () => container.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -2520,8 +2529,11 @@ const [showHeader, setShowHeader] = useState(true);
       <div className="flex-1 flex flex-col min-w-0 border-r border-slate-200 min-h-0 relative">
         {/* Header 區域：加入 transition 與 transform */}
         <div 
-            className={`bg-white border-b border-slate-200 shadow-sm z-10 shrink-0 transition-all duration-300 ease-in-out overflow-hidden
-            ${showHeader ? 'max-h-[500px] opacity-100 translate-y-0' : 'max-h-0 opacity-0 -translate-y-full md:max-h-[500px] md:opacity-100 md:translate-y-0'}
+            className={`
+              bg-white border-b border-slate-200 shadow-sm z-10 shrink-0 
+              transition-all duration-300 ease-in-out overflow-hidden
+              ${showHeader ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}
+              md:max-h-none md:opacity-100 md:static md:overflow-visible
             `}
         >
              <div className="p-3 md:p-4 space-y-2 md:space-y-3">
