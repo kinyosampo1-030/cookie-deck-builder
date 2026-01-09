@@ -1272,9 +1272,7 @@ const ExportModal = ({ deck, deckName, onClose }) => {
 };
 
 const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
-    // ... (保留 AddCardModal 的完整內容)
-    // 為了縮短回應，這裡省略 AddCardModal 的程式碼，請確保複製完整的 Component
-    const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState({
     series: "BS1",
     number: "",
     name: "",
@@ -1288,7 +1286,7 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
     isDragon: false,
     isBeast: false,
     isSoulJam: false,
-    isArena: false, // 新增
+    isArena: false,
     isForbidden: false,
     isLimitOne: false,
     effectText: "", 
@@ -1297,6 +1295,15 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
   });
 
   const [previewUrl, setPreviewUrl] = useState(null);
+
+  // 定義編輯用的系列清單 (包含 ST1~ST15 以及 BS 系列，方便選擇)
+  // 使用 useMemo 避免重複計算
+  const editorSeriesOptions = useMemo(() => {
+    const stSeries = Array.from({ length: 15 }, (_, i) => `ST${i + 1}`); // 自動產生 ST1 ~ ST15
+    const bsSeries = ["BS1", "BS2", "BS3", "BS4", "BS5", "BS6", "BS7", "BS8", "BS9"];
+    const other = ["P"];
+    return [...stSeries, ...bsSeries, ...other];
+  }, []);
 
   useEffect(() => {
     if (initialData) {
@@ -1319,7 +1326,7 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
         rarity: initialData.rarity || "C", 
         effectText: initialData.effectText || "", 
         showEffect: initialData.showEffect || false, 
-        isArena: initialData.isArena || false, // 新增
+        isArena: initialData.isArena || false,
       }));
 
       if (initialData.imageUrl) {
@@ -1364,12 +1371,15 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
         alert("請填寫編號");
         return;
       }
-      fullId = `${formData.series}-${formData.number}`;
+      // 自動轉大寫，避免輸入 st1 變成小寫
+      const finalSeries = formData.series.toUpperCase();
+      fullId = `${finalSeries}-${formData.number}`;
     }
 
     const submitData = {
       ...formData,
       id: fullId,
+      series: formData.series.toUpperCase(), // 確保儲存的系列也是大寫
       level: formData.type === CARD_TYPES.COOKIE ? formData.level : null,
     };
 
@@ -1417,25 +1427,29 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
                 )}
               </label>
               <div className="flex gap-2 items-center">
-                <select
-                  className="border rounded p-2 bg-white flex-1"
+                {/* 修改重點：將 select 改為 input + datalist，允許手動輸入與選擇 */}
+                <input
+                  list="series-options"
+                  type="text"
+                  className="border rounded p-2 bg-white flex-1 font-bold uppercase"
                   value={formData.series}
                   onChange={(e) =>
                     setFormData({ ...formData, series: e.target.value })
                   }
-                >
-                  {CARD_SERIES_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
+                  placeholder="選擇或輸入系列"
+                />
+                <datalist id="series-options">
+                  {editorSeriesOptions.map((opt) => (
+                    <option key={opt} value={opt} />
                   ))}
-                </select>
+                </datalist>
+                
                 <span className="font-bold text-slate-400">-</span>
                 <input
                   type="text"
                   placeholder="001"
                   required={!initialData}
-                  className="border rounded p-2 flex-1"
+                  className="border rounded p-2 flex-1 font-mono"
                   value={formData.number}
                   onChange={(e) =>
                     setFormData({ ...formData, number: e.target.value })
@@ -1533,7 +1547,7 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
                 </select>
             </div>
             
-            {/* 新增：效果文本輸入 */}
+            {/* 效果文本輸入 */}
             <div className="col-span-1 md:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
                   <Languages size={16} /> 英文效果文本 (English Effect)
@@ -1584,7 +1598,6 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
                     <input type="checkbox" className="w-5 h-5" checked={formData.isSoulJam} onChange={(e) => setFormData({ ...formData, isSoulJam: e.target.checked })} />
                     <span>靈魂果醬</span>
                   </label>
-                  {/* 新增：競技場 (Arena) */}
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" className="w-5 h-5" checked={formData.isArena} onChange={(e) => setFormData({ ...formData, isArena: e.target.checked })} />
                     <span>競技場 (Arena)</span>
