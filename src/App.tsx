@@ -12,7 +12,7 @@ import {
   Palette,
   RotateCw,
   Plus,
-  Minus,
+  Minus,      // 修正：補上 Minus 圖示
   X,
   Image as ImageIcon,
   Upload,
@@ -46,7 +46,12 @@ import {
   Printer,
   Repeat,
   Gem,
-  Languages, // 新增：翻譯圖示
+  Languages,
+  Crown,      // 新增：上古圖示
+  Flame,      // 新增：龍族圖示
+  PawPrint,   // 新增：野獸圖示
+  Sparkles,   // 新增：靈魂果醬圖示
+  Swords,     // 新增：競技場圖示
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -82,13 +87,13 @@ const appId = "my-deck-builder-v1";
 //  Firebase 設定
 // ==========================================
 const firebaseConfig = {
-  apiKey: import.meta.env?.VITE_FIREBASE_API_KEY || "AIzaSyDK-feks4M0aZaJY4-gFcP_TxVcJLfMuxo",
-  authDomain: import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN || "cookierunbraverse.firebaseapp.com",
-  projectId: import.meta.env?.VITE_FIREBASE_PROJECT_ID || "cookierunbraverse",
-  storageBucket: import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET || "cookierunbraverse.firebasestorage.app",
-  messagingSenderId: import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID || "1061622650816",
-  appId: import.meta.env?.VITE_FIREBASE_APP_ID || "1:1061622650816:web:b61e2490336b244bf01a25",
-  measurementId: import.meta.env?.VITE_FIREBASE_MEASUREMENT_ID || "G-YK70VGHNRN",
+  apiKey: import.meta.env?.VITE_FIREBASE_API_KEY ||,
+  authDomain: import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN ||,
+  projectId: import.meta.env?.VITE_FIREBASE_PROJECT_ID ||,
+  storageBucket: import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET ||,
+  messagingSenderId: import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID ||,
+  appId: import.meta.env?.VITE_FIREBASE_APP_ID ||,
+  measurementId: import.meta.env?.VITE_FIREBASE_MEASUREMENT_ID ||,
 };
 
 try {
@@ -224,7 +229,7 @@ const getExportSortWeight = (card) => {
   return 800;
 };
 
-// 新增：側邊欄顯示排序權重
+// 側邊欄顯示排序權重 (依據需求：餅乾LV1>2>3 -> 道具 -> 陷阱 -> 場景)
 const getDisplaySortWeight = (card) => {
     if (card.type === CARD_TYPES.COOKIE) {
         if (card.level === CARD_LEVELS.LV1) return 1;
@@ -1264,7 +1269,9 @@ const ExportModal = ({ deck, deckName, onClose }) => {
 };
 
 const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
-  const [formData, setFormData] = useState({
+    // ... (保留 AddCardModal 的完整內容)
+    // 為了縮短回應，這裡省略 AddCardModal 的程式碼，請確保複製完整的 Component
+    const [formData, setFormData] = useState({
     series: "BS1",
     number: "",
     name: "",
@@ -1678,7 +1685,6 @@ const CardItem = React.memo(({
     }
   };
 
-  // 在一般模式下點擊加入，在清單模式下點擊檢視詳情
   const handleClick = (e) => {
     if (isLongPress.current) {
       e.preventDefault();
@@ -1686,7 +1692,7 @@ const CardItem = React.memo(({
       return;
     }
     if (compact) {
-        onView(card);
+        onView(card); // 在清單模式下，預設行為改為檢視，按鈕處理增減
     } else {
         onClick(card);
     }
@@ -1700,13 +1706,18 @@ const CardItem = React.memo(({
       onTouchMove={handleTouchMove}
       className={`relative cursor-pointer transition-all duration-200 border-2 rounded-lg shadow-sm hover:shadow-md hover:scale-[1.02] select-none overflow-hidden group ${colorClass} ${
         compact
-          ? "p-2 pr-1 flex items-center justify-between text-sm min-h-[4rem]" // 調整清單高度與內距
+          ? "p-2 pr-1 flex items-center justify-between text-sm min-h-[4rem]" // 調整清單高度
           : "p-3 flex flex-col gap-1"
       }`}
     >
       {card.imageUrl && !compact && (
         <div className="absolute inset-0 opacity-30 pointer-events-none group-hover:opacity-40 transition-opacity">
-          <img src={card.imageUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+          <img
+            src={card.imageUrl}
+            alt=""
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
         </div>
       )}
 
@@ -1714,31 +1725,58 @@ const CardItem = React.memo(({
         <div className="absolute inset-0 bg-red-900/10 pointer-events-none z-0"></div>
       )}
 
-      {/* --- 卡片內容區 --- */}
-      <div className={`relative z-10 w-full ${compact ? "flex items-center gap-3" : ""}`}>
-        
-        {/* 清單模式的小圖示 */}
+      <div
+        className={`relative z-10 w-full ${
+          compact ? "flex items-center gap-3" : ""
+        }`}
+      >
         {compact && card.imageUrl && (
           <div className="shrink-0 w-10 h-14 rounded border border-slate-300 overflow-hidden bg-white shadow-sm">
-            <img src={card.imageUrl} className="w-full h-full object-cover" alt="" loading="lazy" />
+            <img
+              src={card.imageUrl}
+              className="w-full h-full object-cover"
+              alt=""
+              loading="lazy"
+            />
           </div>
         )}
 
         <div className={`flex-1 min-w-0 ${compact ? "" : ""}`}>
-          <div className={`flex justify-between items-start ${compact ? "flex-col justify-center" : "mb-1"}`}>
-            <h3 className={`font-bold leading-tight ${compact ? `truncate w-full text-slate-800 text-sm ${card.isForbidden || card.isLimitOne ? 'text-red-700' : ''}` : "text-lg md:text-xl line-clamp-1"}`}>
+          <div
+            className={`flex justify-between items-start ${
+              compact ? "flex-col justify-center" : "mb-1"
+            }`}
+          >
+            <h3
+              className={`font-bold leading-tight ${
+                compact
+                  ? `truncate w-full text-slate-800 text-sm ${card.isForbidden || card.isLimitOne ? 'text-red-700' : ''}`
+                  : "text-lg md:text-xl line-clamp-1 leading-snug"
+              }`}
+            >
               {card.name}
             </h3>
 
-            <div className={`flex items-center gap-1 ${compact ? "w-full mt-0.5" : ""}`}>
+            <div
+              className={`flex items-center gap-1 ${
+                compact ? "w-full mt-0.5" : ""
+              }`}
+            >
               {!compact && (
-                <button onClick={(e) => { e.stopPropagation(); onView(card); }} className="p-1 text-current opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white/50 rounded-full transition-all" title="檢視詳細大圖">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onView(card);
+                  }}
+                  className="p-1 text-current opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white/50 rounded-full transition-all"
+                  title="檢視詳細大圖"
+                >
                   <Eye size={16} />
                 </button>
               )}
-              
+
               <span className={`font-mono font-black ${compact ? "text-xs text-slate-500" : "text-xs md:text-xl bg-white/80 px-2 rounded border border-current/20 shadow-sm"}`}>
-                {card.id}
+                  {card.id}
               </span>
             </div>
           </div>
@@ -1783,6 +1821,28 @@ const CardItem = React.memo(({
           )}
         </div>
 
+        {/* --- 重點修改：清單模式的加減按鈕 --- */}
+        {compact && (
+            <div className="flex items-center gap-1 bg-white/50 rounded-lg p-1 border border-black/5 shadow-sm" onClick={e => e.stopPropagation()}>
+                <button 
+                    onClick={() => onDecrement && onDecrement(card)}
+                    className="w-8 h-8 flex items-center justify-center bg-red-100 text-red-700 rounded hover:bg-red-200 active:scale-95 transition-all"
+                >
+                    <Minus size={16} strokeWidth={3} />
+                </button>
+                <div className="w-8 text-center font-black text-lg text-slate-800 leading-none">
+                    {count}
+                </div>
+                <button 
+                    onClick={() => onIncrement && onIncrement(card)}
+                    className="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-700 rounded hover:bg-blue-200 active:scale-95 transition-all"
+                >
+                    <Plus size={16} strokeWidth={3} />
+                </button>
+            </div>
+        )}
+      </div>
+
       {!compact && onEdit && onDelete && (
         <div className="absolute top-2 right-2 flex gap-1 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
@@ -1808,40 +1868,6 @@ const CardItem = React.memo(({
         </div>
       )}
 
-      {count > 0 && (
-        <div className="absolute -top-2 -right-2 bg-slate-800 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-md border-2 border-white z-10">
-          {count}
-        </div>
-      )}
-    </div>
-{compact && (
-            <div className="flex items-center gap-1 bg-white/50 rounded-lg p-1 border border-black/5 shadow-sm" onClick={e => e.stopPropagation()}>
-                <button 
-                    onClick={() => onDecrement(card)}
-                    className="w-8 h-8 flex items-center justify-center bg-red-100 text-red-700 rounded hover:bg-red-200 active:scale-95 transition-all"
-                >
-                    <Minus size={16} strokeWidth={3} />
-                </button>
-                <div className="w-8 text-center font-black text-lg text-slate-800 leading-none">
-                    {count}
-                </div>
-                <button 
-                    onClick={() => onIncrement(card)}
-                    className="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-700 rounded hover:bg-blue-200 active:scale-95 transition-all"
-                >
-                    <Plus size={16} strokeWidth={3} />
-                </button>
-            </div>
-        )}
-      </div>
-
-      {!compact && onEdit && onDelete && (
-        <div className="absolute top-2 right-2 flex gap-1 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={(e) => { e.stopPropagation(); onEdit(card); }} className="p-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 shadow-sm"><Pencil size={14} /></button>
-          <button onClick={(e) => { e.stopPropagation(); onDelete(card); }} className="p-1.5 bg-red-500 text-white rounded hover:bg-red-600 shadow-sm"><Trash2 size={14} /></button>
-        </div>
-      )}
-
       {/* 一般模式下的計數器 (右上角) */}
       {!compact && count > 0 && (
         <div className="absolute -top-2 -right-2 bg-slate-800 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-md border-2 border-white z-10">
@@ -1851,7 +1877,6 @@ const CardItem = React.memo(({
     </div>
   );
 });
-
 
 const StatBadge = ({
   icon: Icon,
@@ -1909,6 +1934,20 @@ export default function App() {
   const [showLoginModal, setShowLoginModal] = useState(false); 
   const [showDrawTestModal, setShowDrawTestModal] = useState(false); 
   const [showPackOpenerModal, setShowPackOpenerModal] = useState(false); 
+  
+  const [viewingCard, setViewingCard] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [editingCard, setEditingCard] = useState(null);
+  const [isDataLoaded, setIsDataLoaded] = useState(false); 
+  
+  const [isMobileDeckOpen, setIsMobileDeckOpen] = useState(false);
+   
+  const [isOffline, setIsOffline] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(30);
+  const loadMoreRef = useRef(null);
+
+  // 控制手機版 Header 顯示/隱藏
   const [showHeader, setShowHeader] = useState(true);
   const scrollContainerRef = useRef(null); // 用於左側清單容器
   const lastScrollY = useRef(0);
@@ -1933,25 +1972,14 @@ export default function App() {
     return () => container.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const [viewingCard, setViewingCard] = useState(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [editingCard, setEditingCard] = useState(null);
-  const [isDataLoaded, setIsDataLoaded] = useState(false); 
-  
-  const [isMobileDeckOpen, setIsMobileDeckOpen] = useState(false);
-   
-  const [isOffline, setIsOffline] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(30);
-  const loadMoreRef = useRef(null);
-
   const LIMITS = { MAIN: 60, EXTRA: 6, COPY: 4, FLIP: 16 };
 
   const closeToast = useCallback(() => {
     setToastMsg(null);
   }, []);
 
-  // --- SEO & Metadata ---
+  // ... (SEO, Firebase auth, effects remain unchanged) ...
+  // 保留 useEffects
   useEffect(() => {
     document.title = "Cookierun: Braverse Deck Builder | 薑餅人對戰卡牌組構建器";
     const setFavicon = () => {
@@ -2112,6 +2140,8 @@ export default function App() {
     }
   }, [allCards, db]);
 
+  // ... (getCardCount, getFlipCount, counts, addToDeck, removeFromDeck, etc.) ...
+  
   const getCardCount = useCallback((cardId) => {
      return deck.main.filter(c => c.id === cardId).length + deck.extra.filter(c => c.id === cardId).length;
   }, [deck]);
@@ -2319,7 +2349,7 @@ export default function App() {
     }
   };
 
-  // 關鍵修復：這裡加入了 ( || "") 的防呆機制，避免因為資料不完整導致 crash
+  // ... (filteredCards, displayedCards effects) ...
   const filteredCards = useMemo(
     () =>
       allCards.filter((card) => {
@@ -2403,10 +2433,12 @@ export default function App() {
     return () => observer.disconnect();
   }, [displayedCards]);
 
-    const mainDeckNormal = useMemo(() => deck.main.filter(c => !c.isFlip), [deck.main]);
+  // --- 重構：右側牌組清單的資料準備 ---
+  // 1. 分離一般卡片與 FLIP 卡片 (兩者都來自 deck.main)
+  const mainDeckNormal = useMemo(() => deck.main.filter(c => !c.isFlip), [deck.main]);
   const mainDeckFlip = useMemo(() => deck.main.filter(c => c.isFlip), [deck.main]);
 
-  // 2. 分組並排序一般卡片 (套用 getDisplaySortWeight 排序)
+  // 2. 分組並排序一般卡片 (使用新的排序邏輯)
   const groupedMainDeckNormal = useMemo(() => {
       const groups = groupCards(mainDeckNormal);
       return groups.sort((a, b) => {
@@ -2417,13 +2449,13 @@ export default function App() {
       });
   }, [mainDeckNormal]);
 
-  // 3. 分組 FLIP 卡片
+  // 3. 分組 FLIP 卡片 (FLIP 卡通常依 ID 排序即可)
   const groupedMainDeckFlip = useMemo(() => groupCards(mainDeckFlip), [mainDeckFlip]);
 
   // 4. 分組額外卡片
   const groupedExtraDeck = useMemo(() => groupCards(deck.extra), [deck.extra]);
   
-  const flipCount = deck.main.filter(c => c.isFlip).length;
+  const flipCount = getFlipCount();
 
   if (loadingError && !isOffline) {
     return (
@@ -2485,93 +2517,112 @@ export default function App() {
       {showPackOpenerModal && <PackOpenerModal allCards={allCards} onClose={() => setShowPackOpenerModal(false)} />}
 
       {/* 左側：卡片清單 (手機上為滿版，桌面版在左側) */}
-      <div className="flex-1 flex flex-col min-w-0 border-r border-slate-200 min-h-0">
-        {/* Header 區域 */}
-        <div className="p-3 md:p-4 bg-white border-b border-slate-200 shadow-sm z-10 space-y-2 md:space-y-3 shrink-0">
-          <div className="flex justify-between items-start">
-            <div className="flex flex-col">
-                <h1 className="text-lg md:text-2xl font-black flex items-center gap-2 text-slate-800">
-                    <Cloud className={isOffline ? "text-slate-400" : "text-blue-600"} size={24} />
-                    Cookierun: Braverse Deck Builder
-                </h1>
-                <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">
-                    先行測試版本，有Bug請私訊樂多綠YT或粉絲專頁
-                </p>
+      <div className="flex-1 flex flex-col min-w-0 border-r border-slate-200 min-h-0 relative">
+        {/* Header 區域：加入 transition 與 transform */}
+        <div 
+            className={`bg-white border-b border-slate-200 shadow-sm z-10 shrink-0 transition-all duration-300 ease-in-out overflow-hidden
+            ${showHeader ? 'max-h-[500px] opacity-100 translate-y-0' : 'max-h-0 opacity-0 -translate-y-full md:max-h-[500px] md:opacity-100 md:translate-y-0'}
+            `}
+        >
+             <div className="p-3 md:p-4 space-y-2 md:space-y-3">
+                <div className="flex justify-between items-start">
+                    <div className="flex flex-col">
+                        <h1 className="text-lg md:text-2xl font-black flex items-center gap-2 text-slate-800">
+                            <Cloud className={isOffline ? "text-slate-400" : "text-blue-600"} size={24} />
+                            Cookierun: Braverse Deck Builder
+                        </h1>
+                        <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">
+                            先行測試版本，有Bug請私訊樂多綠YT或粉絲專頁
+                        </p>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      {isAdmin ? (
+                        <>
+                          <button onClick={() => { setEditingCard(null); setShowAddModal(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors"><Plus size={16} /> <span className="hidden md:inline">新增</span></button>
+                          <button onClick={() => setShowBulkModal(true)} className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors"><FileJson size={16} /> <span className="hidden md:inline">匯入</span></button>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-1 text-slate-400 text-xs bg-slate-100 px-2 py-1 rounded"><Lock size={12} /> 僅供瀏覽</div>
+                      )}
+                    </div>
+                </div>
+                {/* 篩選與搜尋 */}
+                <div className="flex flex-col gap-2">
+                    <div className="relative w-full">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
+                      <input type="text" placeholder="搜尋名稱或編號..." className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} />
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1"><Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.type} onChange={(e) => setFilters({...filters, type: e.target.value})}>{['ALL', ...Object.values(CARD_TYPES)].map(t => <option key={t} value={t}>{t === 'ALL' ? '全部種類' : t}</option>)}</select></div>
+                      <div className="relative flex-1"><Palette className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.color} onChange={(e) => setFilters({...filters, color: e.target.value})}>{['ALL', ...Object.values(CARD_COLORS)].map(c => <option key={c} value={c}>{c === 'ALL' ? '全部顏色' : c}</option>)}</select></div>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1"><Layers className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.series} onChange={(e) => setFilters({...filters, series: e.target.value})}><option value="ALL">全部系列</option>{CARD_SERIES_OPTIONS.map((s) => (<option key={s} value={s}>{s}</option>))}</select></div>
+                      <div className="relative flex-1"><Gem className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.levelOrRarity} onChange={(e) => setFilters({...filters, levelOrRarity: e.target.value})}><option value="ALL">全部等級/稀有度</option><optgroup label="等級 (Levels)">{Object.values(CARD_LEVELS).map((l) => (<option key={l} value={l}>{l}</option>))}</optgroup><optgroup label="稀有度 (Rarities)">{Object.entries(CARD_RARITIES).map(([k, v]) => (<option key={k} value={k}>{v}</option>))}</optgroup></select></div>
+                    </div>
+                    <div className="flex flex-wrap gap-3 mt-2 pl-1 select-none items-center">
+                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
+                        <input type="checkbox" className="hidden peer" checked={filters.showExtra} onChange={(e) => setFilters({ ...filters, showExtra: e.target.checked })} />
+                        <span className="flex items-center gap-1.5 text-xs md:text-sm uppercase tracking-wider bg-purple-100 text-purple-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-purple-300 peer-checked:bg-purple-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-purple-400 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
+                          <Zap size={16} className="w-3 h-3 md:w-4 md:h-4" /> EXTRA
+                        </span>
+                      </label>
+
+                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
+                        <input type="checkbox" className="hidden peer" checked={filters.showFlip} onChange={(e) => setFilters({ ...filters, showFlip: e.target.checked })} />
+                        <span className="flex items-center gap-1.5 text-xs md:text-sm bg-slate-200 text-slate-700 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-slate-300 peer-checked:bg-slate-800 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-slate-500 opacity-70 peer-checked:opacity-100 font-bold tracking-wider shadow-sm transition-all">
+                          <RotateCw size={16} className="w-3 h-3 md:w-4 md:h-4" /> FLIP
+                        </span>
+                      </label>
+
+                      <div className="h-6 w-px bg-slate-300 mx-1 hidden md:block"></div>
+
+                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
+                        <input type="checkbox" className="hidden peer" checked={filters.showAncient} onChange={(e) => setFilters({ ...filters, showAncient: e.target.checked })} />
+                        <span className="flex items-center gap-1.5 text-xs md:text-sm bg-amber-100 text-amber-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-amber-300 peer-checked:bg-amber-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-amber-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
+                          <Crown size={16} className="w-3 h-3 md:w-4 md:h-4" /> 上古
+                        </span>
+                      </label>
+
+                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
+                        <input type="checkbox" className="hidden peer" checked={filters.showDragon} onChange={(e) => setFilters({ ...filters, showDragon: e.target.checked })} />
+                        <span className="flex items-center gap-1.5 text-xs md:text-sm bg-red-100 text-red-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-red-300 peer-checked:bg-red-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-red-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
+                          <Flame size={16} className="w-3 h-3 md:w-4 md:h-4" /> 龍族
+                        </span>
+                      </label>
+
+                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
+                        <input type="checkbox" className="hidden peer" checked={filters.showBeast} onChange={(e) => setFilters({ ...filters, showBeast: e.target.checked })} />
+                        <span className="flex items-center gap-1.5 text-xs md:text-sm bg-stone-200 text-stone-800 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-stone-300 peer-checked:bg-stone-700 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-stone-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
+                          <PawPrint size={16} className="w-3 h-3 md:w-4 md:h-4" /> 野獸
+                        </span>
+                      </label>
+
+                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
+                        <input type="checkbox" className="hidden peer" checked={filters.showSoulJam} onChange={(e) => setFilters({ ...filters, showSoulJam: e.target.checked })} />
+                        <span className="flex items-center gap-1.5 text-xs md:text-sm bg-pink-100 text-pink-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-pink-300 peer-checked:bg-pink-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-pink-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
+                          <Sparkles size={16} className="w-3 h-3 md:w-4 md:h-4" /> 靈魂果醬
+                        </span>
+                      </label>
+                      
+                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
+                        <input type="checkbox" className="hidden peer" checked={filters.showArena} onChange={(e) => setFilters({ ...filters, showArena: e.target.checked })} />
+                        <span className="flex items-center gap-1.5 text-xs md:text-sm bg-cyan-100 text-cyan-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-cyan-300 peer-checked:bg-cyan-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-cyan-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
+                          <Swords size={16} className="w-3 h-3 md:w-4 md:h-4" /> 競技場
+                        </span>
+                      </label>
+                    </div>
+                </div>
             </div>
-            
-            <div className="flex gap-2">
-              {isAdmin ? (
-                <>
-                  <button onClick={() => { setEditingCard(null); setShowAddModal(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors"><Plus size={16} /> <span className="hidden md:inline">新增</span></button>
-                  <button onClick={() => setShowBulkModal(true)} className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors"><FileJson size={16} /> <span className="hidden md:inline">匯入</span></button>
-                </>
-              ) : (
-                <div className="flex items-center gap-1 text-slate-400 text-xs bg-slate-100 px-2 py-1 rounded"><Lock size={12} /> 僅供瀏覽</div>
-              )}
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
-              <input type="text" placeholder="搜尋名稱或編號..." className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} />
-            </div>
-            {/* 篩選器 */}
-            <div className="flex gap-2">
-              <div className="relative flex-1"><Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.type} onChange={(e) => setFilters({...filters, type: e.target.value})}>{['ALL', ...Object.values(CARD_TYPES)].map(t => <option key={t} value={t}>{t === 'ALL' ? '全部種類' : t}</option>)}</select></div>
-              <div className="relative flex-1"><Palette className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.color} onChange={(e) => setFilters({...filters, color: e.target.value})}>{['ALL', ...Object.values(CARD_COLORS)].map(c => <option key={c} value={c}>{c === 'ALL' ? '全部顏色' : c}</option>)}</select></div>
-            </div>
-            <div className="flex gap-2">
-              <div className="relative flex-1"><Layers className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.series} onChange={(e) => setFilters({...filters, series: e.target.value})}>
-                  <option value="ALL">全部系列</option>
-                  {CARD_SERIES_OPTIONS.map((s) => (<option key={s} value={s}>{s}</option>))}
-                </select></div>
-              <div className="relative flex-1"><Gem className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.levelOrRarity} onChange={(e) => setFilters({...filters, levelOrRarity: e.target.value})}>
-                  <option value="ALL">全部等級/稀有度</option>
-                  <optgroup label="等級 (Levels)">
-                    {Object.values(CARD_LEVELS).map((l) => (<option key={l} value={l}>{l}</option>))}
-                  </optgroup>
-                  <optgroup label="稀有度 (Rarities)">
-                    {Object.entries(CARD_RARITIES).map(([k, v]) => (<option key={k} value={k}>{v}</option>))}
-                  </optgroup>
-                </select></div>
-            </div>
-            {/* checkbox 篩選列 */}
-            <div className="flex flex-wrap gap-3 mt-2 pl-1 select-none">
-              <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                <input type="checkbox" className="hidden peer" checked={filters.showExtra} onChange={(e) => setFilters({ ...filters, showExtra: e.target.checked })} />
-                <span className="text-[10px] uppercase tracking-wider bg-purple-200 text-purple-900 px-2 py-1 rounded border border-purple-300 peer-checked:ring-2 peer-checked:ring-purple-500 opacity-60 peer-checked:opacity-100 font-bold">[EXTRA]</span>
-              </label>
-              <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                <input type="checkbox" className="hidden peer" checked={filters.showFlip} onChange={(e) => setFilters({ ...filters, showFlip: e.target.checked })} />
-                <span className="text-[10px] bg-slate-800 text-white px-2 py-1 rounded font-bold tracking-wider peer-checked:ring-2 peer-checked:ring-slate-500 opacity-60 peer-checked:opacity-100">[FLIP]</span>
-              </label>
-              <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                <input type="checkbox" className="hidden peer" checked={filters.showAncient} onChange={(e) => setFilters({ ...filters, showAncient: e.target.checked })} />
-                <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-1 rounded font-bold border border-amber-300 peer-checked:ring-2 peer-checked:ring-amber-500 opacity-60 peer-checked:opacity-100">上古</span>
-              </label>
-              <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                <input type="checkbox" className="hidden peer" checked={filters.showDragon} onChange={(e) => setFilters({ ...filters, showDragon: e.target.checked })} />
-                <span className="text-[10px] bg-red-100 text-red-800 px-2 py-1 rounded font-bold border border-red-300 peer-checked:ring-2 peer-checked:ring-red-500 opacity-60 peer-checked:opacity-100">龍族</span>
-              </label>
-              <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                <input type="checkbox" className="hidden peer" checked={filters.showBeast} onChange={(e) => setFilters({ ...filters, showBeast: e.target.checked })} />
-                <span className="text-[10px] bg-stone-800 text-stone-100 px-2 py-1 rounded font-bold border border-stone-600 peer-checked:ring-2 peer-checked:ring-stone-500 opacity-60 peer-checked:opacity-100">野獸</span>
-              </label>
-              <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                <input type="checkbox" className="hidden peer" checked={filters.showSoulJam} onChange={(e) => setFilters({ ...filters, showSoulJam: e.target.checked })} />
-                <span className="text-[10px] bg-pink-100 text-pink-800 px-2 py-1 rounded font-bold border border-pink-300 peer-checked:ring-2 peer-checked:ring-pink-500 opacity-60 peer-checked:opacity-100">靈魂果醬</span>
-              </label>
-              {/* 新增：競技場 (Arena) 篩選按鈕 */}
-              <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                <input type="checkbox" className="hidden peer" checked={filters.showArena} onChange={(e) => setFilters({ ...filters, showArena: e.target.checked })} />
-                <span className="text-[10px] bg-cyan-100 text-cyan-800 px-2 py-1 rounded font-bold border border-cyan-300 peer-checked:ring-2 peer-checked:ring-cyan-500 opacity-60 peer-checked:opacity-100">競技場</span>
-              </label>
-            </div>
-          </div>
         </div>
         
-        {/* 卡片列表 */}
-        <div className="flex-1 overflow-y-auto p-4 bg-slate-50 overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+        {/* 左側卡片列表容器：綁定 ref 以偵測捲動 */}
+        <div 
+            ref={scrollContainerRef}
+            className="flex-1 overflow-y-auto p-4 bg-slate-50 overscroll-contain" 
+            style={{ WebkitOverflowScrolling: 'touch' }}
+        >
           {!isDataLoaded ? (
             <div className="flex flex-col items-center justify-center h-64 text-slate-500 gap-3">
                <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
@@ -2590,7 +2641,6 @@ export default function App() {
                     onDelete={isAdmin ? handleDeleteCard : null}
                   />
                 ))}
-                {/* Lazy Loading Sentinel */}
                 <div ref={loadMoreRef} className="col-span-full h-10 flex items-center justify-center text-slate-400 text-sm">
                     {displayedCards.length < filteredCards.length ? "載入更多..." : "已顯示所有卡片"}
                 </div>
@@ -2600,7 +2650,6 @@ export default function App() {
 
         {/* Footer 區域 */}
         <div className="bg-white border-t border-slate-200 text-xs text-slate-500 p-2 md:p-3">
-          {/* 手機版佈局 */}
           <div className="md:hidden flex flex-col gap-1.5">
               <div className="font-bold">製作者：樂多綠Gamecaster</div>
               <div className="flex items-center gap-4">
@@ -2623,7 +2672,6 @@ export default function App() {
               </div>
           </div>
 
-          {/* 桌面版佈局 */}
           <div className="hidden md:flex flex-row justify-between items-center gap-4">
               <span className="font-bold">製作者：樂多綠Gamecaster</span>
               <div className="flex gap-4">
@@ -2844,5 +2892,6 @@ export default function App() {
           </section>
         </div>
       </div>
+    </div>
   );
 }
