@@ -1948,8 +1948,8 @@ export default function App() {
   const loadMoreRef = useRef(null);
 
   // 控制手機版 Header 顯示/隱藏
-  const [showHeader, setShowHeader] = useState(true);
-  const scrollContainerRef = useRef(null); // 用於左側清單容器
+    const [showHeader, setShowHeader] = useState(true);
+  const scrollContainerRef = useRef(null);
   const lastScrollY = useRef(0);
 
   useEffect(() => {
@@ -1958,24 +1958,24 @@ export default function App() {
 
     const handleScroll = () => {
       const currentScrollY = container.scrollTop;
-      // 當往下捲動超過 50px 且當前位置大於上一次 (往下) -> 隱藏
-      // 當往上捲動 (當前位置小於上一次) -> 顯示
-      if (currentScrollY > 50 && currentScrollY > lastScrollY.current) {
+      const diff = currentScrollY - lastScrollY.current;
+
+      // 加入緩衝機制，避免因為手指輕微抖動而閃爍
+      // 當往下捲動超過 10px 且目前位置不是在最頂端 (避免誤判) -> 隱藏
+      if (diff > 10 && currentScrollY > 50) {
         setShowHeader(false);
-      } else {
+      } 
+      // 當往上捲動超過 10px -> 顯示
+      else if (diff < -10) {
         setShowHeader(true);
       }
+      
       lastScrollY.current = currentScrollY;
     };
 
-    container.addEventListener("scroll", handleScroll);
+    // passive: true 可以提升手機滑動時的效能
+    container.addEventListener("scroll", handleScroll, { passive: true });
     return () => container.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  const LIMITS = { MAIN: 60, EXTRA: 6, COPY: 4, FLIP: 16 };
-
-  const closeToast = useCallback(() => {
-    setToastMsg(null);
   }, []);
 
   // ... (SEO, Firebase auth, effects remain unchanged) ...
@@ -2520,8 +2520,11 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0 border-r border-slate-200 min-h-0 relative">
         {/* Header 區域：加入 transition 與 transform */}
         <div 
-            className={`bg-white border-b border-slate-200 shadow-sm z-10 shrink-0 transition-all duration-300 ease-in-out overflow-hidden
-            ${showHeader ? 'max-h-[500px] opacity-100 translate-y-0' : 'max-h-0 opacity-0 -translate-y-full md:max-h-[500px] md:opacity-100 md:translate-y-0'}
+            className={`
+              bg-white border-b border-slate-200 shadow-sm z-10 shrink-0 
+              transition-all duration-300 ease-in-out overflow-hidden
+              ${showHeader ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}
+              md:max-h-none md:opacity-100 md:static md:overflow-visible
             `}
         >
              <div className="p-3 md:p-4 space-y-2 md:space-y-3">
