@@ -899,9 +899,10 @@ const ExportModal = ({ deck, deckName, onClose }) => {
     setIsGenerating(true);
     try {
       const canvas = await window.html2canvas(exportRef.current, {
-        scale: 2.5,
+        scale: 2, 
         backgroundColor: "#ffffff",
         useCORS: true,
+        windowWidth: 1200, // 強制設定視窗寬度，確保 RWD 樣式以桌面版呈現
       });
       const link = document.createElement("a");
       link.download = `${deckName || "deck"}-${new Date()
@@ -1140,93 +1141,98 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                 </button>
               </div>
 
-              <div
-                ref={exportRef}
-                className="bg-white p-8 rounded-lg shadow-lg w-full max-w-[1000px] border border-slate-200"
-              >
-                <div className="flex justify-between items-end border-b-4 border-slate-800 pb-4 mb-6">
-                    <div className="flex-1">
-                        <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tight leading-none">
-                        {deckName || "My Deck"}
-                        </h1>
-                    </div>
-                    
-                    <div className="flex flex-col items-end gap-1 text-sm font-bold text-slate-600 uppercase tracking-wider min-w-max ml-4">
-                        <span className="flex items-center gap-1">
-                            <Layers size={16} /> Total: {deck.main.length}
-                        </span>
-                        <span className="flex items-center gap-1">
-                            <RotateCw size={16} /> Flip: {flipCount}
-                        </span>
-                        {deck.extra.length > 0 && (
-                            <span className="flex items-center gap-1 text-purple-600">
-                                <Zap size={16} /> Extra: {deck.extra.length}
+              {/* --- 圖片輸出核心區塊 --- */}
+              {/* 修正：加入 overflow-x-auto 與 min-w-[800px] 解決手機版卡片過小問題 */}
+              <div className="w-full overflow-x-auto pb-4">
+                <div
+                    ref={exportRef}
+                    className="bg-white p-8 rounded-lg shadow-lg min-w-[800px] w-full max-w-[1000px] mx-auto border border-slate-200"
+                >
+                    <div className="flex justify-between items-end border-b-4 border-slate-800 pb-4 mb-6">
+                        <div className="flex-1">
+                            <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tight leading-none">
+                            {deckName || "My Deck"}
+                            </h1>
+                        </div>
+                        
+                        <div className="flex flex-col items-end gap-1 text-sm font-bold text-slate-600 uppercase tracking-wider min-w-max ml-4">
+                            <span className="flex items-center gap-1">
+                                <Layers size={16} /> Total: {deck.main.length}
                             </span>
+                            <span className="flex items-center gap-1">
+                                <RotateCw size={16} /> Flip: {flipCount}
+                            </span>
+                            {deck.extra.length > 0 && (
+                                <span className="flex items-center gap-1 text-purple-600">
+                                    <Zap size={16} /> Extra: {deck.extra.length}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="space-y-6">
+                        {/* 區域 1: 餅乾卡 (Cookies) */}
+                        {imageExportData.cookies.length > 0 && (
+                            <div>
+                                <h3 className="font-bold text-slate-700 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-yellow-400 pl-2">
+                                    Cookies <span className="text-xs opacity-50 ml-1">(Lv.1 &rarr; Lv.3)</span>
+                                </h3>
+                                {/* 統一使用 8 欄，確保卡片尺寸一致且夠大 */}
+                                <div className="grid grid-cols-8 gap-1">
+                                    {imageExportData.cookies.map(renderMiniCard)}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 區域 2: 道具/陷阱/場景 (Others) */}
+                        {imageExportData.others.length > 0 && (
+                            <div>
+                                <h3 className="font-bold text-slate-700 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-blue-400 pl-2">
+                                    Items / Traps / Stages
+                                </h3>
+                                <div className="grid grid-cols-8 gap-1">
+                                    {imageExportData.others.map(renderMiniCard)}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 區域 3: FLIP 卡 (Flips) */}
+                        {imageExportData.flips.length > 0 && (
+                            <div>
+                                <h3 className="font-bold text-slate-700 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-slate-600 pl-2">
+                                    FLIP Cards
+                                </h3>
+                                <div className="grid grid-cols-8 gap-1">
+                                    {imageExportData.flips.map(renderMiniCard)}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 區域 4: 額外牌組 (Extra) */}
+                        {imageExportData.extras.length > 0 && (
+                            <div className="pt-2 border-t border-slate-100">
+                                <h3 className="font-bold text-purple-900 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-purple-400 pl-2">
+                                    <Zap size={16} /> Extra Deck
+                                </h3>
+                                <div className="grid grid-cols-8 gap-1">
+                                    {imageExportData.extras.map(renderMiniCard)}
+                                </div>
+                            </div>
                         )}
                     </div>
-                </div>
-
-                <div className="space-y-6">
-                    {/* 區域 1: 餅乾卡 (Cookies) */}
-                    {imageExportData.cookies.length > 0 && (
-                        <div>
-                            <h3 className="font-bold text-slate-700 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-yellow-400 pl-2">
-                                Cookies <span className="text-xs opacity-50 ml-1">(Lv.1 &rarr; Lv.3)</span>
-                            </h3>
-                            <div className="grid grid-cols-7 md:grid-cols-8 gap-1">
-                                {imageExportData.cookies.map(renderMiniCard)}
-                            </div>
+                    
+                    <div className="mt-8 pt-4 border-t-2 border-slate-100 flex justify-end items-center">
+                        <div className="text-right">
+                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">CREATED WITH</div>
+                            <div className="text-lg font-black text-slate-300">Braverse Deck Builder</div>
                         </div>
-                    )}
-
-                    {/* 區域 2: 道具/陷阱/場景 (Others) */}
-                    {imageExportData.others.length > 0 && (
-                        <div>
-                            <h3 className="font-bold text-slate-700 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-blue-400 pl-2">
-                                Items / Traps / Stages
-                            </h3>
-                            <div className="grid grid-cols-7 md:grid-cols-8 gap-1">
-                                {imageExportData.others.map(renderMiniCard)}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 區域 3: FLIP 卡 (Flips) */}
-                    {imageExportData.flips.length > 0 && (
-                        <div>
-                            <h3 className="font-bold text-slate-700 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-slate-600 pl-2">
-                                FLIP Cards
-                            </h3>
-                            <div className="grid grid-cols-7 md:grid-cols-8 gap-1">
-                                {imageExportData.flips.map(renderMiniCard)}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 區域 4: 額外牌組 (Extra) */}
-                    {imageExportData.extras.length > 0 && (
-                        <div className="pt-2 border-t border-slate-100">
-                            <h3 className="font-bold text-purple-900 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-purple-400 pl-2">
-                                <Zap size={16} /> Extra Deck
-                            </h3>
-                            <div className="grid grid-cols-7 md:grid-cols-8 gap-1">
-                                {imageExportData.extras.map(renderMiniCard)}
-                            </div>
-                        </div>
-                    )}
-                </div>
-                
-                <div className="mt-8 pt-4 border-t-2 border-slate-100 flex justify-end items-center">
-                    <div className="text-right">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">CREATED WITH</div>
-                        <div className="text-lg font-black text-slate-300">Braverse Deck Builder</div>
                     </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* --- Tab 2: Link Share --- */}
+          {/* --- Tab 2: Link Share (保持不變) --- */}
           {activeTab === "link" && (
             <div className="flex flex-col gap-6 max-w-lg mx-auto mt-8">
               <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg flex gap-3 items-start">
@@ -1257,7 +1263,7 @@ const ExportModal = ({ deck, deckName, onClose }) => {
             </div>
           )}
 
-          {/* --- Tab 3: List Print --- */}
+          {/* --- Tab 3: List Print (保持不變) --- */}
           {activeTab === "list" && (
             <div className="p-4 print:p-0">
                 <div className="print:hidden bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-6 flex justify-between items-center">
