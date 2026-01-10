@@ -899,7 +899,7 @@ const ExportModal = ({ deck, deckName, onClose }) => {
     setIsGenerating(true);
     try {
       const canvas = await window.html2canvas(exportRef.current, {
-        scale: 2.5, // 提升清晰度
+        scale: 2.5,
         backgroundColor: "#ffffff",
         useCORS: true,
       });
@@ -927,26 +927,56 @@ const ExportModal = ({ deck, deckName, onClose }) => {
     window.print();
   };
 
-  // --- 圖片輸出用的排序邏輯 (維持原本的排序) ---
-  const sortedMainForImage = useMemo(() => {
-    const groups = groupCards(deck.main);
-    return groups.sort((a, b) => {
-        const wA = getExportSortWeight(a);
-        const wB = getExportSortWeight(b);
-        if (wA !== wB) return wA - wB;
+  // --- 圖片輸出專用的分組與排序 ---
+  const imageExportData = useMemo(() => {
+    const mainCards = deck.main;
+    
+    // 1. Cookies (Non-Flip)
+    const cookies = groupCards(mainCards.filter(c => c.type === CARD_TYPES.COOKIE && !c.isFlip));
+    cookies.sort((a, b) => {
+        // Sort by Level
+        const getLevelVal = (lvl) => {
+            if (lvl === CARD_LEVELS.LV1) return 1;
+            if (lvl === CARD_LEVELS.LV2) return 2;
+            if (lvl === CARD_LEVELS.LV3) return 3;
+            return 99;
+        }
+        const wa = getLevelVal(a.level);
+        const wb = getLevelVal(b.level);
+        if (wa !== wb) return wa - wb;
         return a.id.localeCompare(b.id);
     });
-  }, [deck.main]);
 
-  const sortedExtraForImage = useMemo(() => groupCards(deck.extra), [deck.extra]);
-  const flipCount = deck.main.filter(c => c.isFlip).length;
+    // 2. Others (Non-Flip: Item, Trap, Scene)
+    const others = groupCards(mainCards.filter(c => c.type !== CARD_TYPES.COOKIE && !c.isFlip));
+    others.sort((a, b) => {
+         const getTypeVal = (t) => {
+              if (t === CARD_TYPES.ITEM) return 1;
+              if (t === CARD_TYPES.TRAP) return 2;
+              if (t === CARD_TYPES.SCENE) return 3;
+              return 4;
+          }
+          const wa = getTypeVal(a.type);
+          const wb = getTypeVal(b.type);
+          if (wa !== wb) return wa - wb;
+          return a.id.localeCompare(b.id);
+    });
 
-  // --- 列印清單用的分組與排序邏輯 (新需求) ---
+    // 3. Flips
+    const flips = groupCards(mainCards.filter(c => c.isFlip));
+    flips.sort((a, b) => a.id.localeCompare(b.id));
+
+    // 4. Extras
+    const extras = groupCards(deck.extra);
+    extras.sort((a, b) => a.id.localeCompare(b.id));
+
+    return { cookies, others, flips, extras };
+  }, [deck.main, deck.extra]);
+
+  // --- 列印清單用的分組與排序邏輯 (維持不變) ---
   const printData = useMemo(() => {
-    // 輔助函式：將列表分組並依 ID 排序
     const processGroup = (list) => groupCards(list).sort((a, b) => a.id.localeCompare(b.id));
     
-    // 1. 餅乾卡：需按照等級排序 (LV1 -> LV2 -> LV3)
     const cookiesRaw = deck.main.filter(c => c.type === CARD_TYPES.COOKIE && !c.isFlip);
     const cookiesGrouped = groupCards(cookiesRaw).sort((a, b) => {
         const getLvlVal = (lvl) => {
@@ -973,7 +1003,8 @@ const ExportModal = ({ deck, deckName, onClose }) => {
 
   const getSectionCount = (groups) => groups.reduce((acc, g) => acc + g.stackCount, 0);
 
-  // 渲染圖片模式的小卡 (維持不變)
+  const flipCount = deck.main.filter(c => c.isFlip).length;
+
   const renderMiniCard = (group) => (
     <div
         key={group.id}
@@ -1005,7 +1036,6 @@ const ExportModal = ({ deck, deckName, onClose }) => {
     </div>
   );
 
-  // 渲染列印模式的區塊表格 (新設計)
   const renderPrintSection = (title, engTitle, groups, colorClass) => (
       <div className="mb-2 break-inside-avoid">
           <div className={`flex justify-between items-center px-2 py-1 mb-1 border-b-2 ${colorClass}`}>
@@ -1136,21 +1166,56 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                     </div>
                 </div>
 
-                <div className="mb-4">
-                  <div className="grid grid-cols-6 md:grid-cols-8 gap-1">
-                    {sortedMainForImage.map(renderMiniCard)}
-                  </div>
+                <div className="space-y-6">
+                    {/* 區域 1: 餅乾卡 (Cookies) */}
+                    {imageExportData.cookies.length > 0 && (
+                        <div>
+                            <h3 className="font-bold text-slate-700 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-yellow-400 pl-2">
+                                Cookies <span className="text-xs opacity-50 ml-1">(Lv.1 &rarr; Lv.3)</span>
+                            </h3>
+                            <div className="grid grid-cols-7 md:grid-cols-8 gap-1">
+                                {imageExportData.cookies.map(renderMiniCard)}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 區域 2: 道具/陷阱/場景 (Others) */}
+                    {imageExportData.others.length > 0 && (
+                        <div>
+                            <h3 className="font-bold text-slate-700 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-blue-400 pl-2">
+                                Items / Traps / Stages
+                            </h3>
+                            <div className="grid grid-cols-7 md:grid-cols-8 gap-1">
+                                {imageExportData.others.map(renderMiniCard)}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 區域 3: FLIP 卡 (Flips) */}
+                    {imageExportData.flips.length > 0 && (
+                        <div>
+                            <h3 className="font-bold text-slate-700 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-slate-600 pl-2">
+                                FLIP Cards
+                            </h3>
+                            <div className="grid grid-cols-7 md:grid-cols-8 gap-1">
+                                {imageExportData.flips.map(renderMiniCard)}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 區域 4: 額外牌組 (Extra) */}
+                    {imageExportData.extras.length > 0 && (
+                        <div className="pt-2 border-t border-slate-100">
+                            <h3 className="font-bold text-purple-900 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-purple-400 pl-2">
+                                <Zap size={16} /> Extra Deck
+                            </h3>
+                            <div className="grid grid-cols-7 md:grid-cols-8 gap-1">
+                                {imageExportData.extras.map(renderMiniCard)}
+                            </div>
+                        </div>
+                    )}
                 </div>
-                {sortedExtraForImage.length > 0 && (
-                  <div className="mt-6 pt-4 border-t border-slate-200">
-                    <h3 className="font-bold text-purple-900 text-sm uppercase mb-3 flex items-center gap-2">
-                        <Zap size={16} /> Extra Deck
-                    </h3>
-                    <div className="grid grid-cols-6 md:grid-cols-8 gap-1">
-                      {sortedExtraForImage.map(renderMiniCard)}
-                    </div>
-                  </div>
-                )}
+                
                 <div className="mt-8 pt-4 border-t-2 border-slate-100 flex justify-end items-center">
                     <div className="text-right">
                         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">CREATED WITH</div>
@@ -1165,7 +1230,10 @@ const ExportModal = ({ deck, deckName, onClose }) => {
           {activeTab === "link" && (
             <div className="flex flex-col gap-6 max-w-lg mx-auto mt-8">
               <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg flex gap-3 items-start">
-                <AlertTriangle className="text-blue-600 shrink-0 mt-0.5" size={20} />
+                <AlertTriangle
+                  className="text-blue-600 shrink-0 mt-0.5"
+                  size={20}
+                />
                 <div className="text-sm text-blue-800">
                   <p className="font-bold mb-1">關於分享連結</p>
                   <p>產生短連結會將您的牌組資訊儲存至雲端，讓網址更簡短美觀！</p>
@@ -1189,7 +1257,7 @@ const ExportModal = ({ deck, deckName, onClose }) => {
             </div>
           )}
 
-          {/* --- Tab 3: List Print (新設計) --- */}
+          {/* --- Tab 3: List Print --- */}
           {activeTab === "list" && (
             <div className="p-4 print:p-0">
                 <div className="print:hidden bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-6 flex justify-between items-center">
