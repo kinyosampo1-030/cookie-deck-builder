@@ -898,8 +898,9 @@ const ExportModal = ({ deck, deckName, onClose }) => {
     }
     setIsGenerating(true);
     try {
+      // 稍微增加 scale 以提升文字清晰度
       const canvas = await window.html2canvas(exportRef.current, {
-        scale: 2,
+        scale: 2.5,
         backgroundColor: "#ffffff",
         useCORS: true,
       });
@@ -927,7 +928,8 @@ const ExportModal = ({ deck, deckName, onClose }) => {
     window.print();
   };
 
-  const sortedMain = useMemo(() => {
+  // --- 列表模式 (List Tab) 用的排序邏輯 (維持不變) ---
+  const sortedMainForList = useMemo(() => {
     const groups = groupCards(deck.main);
     return groups.sort((a, b) => {
         const wA = getExportSortWeight(a);
@@ -937,9 +939,96 @@ const ExportModal = ({ deck, deckName, onClose }) => {
     });
   }, [deck.main]);
 
-  const sortedExtra = useMemo(() => groupCards(deck.extra), [deck.extra]);
+  const sortedExtraForList = useMemo(() => groupCards(deck.extra), [deck.extra]);
   
+  // --- 圖片輸出模式 (Image Tab) 用的分組與排序邏輯 (新需求) ---
+  const { cookies, others, flips } = useMemo(() => {
+    const c = [], o = [], f = [];
+    deck.main.forEach(card => {
+      if (card.isFlip) {
+        f.push(card);
+      } else if (card.type === CARD_TYPES.COOKIE) {
+        c.push(card);
+      } else {
+        o.push(card);
+      }
+    });
+    return { cookies: c, others: o, flips: f };
+  }, [deck.main]);
+
+  // 1. 餅乾區：按照等級 LV1 -> LV2 -> LV3 -> 其他
+  const groupedCookies = useMemo(() => {
+    const grouped = groupCards(cookies);
+    return grouped.sort((a, b) => {
+        const getLevelVal = (lvl) => {
+            if (lvl === CARD_LEVELS.LV1) return 1;
+            if (lvl === CARD_LEVELS.LV2) return 2;
+            if (lvl === CARD_LEVELS.LV3) return 3;
+            return 4;
+        }
+        const wa = getLevelVal(a.level);
+        const wb = getLevelVal(b.level);
+        if (wa !== wb) return wa - wb;
+        return a.id.localeCompare(b.id);
+    });
+  }, [cookies]);
+
+  // 2. 其他區：道具 -> 陷阱 -> 場景
+  const groupedOthers = useMemo(() => {
+      const grouped = groupCards(others);
+      return grouped.sort((a, b) => {
+          const getTypeVal = (t) => {
+              if (t === CARD_TYPES.ITEM) return 1;
+              if (t === CARD_TYPES.TRAP) return 2;
+              if (t === CARD_TYPES.SCENE) return 3;
+              return 4;
+          }
+          const wa = getTypeVal(a.type);
+          const wb = getTypeVal(b.type);
+          if (wa !== wb) return wa - wb;
+          return a.id.localeCompare(b.id);
+      });
+  }, [others]);
+
+  // 3. FLIP區
+  const groupedFlips = useMemo(() => groupCards(flips).sort((a, b) => a.id.localeCompare(b.id)), [flips]);
+  
+  // 4. Extra區
+  const groupedExtra = useMemo(() => groupCards(deck.extra).sort((a, b) => a.id.localeCompare(b.id)), [deck.extra]);
+
   const flipCount = deck.main.filter(c => c.isFlip).length;
+
+  // 渲染單一卡片小圖 (重用)
+  const renderMiniCard = (group) => (
+    <div
+        key={group.id}
+        className="relative aspect-[3/4] rounded overflow-hidden border border-slate-200 shadow-sm bg-slate-50 group"
+    >
+        {group.imageUrl ? (
+            <img
+            src={group.imageUrl}
+            alt={group.name}
+            className="w-full h-full object-cover"
+            />
+        ) : (
+            <div
+            className={`w-full h-full flex flex-col p-1 text-[8px] ${getCardColorStyles(
+                group.color
+            )}`}
+            >
+            <span className="font-bold leading-tight line-clamp-2">
+                {group.name}
+            </span>
+            <span className="mt-0.5 font-mono opacity-70 font-bold scale-90 origin-left">
+                {group.id}
+            </span>
+            </div>
+        )}
+        <div className="absolute bottom-0.5 right-0.5 bg-black text-white text-[9px] font-bold w-5 h-4 rounded shadow-md border border-white/20 z-10 flex items-center justify-center opacity-90 leading-none">
+            x{group.stackCount}
+        </div>
+    </div>
+  );
 
   return (
     <div
@@ -982,7 +1071,6 @@ const ExportModal = ({ deck, deckName, onClose }) => {
           >
             連結分享
           </button>
-          {/* --- 功能 3: 牌組清單分頁 --- */}
           <button
             onClick={() => setActiveTab("list")}
             className={`flex-1 py-3 font-bold text-sm ${
@@ -999,7 +1087,7 @@ const ExportModal = ({ deck, deckName, onClose }) => {
             <div className="flex flex-col items-center gap-4">
               <div className="bg-white p-4 rounded shadow w-full flex flex-col md:flex-row justify-between items-center gap-4">
                 <span className="text-slate-600 text-sm">
-                  將牌組匯出為高解析度 PNG 圖片 (包含完整卡片縮圖)
+                  將牌組匯出為高解析度 PNG 圖片
                 </span>
                 <button
                   onClick={handleDownloadImage}
@@ -1010,15 +1098,20 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                 </button>
               </div>
 
+              {/* --- 圖片輸出核心區塊 --- */}
               <div
                 ref={exportRef}
                 className="bg-white p-8 rounded-lg shadow-lg w-full max-w-[1000px] border border-slate-200"
               >
-                <div className="flex flex-col items-center border-b-2 border-slate-800 pb-6 mb-6">
-                    <h1 className="text-4xl md:text-5xl font-black text-slate-900 uppercase text-center tracking-tight mb-3">
-                      {deckName || "My Deck"}
-                    </h1>
-                    <div className="flex gap-6 text-sm font-bold text-slate-500 uppercase tracking-wider">
+                {/* Header 調整：使用 justify-between 讓標題靠左，計數靠右 */}
+                <div className="flex justify-between items-end border-b-4 border-slate-800 pb-4 mb-6">
+                    <div className="flex-1">
+                        <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tight leading-none">
+                        {deckName || "My Deck"}
+                        </h1>
+                    </div>
+                    
+                    <div className="flex flex-col items-end gap-1 text-sm font-bold text-slate-600 uppercase tracking-wider min-w-max ml-4">
                         <span className="flex items-center gap-1">
                             <Layers size={16} /> Total: {deck.main.length}
                         </span>
@@ -1033,80 +1126,55 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                     </div>
                 </div>
 
-                <div className="mb-4">
-                  <div className="grid grid-cols-6 md:grid-cols-8 gap-1">
-                    {sortedMain.map((group) => (
-                      <div
-                        key={group.id}
-                        className="relative aspect-[3/4] rounded overflow-hidden border border-slate-200 shadow-sm bg-slate-50 group"
-                      >
-                        {group.imageUrl ? (
-                          <img
-                            src={group.imageUrl}
-                            alt={group.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div
-                            className={`w-full h-full flex flex-col p-1 text-[8px] ${getCardColorStyles(
-                              group.color
-                            )}`}
-                          >
-                            <span className="font-bold leading-tight line-clamp-2">
-                              {group.name}
-                            </span>
-                            <span className="mt-0.5 font-mono opacity-70 font-bold scale-90 origin-left">
-                              {group.id}
-                            </span>
-                          </div>
-                        )}
-                        <div className="absolute bottom-0.5 right-0.5 bg-black text-white text-[9px] font-bold w-5 h-4 rounded shadow-md border border-white/20 z-10 flex items-center justify-center opacity-90 leading-none">
-                          x{group.stackCount}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {sortedExtra.length > 0 && (
-                  <div className="mt-6 pt-4 border-t border-slate-200">
-                    <h3 className="font-bold text-purple-900 text-sm uppercase mb-3 flex items-center gap-2">
-                        <Zap size={16} /> Extra Deck
-                    </h3>
-                    <div className="grid grid-cols-6 md:grid-cols-8 gap-1">
-                      {sortedExtra.map((group) => (
-                        <div
-                          key={group.id}
-                          className="relative aspect-[3/4] rounded overflow-hidden border border-slate-200 shadow-sm bg-slate-50 group"
-                        >
-                          {group.imageUrl ? (
-                            <img
-                              src={group.imageUrl}
-                              alt={group.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div
-                              className={`w-full h-full flex flex-col p-1 text-[8px] ${getCardColorStyles(
-                                group.color
-                              )}`}
-                            >
-                              <span className="font-bold leading-tight line-clamp-2">
-                                {group.name}
-                              </span>
-                              <span className="mt-0.5 font-mono opacity-70 font-bold scale-90 origin-left">
-                                {group.id}
-                              </span>
+                <div className="space-y-6">
+                    {/* 區域 1: 餅乾卡 (Cookies) */}
+                    {groupedCookies.length > 0 && (
+                        <div>
+                            <h3 className="font-bold text-slate-700 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-yellow-400 pl-2">
+                                Cookies <span className="text-xs opacity-50 ml-1">(Lv.1 &rarr; Lv.3)</span>
+                            </h3>
+                            <div className="grid grid-cols-7 md:grid-cols-8 gap-1">
+                                {groupedCookies.map(renderMiniCard)}
                             </div>
-                          )}
-                          <div className="absolute bottom-0.5 right-0.5 bg-black text-white text-[9px] font-bold w-5 h-4 rounded shadow-md border border-white/20 z-10 flex items-center justify-center opacity-90 leading-none">
-                            x{group.stackCount}
-                          </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                    )}
+
+                    {/* 區域 2: 道具/陷阱/場景 (Others) */}
+                    {groupedOthers.length > 0 && (
+                        <div>
+                            <h3 className="font-bold text-slate-700 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-blue-400 pl-2">
+                                Items / Traps / Stages
+                            </h3>
+                            <div className="grid grid-cols-7 md:grid-cols-8 gap-1">
+                                {groupedOthers.map(renderMiniCard)}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 區域 3: FLIP 卡 (Flips) */}
+                    {groupedFlips.length > 0 && (
+                        <div>
+                            <h3 className="font-bold text-slate-700 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-slate-600 pl-2">
+                                FLIP Cards
+                            </h3>
+                            <div className="grid grid-cols-7 md:grid-cols-8 gap-1">
+                                {groupedFlips.map(renderMiniCard)}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 區域 4: 額外牌組 (Extra) */}
+                    {groupedExtra.length > 0 && (
+                        <div className="pt-2 border-t border-slate-100">
+                            <h3 className="font-bold text-purple-900 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-purple-400 pl-2">
+                                <Zap size={16} /> Extra Deck
+                            </h3>
+                            <div className="grid grid-cols-7 md:grid-cols-8 gap-1">
+                                {groupedExtra.map(renderMiniCard)}
+                            </div>
+                        </div>
+                    )}
+                </div>
                 
                 <div className="mt-8 pt-4 border-t-2 border-slate-100 flex justify-end items-center">
                     <div className="text-right">
@@ -1219,7 +1287,7 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {sortedMain.map(card => (
+                                    {sortedMainForList.map(card => (
                                         <tr key={card.id} className="border-b border-slate-100">
                                             <td className="py-1 text-center font-bold">{card.stackCount}</td>
                                             <td className="py-1 font-mono text-xs">{card.id}</td>
@@ -1231,7 +1299,7 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                         </div>
                         
                         <div>
-                            {sortedExtra.length > 0 && (
+                            {sortedExtraForList.length > 0 && (
                                 <div className="mb-8">
                                     <h3 className="font-bold border-b border-black mb-2 flex justify-between">
                                         Extra Deck Cards <span>Total: {deck.extra.length}</span>
@@ -1245,7 +1313,7 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {sortedExtra.map(card => (
+                                            {sortedExtraForList.map(card => (
                                                 <tr key={card.id} className="border-b border-slate-100">
                                                     <td className="py-1 text-center font-bold">{card.stackCount}</td>
                                                     <td className="py-1 font-mono text-xs">{card.id}</td>
@@ -1272,7 +1340,9 @@ const ExportModal = ({ deck, deckName, onClose }) => {
 };
 
 const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
-  const [formData, setFormData] = useState({
+    // ... (保留 AddCardModal 的完整內容)
+    // 為了縮短回應，這裡省略 AddCardModal 的程式碼，請確保複製完整的 Component
+    const [formData, setFormData] = useState({
     series: "BS1",
     number: "",
     name: "",
@@ -1286,7 +1356,7 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
     isDragon: false,
     isBeast: false,
     isSoulJam: false,
-    isArena: false,
+    isArena: false, // 新增
     isForbidden: false,
     isLimitOne: false,
     effectText: "", 
@@ -1295,15 +1365,6 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
   });
 
   const [previewUrl, setPreviewUrl] = useState(null);
-
-  // 定義編輯用的系列清單 (包含 ST1~ST15 以及 BS 系列，方便選擇)
-  // 使用 useMemo 避免重複計算
-  const editorSeriesOptions = useMemo(() => {
-    const stSeries = Array.from({ length: 15 }, (_, i) => `ST${i + 1}`); // 自動產生 ST1 ~ ST15
-    const bsSeries = ["BS1", "BS2", "BS3", "BS4", "BS5", "BS6", "BS7", "BS8", "BS9"];
-    const other = ["P"];
-    return [...stSeries, ...bsSeries, ...other];
-  }, []);
 
   useEffect(() => {
     if (initialData) {
@@ -1326,7 +1387,7 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
         rarity: initialData.rarity || "C", 
         effectText: initialData.effectText || "", 
         showEffect: initialData.showEffect || false, 
-        isArena: initialData.isArena || false,
+        isArena: initialData.isArena || false, // 新增
       }));
 
       if (initialData.imageUrl) {
@@ -1371,15 +1432,12 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
         alert("請填寫編號");
         return;
       }
-      // 自動轉大寫，避免輸入 st1 變成小寫
-      const finalSeries = formData.series.toUpperCase();
-      fullId = `${finalSeries}-${formData.number}`;
+      fullId = `${formData.series}-${formData.number}`;
     }
 
     const submitData = {
       ...formData,
       id: fullId,
-      series: formData.series.toUpperCase(), // 確保儲存的系列也是大寫
       level: formData.type === CARD_TYPES.COOKIE ? formData.level : null,
     };
 
@@ -1427,29 +1485,25 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
                 )}
               </label>
               <div className="flex gap-2 items-center">
-                {/* 修改重點：將 select 改為 input + datalist，允許手動輸入與選擇 */}
-                <input
-                  list="series-options"
-                  type="text"
-                  className="border rounded p-2 bg-white flex-1 font-bold uppercase"
+                <select
+                  className="border rounded p-2 bg-white flex-1"
                   value={formData.series}
                   onChange={(e) =>
                     setFormData({ ...formData, series: e.target.value })
                   }
-                  placeholder="選擇或輸入系列"
-                />
-                <datalist id="series-options">
-                  {editorSeriesOptions.map((opt) => (
-                    <option key={opt} value={opt} />
+                >
+                  {CARD_SERIES_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
                   ))}
-                </datalist>
-                
+                </select>
                 <span className="font-bold text-slate-400">-</span>
                 <input
                   type="text"
                   placeholder="001"
                   required={!initialData}
-                  className="border rounded p-2 flex-1 font-mono"
+                  className="border rounded p-2 flex-1"
                   value={formData.number}
                   onChange={(e) =>
                     setFormData({ ...formData, number: e.target.value })
@@ -1547,7 +1601,7 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
                 </select>
             </div>
             
-            {/* 效果文本輸入 */}
+            {/* 新增：效果文本輸入 */}
             <div className="col-span-1 md:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
                   <Languages size={16} /> 英文效果文本 (English Effect)
@@ -1598,6 +1652,7 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
                     <input type="checkbox" className="w-5 h-5" checked={formData.isSoulJam} onChange={(e) => setFormData({ ...formData, isSoulJam: e.target.checked })} />
                     <span>靈魂果醬</span>
                   </label>
+                  {/* 新增：競技場 (Arena) */}
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" className="w-5 h-5" checked={formData.isArena} onChange={(e) => setFormData({ ...formData, isArena: e.target.checked })} />
                     <span>競技場 (Arena)</span>
