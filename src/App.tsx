@@ -365,82 +365,119 @@ const LoginModal = ({ onClose, onLogin }) => {
 };
 
 const DrawTestModal = ({ deck, onClose }) => {
-  const [hand, setHand] = useState([]);
+  const [drawCount, setDrawCount] = useState(1);
+  const [hands, setHands] = useState([]); // 改為陣列的陣列：[[hand1], [hand2]...]
   const [flippedIndices, setFlippedIndices] = useState({});
 
   const drawCards = useCallback(() => {
     if (deck.main.length === 0) {
-        alert("主牌組沒有卡片！");
-        return;
+      alert("主牌組沒有卡片！");
+      return;
     }
-    const shuffled = fisherYatesShuffle(deck.main);
-    setHand(shuffled.slice(0, 6));
-    setFlippedIndices({}); 
 
-    for (let i = 0; i < 6; i++) {
+    const newHands = [];
+    // 根據選擇的次數，進行多次獨立洗牌與抽牌
+    for (let i = 0; i < drawCount; i++) {
+      const shuffled = fisherYatesShuffle(deck.main);
+      newHands.push(shuffled.slice(0, 6));
+    }
+    setHands(newHands);
+    setFlippedIndices({}); // 重置翻牌狀態
+
+    // 翻牌動畫：依序翻開每一張卡
+    // 為了避免多組時等待太久，將延遲時間設短一點 (50ms)
+    let delay = 0;
+    newHands.forEach((_, handIdx) => {
+      for (let i = 0; i < 6; i++) {
+        delay += 50; 
         setTimeout(() => {
-            setFlippedIndices(prev => ({ ...prev, [i]: true }));
-        }, (i + 1) * 300); 
-    }
-  }, [deck.main]);
+          setFlippedIndices(prev => ({ ...prev, [`${handIdx}-${i}`]: true }));
+        }, delay);
+      }
+    });
+  }, [deck.main, drawCount]);
 
+  // 當 drawCount 改變或初次載入時自動抽牌
   useEffect(() => {
     drawCards();
   }, [drawCards]);
 
-  const handleCardClick = (index) => {
-    setFlippedIndices(prev => ({ ...prev, [index]: true }));
+  const handleCardClick = (handIdx, cardIdx) => {
+    setFlippedIndices(prev => ({ ...prev, [`${handIdx}-${cardIdx}`]: true }));
   };
 
   return (
     <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-slate-50 rounded-xl shadow-2xl w-full max-w-4xl p-6" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center mb-6">
+      <div className="bg-slate-50 rounded-xl shadow-2xl w-full max-w-5xl p-6 h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        
+        {/* Header */}
+        <div className="flex justify-between items-center mb-4 shrink-0">
           <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2">
-            <Dices className="text-blue-600" /> 起始手牌測試 (First Draw)
+            <Dices className="text-blue-600" /> 起始手牌測試
           </h2>
           <button onClick={onClose} className="p-1 hover:bg-slate-200 rounded-full">
             <X size={24} />
           </button>
         </div>
-        
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-8">
-          {hand.map((card, index) => (
-            <div 
-                key={`${card.id}-${index}`} 
-                onClick={() => handleCardClick(index)}
-                className="aspect-[3/4] cursor-pointer perspective-1000 group relative"
-            >
-               <div className={`w-full h-full transition-transform duration-700 transform-style-3d relative ${flippedIndices[index] ? 'rotate-y-180' : ''}`}>
-                    <div className="absolute inset-0 backface-hidden rounded-lg overflow-hidden border-2 border-slate-300 shadow-md">
-                        <img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" />
-                    </div>
-                    <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-lg overflow-hidden border border-slate-300 shadow-md bg-white">
-                        {card.imageUrl ? (
-                            <img src={card.imageUrl} alt={card.name} className="w-full h-full object-cover" />
-                        ) : (
-                            <div className={`w-full h-full p-2 text-xs flex flex-col ${getCardColorStyles(card.color)}`}>
-                                <span className="font-bold">{card.name}</span>
-                                <span className="text-[10px] mt-1">{card.id}</span>
-                            </div>
-                        )}
-                        <div className="absolute top-1 left-1 bg-black/50 text-white text-[10px] px-1.5 rounded font-bold">#{index + 1}</div>
-                    </div>
-               </div>
-            </div>
-          ))}
-        </div>
 
-        <div className="flex justify-center">
+        {/* Controls */}
+        <div className="flex gap-4 mb-4 justify-center shrink-0">
+          <select 
+            className="px-4 py-2 rounded-lg border border-slate-300 font-bold text-slate-700 bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+            value={drawCount}
+            onChange={(e) => setDrawCount(Number(e.target.value))}
+          >
+            <option value={1}>測試 1 組</option>
+            <option value={3}>測試 3 組</option>
+            <option value={5}>測試 5 組</option>
+          </select>
           <button 
             onClick={drawCards}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-bold shadow-lg transition-transform active:scale-95"
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold shadow-lg transition-transform active:scale-95"
           >
             <RefreshCw size={20} /> 重新洗牌並抽牌
           </button>
         </div>
-        <p className="text-center text-slate-500 text-sm mt-4">
-            模擬真實洗牌 (Fisher-Yates) 後抽取前 6 張卡片，卡片將依序翻開
+        
+        {/* Scrollable Hands Area (手牌顯示區) */}
+        <div className="flex-1 overflow-y-auto space-y-6 p-2 bg-slate-100 rounded-lg border border-slate-200 shadow-inner">
+          {hands.map((hand, handIdx) => (
+            <div key={handIdx} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+               <div className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest border-b border-slate-100 pb-1">
+                 Hand #{handIdx + 1}
+               </div>
+               <div className="grid grid-cols-6 gap-2 md:gap-4">
+                  {hand.map((card, cardIdx) => (
+                    <div 
+                        key={`${handIdx}-${card.id}-${cardIdx}`} 
+                        onClick={() => handleCardClick(handIdx, cardIdx)}
+                        className="aspect-[3/4] cursor-pointer perspective-1000 group relative"
+                    >
+                       <div className={`w-full h-full transition-transform duration-500 transform-style-3d relative ${flippedIndices[`${handIdx}-${cardIdx}`] ? 'rotate-y-180' : ''}`}>
+                            <div className="absolute inset-0 backface-hidden rounded-lg overflow-hidden border-2 border-slate-300 shadow-md">
+                                <img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" />
+                            </div>
+                            <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-lg overflow-hidden border border-slate-300 shadow-md bg-white">
+                                {card.imageUrl ? (
+                                    <img src={card.imageUrl} alt={card.name} className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className={`w-full h-full p-2 text-xs flex flex-col ${getCardColorStyles(card.color)}`}>
+                                        <span className="font-bold leading-tight">{card.name}</span>
+                                        <span className="text-[10px] mt-1">{card.id}</span>
+                                    </div>
+                                )}
+                                <div className="absolute top-1 left-1 bg-black/50 text-white text-[9px] px-1.5 rounded font-bold">#{cardIdx + 1}</div>
+                            </div>
+                       </div>
+                    </div>
+                  ))}
+               </div>
+            </div>
+          ))}
+        </div>
+        
+        <p className="text-center text-slate-500 text-xs mt-3 shrink-0">
+            每次測試皆為獨立洗牌 (Fisher-Yates Shuffle) 後抽取前 6 張卡片
         </p>
       </div>
     </div>
@@ -2967,7 +3004,6 @@ export default function App() {
             </div>
           </section>
 
-          {/* Section 4: 牌組檢查 (Deck Check) */}
           <section className="bg-orange-50 p-3 rounded-lg border border-orange-200 shadow-sm">
               <h4 className="flex items-center gap-2 text-orange-800 font-bold text-sm mb-1"><AlertTriangle size={14} /> 牌組檢查</h4>
               <div className="text-[11px] text-orange-800/70 font-mono mb-2 border-b border-orange-200 pb-2 leading-relaxed">
@@ -2975,17 +3011,21 @@ export default function App() {
                ※FLIP卡最多16張
               </div>
               <ul className="text-xs text-orange-700 space-y-1 list-disc pl-4">
-                {nonFlipCookieCount < 22 && <li>主牌組建議至少 22 張餅乾卡 (目前 {nonFlipCookieCount})<span className="text-[10px] opacity-75 ml-1">(不含 FLIP)</span></li>}
+                {/* 修正：統一顯示邏輯，若邏輯判定是 20 張則文字顯示 20 */}
+                {nonFlipCookieCount < 20 && <li>主牌組建議至少 20 張餅乾卡 (目前 {nonFlipCookieCount})<span className="text-[10px] opacity-75 ml-1">(不含 FLIP)</span></li>}
                 {deck.main.length > LIMITS.MAIN && <li className="text-red-600 font-bold">主牌組已超過上限 ({deck.main.length}/60)</li>}
-                {deck.extra.length === LIMITS.EXTRA && <li className="text-red-600 font-bold">額外牌組已達上限</li>}
-                {flipCount === LIMITS.FLIP && <li className="text-red-600 font-bold">Flip 卡片已達上限 ({LIMITS.FLIP})</li>}
+                {deck.extra.length > LIMITS.EXTRA && <li className="text-red-600 font-bold">額外牌組已超過上限 ({deck.extra.length}/{LIMITS.EXTRA})</li>}
+                {flipCount > LIMITS.FLIP && <li className="text-red-600 font-bold">Flip 卡片已超過上限 ({flipCount}/{LIMITS.FLIP})</li>}
+
                 {(forbiddenCount > 0 || limitOneViolation) && (
                     <li className="text-red-600 font-bold flex items-start gap-1 -ml-1">
                         <Ban size={14} className="shrink-0 mt-0.5" />
                         <span>此牌組包含超過數量上限的禁止與限制卡，正式比賽將無法使用。</span>
                     </li>
                 )}
-                {nonFlipCookieCount >= 20 && deck.main.length <= LIMITS.MAIN && deck.extra.length < LIMITS.EXTRA && flipCount < LIMITS.FLIP && forbiddenCount === 0 && !limitOneViolation && <li className="text-emerald-600 list-none -ml-4 flex items-center gap-1 font-bold"><CheckCircle size={14}/> 牌組目前合規</li>}
+
+                {/* 修正：判定合規時，使用 <= 來包含最大值 (16張 Flip 或 6張 Extra 是合法的) */}
+                {nonFlipCookieCount >= 20 && deck.main.length <= LIMITS.MAIN && deck.extra.length <= LIMITS.EXTRA && flipCount <= LIMITS.FLIP && forbiddenCount === 0 && !limitOneViolation && <li className="text-emerald-600 list-none -ml-4 flex items-center gap-1 font-bold"><CheckCircle size={14}/> 牌組目前合規</li>}
               </ul>
           </section>
         </div>
