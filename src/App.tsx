@@ -2912,7 +2912,7 @@ export default function App() {
             <StatBadge icon={RotateCw} label="Flip" current={flipCount} max={LIMITS.FLIP} color="orange" />
           </div>
         </div>
-        <div className="mt-3 bg-slate-900/50 p-2 rounded-lg border border-slate-600/50 backdrop-blur-sm">
+        <div className="mt-2 bg-slate-900/50 p-2 rounded-lg border border-slate-600/50 backdrop-blur-sm">
              <div className="flex justify-between text-[10px] text-slate-300 mb-1.5 font-bold tracking-wider uppercase">
                 <span className="flex items-center gap-1">🍪 Cookie Levels</span>
                 <span className="opacity-50">Total: {levelStats.total}</span>
