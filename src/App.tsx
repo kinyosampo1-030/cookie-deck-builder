@@ -2792,7 +2792,7 @@ export default function App() {
           )}
         </div>
 
-{/* Footer 區域 */}
+        {/* Footer 區域 */}
         <div className="bg-white border-t border-slate-200 text-xs text-slate-500 p-2 md:p-3 shrink-0">
           {/* 手機版佈局 - 整合為兩行以節省空間 */}
           <div className="md:hidden flex flex-col gap-1">
@@ -2820,7 +2820,6 @@ export default function App() {
               </div>
           </div>
 
-          {/* 桌面版佈局 (維持不變) */}
           <div className="hidden md:flex flex-row justify-between items-center gap-4">
               <span className="font-bold">製作者：樂多綠Gamecaster</span>
               <div className="flex gap-4">
@@ -2843,6 +2842,7 @@ export default function App() {
               </div>
           </div>
         </div>
+      </div>
 
       {/* 手機版：懸浮按鈕 (FAB) 開啟牌組清單 */}
       <button
