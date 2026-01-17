@@ -2597,7 +2597,23 @@ export default function App() {
   const groupedExtraDeck = useMemo(() => groupCards(deck.extra), [deck.extra]);
   
   const flipCount = getFlipCount();
-
+  const levelStats = useMemo(() => {
+    let lv1 = 0, lv2 = 0, lv3 = 0;
+    deck.main.forEach(c => {
+      if (c.type === CARD_TYPES.COOKIE && !c.isFlip) {
+        if (c.level === CARD_LEVELS.LV1) lv1++;
+        else if (c.level === CARD_LEVELS.LV2) lv2++;
+        else if (c.level === CARD_LEVELS.LV3) lv3++;
+      }
+    });
+    const total = lv1 + lv2 + lv3;
+    // 計算百分比供長條圖使用，避免分母為 0
+    const p1 = total ? (lv1 / total) * 100 : 0;
+    const p2 = total ? (lv2 / total) * 100 : 0;
+    const p3 = total ? (lv3 / total) * 100 : 0;
+    
+    return { lv1, lv2, lv3, total, p1, p2, p3 };
+  }, [deck.main]);
   if (loadingError && !isOffline) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-slate-50 p-4 text-center">
@@ -2896,6 +2912,27 @@ export default function App() {
             <StatBadge icon={RotateCw} label="Flip" current={flipCount} max={LIMITS.FLIP} color="orange" />
           </div>
         </div>
+        
+        <div className="mt-3 bg-slate-900/50 p-2 rounded-lg border border-slate-600/50 backdrop-blur-sm">
+             <div className="flex justify-between text-[10px] text-slate-300 mb-1.5 font-bold tracking-wider uppercase">
+                <span className="flex items-center gap-1">🍪 Cookie Levels</span>
+                <span className="opacity-50">Total: {levelStats.total}</span>
+             </div>
+             
+             {/* 長條圖本體 */}
+             <div className="flex h-2.5 w-full rounded-full overflow-hidden bg-slate-700 shadow-inner">
+                <div style={{ width: `${levelStats.p1}%` }} className="bg-yellow-400 h-full transition-all duration-500 shadow-[0_0_10px_rgba(250,204,21,0.5)]"></div>
+                <div style={{ width: `${levelStats.p2}%` }} className="bg-orange-500 h-full transition-all duration-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]"></div>
+                <div style={{ width: `${levelStats.p3}%` }} className="bg-red-600 h-full transition-all duration-500 shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>
+             </div>
+
+             {/* 數字標籤 */}
+             <div className="flex justify-between text-[10px] mt-1 font-mono font-bold leading-none pt-0.5">
+                <div className="text-yellow-400 flex items-center gap-1">LV.1 <span className="text-white bg-slate-700 px-1 rounded">{levelStats.lv1}</span></div>
+                <div className="text-orange-500 flex items-center gap-1">LV.2 <span className="text-white bg-slate-700 px-1 rounded">{levelStats.lv2}</span></div>
+                <div className="text-red-500 flex items-center gap-1">LV.3 <span className="text-white bg-slate-700 px-1 rounded">{levelStats.lv3}</span></div>
+             </div>
+          </div>
         
         {/* 新增：測試工具箱 / Test Toolkit (所有人都可見) */}
         <div className="p-2 bg-slate-700 border-b border-slate-600">
