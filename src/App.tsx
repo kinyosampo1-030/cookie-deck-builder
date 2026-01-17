@@ -284,7 +284,7 @@ const Toast = ({ message, onClose }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
-    }, 3000);
+    }, 5000);
     return () => clearTimeout(timer);
   }, [message, onClose]);
 
@@ -2042,7 +2042,7 @@ export default function App() {
     type: "ALL",
     color: "ALL",
     level: "ALL",
-    series: "ALL",
+    series: "BS9",
     rarity: "ALL", // 新增稀有度篩選
     levelOrRarity: "ALL", // 修正：加入此欄位並設定預設值為 ALL
     showExtra: false, 
@@ -2072,6 +2072,15 @@ export default function App() {
   const [isOffline, setIsOffline] = useState(false);
   const [visibleCount, setVisibleCount] = useState(30);
   const loadMoreRef = useRef(null);
+  const hasShownWelcome = useRef(false);
+
+  useEffect(() => {
+    // 當資料載入完成 (isDataLoaded 為 true) 且尚未顯示過訊息時觸發
+    if (isDataLoaded && !hasShownWelcome.current) {
+      setToastMsg("因卡池太多，將預設讀取 BS9 卡片 / Defaulting to BS9 due to large card pool");
+      hasShownWelcome.current = true;
+    }
+  }, [isDataLoaded]);
 
   // 控制手機版 Header 顯示/隱藏
   const [showHeader, setShowHeader] = useState(true);
@@ -2667,7 +2676,7 @@ export default function App() {
                             Cookierun: Braverse Deck Builder
                         </h1>
                         <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">
-                            先行測試版本，有Bug請私訊樂多綠YT或粉絲專頁
+                            新功能：1.改版First Draw，2.牌組驗證更新。有Bug請私訊樂多綠YT或粉絲專頁
                         </p>
                     </div>
                     
