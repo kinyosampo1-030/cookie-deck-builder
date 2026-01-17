@@ -2912,24 +2912,38 @@ export default function App() {
             <StatBadge icon={RotateCw} label="Flip" current={flipCount} max={LIMITS.FLIP} color="orange" />
           </div>
         </div>
-        <div className="mt-2 bg-slate-900/50 p-2 rounded-lg border border-slate-600/50 backdrop-blur-sm">
-             <div className="flex justify-between text-[10px] text-slate-300 mb-1.5 font-bold tracking-wider uppercase">
-                <span className="flex items-center gap-1">🍪 Cookie Levels</span>
-                <span className="opacity-50">Total: {levelStats.total}</span>
+        <div className="mt-2 w-full bg-slate-900/50 p-2.5 rounded-lg border border-slate-600/50">
+             <div className="flex justify-between items-center text-[10px] text-slate-300 mb-2 font-bold tracking-wider uppercase">
+                <span className="flex items-center gap-1.5 text-white">
+                  {/* 使用 Cookie icon 增加識別度，若無引入可移除 */}
+                  <Cookie size={12}/> Cookie Levels
+                </span>
+                <span className="opacity-60 bg-slate-800 px-1.5 py-0.5 rounded text-[9px]">
+                  Total: {levelStats.total}
+                </span>
              </div>
              
              {/* 長條圖本體 */}
-             <div className="flex h-2.5 w-full rounded-full overflow-hidden bg-slate-700 shadow-inner">
-                <div style={{ width: `${levelStats.p1}%` }} className="bg-yellow-400 h-full transition-all duration-500 shadow-[0_0_10px_rgba(250,204,21,0.5)]"></div>
-                <div style={{ width: `${levelStats.p2}%` }} className="bg-orange-500 h-full transition-all duration-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]"></div>
-                <div style={{ width: `${levelStats.p3}%` }} className="bg-red-600 h-full transition-all duration-500 shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>
+             <div className="flex h-2 w-full rounded-full overflow-hidden bg-slate-800 shadow-inner ring-1 ring-white/10">
+                <div style={{ width: `${levelStats.p1}%` }} className="bg-yellow-400 h-full"></div>
+                <div style={{ width: `${levelStats.p2}%` }} className="bg-orange-500 h-full"></div>
+                <div style={{ width: `${levelStats.p3}%` }} className="bg-red-600 h-full"></div>
              </div>
 
-             {/* 數字標籤 */}
-             <div className="flex justify-between text-[10px] mt-1 font-mono font-bold leading-none pt-0.5">
-                <div className="text-yellow-400 flex items-center gap-1">LV.1 <span className="text-white bg-slate-700 px-1 rounded">{levelStats.lv1}</span></div>
-                <div className="text-orange-500 flex items-center gap-1">LV.2 <span className="text-white bg-slate-700 px-1 rounded">{levelStats.lv2}</span></div>
-                <div className="text-red-500 flex items-center gap-1">LV.3 <span className="text-white bg-slate-700 px-1 rounded">{levelStats.lv3}</span></div>
+             {/* 數字標籤 - 對齊修正 */}
+             <div className="flex justify-between text-[10px] mt-1.5 font-mono font-bold leading-none text-slate-400">
+                <div className="flex items-center gap-1.5">
+                   <div className="w-1.5 h-1.5 rounded-full bg-yellow-400"></div> 
+                   L1: <span className="text-white">{levelStats.lv1}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                   <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div> 
+                   L2: <span className="text-white">{levelStats.lv2}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                   <div className="w-1.5 h-1.5 rounded-full bg-red-600"></div> 
+                   L3: <span className="text-white">{levelStats.lv3}</span>
+                </div>
              </div>
           </div>
         
