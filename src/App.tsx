@@ -2676,7 +2676,7 @@ export default function App() {
                             Cookierun: Braverse Deck Builder
                         </h1>
                         <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">
-                            新功能：1.改版First Draw，2.牌組驗證更新。有Bug請私訊樂多綠YT或粉絲專頁
+                            新功能：1.改版First Draw，2.牌組驗證更新。
                         </p>
                     </div>
                     
@@ -2792,11 +2792,11 @@ export default function App() {
           )}
         </div>
 
-        {/* Footer 區域 */}
-        <div className="bg-white border-t border-slate-200 text-xs text-slate-500 p-2 md:p-3">
-          <div className="md:hidden flex flex-col gap-1.5">
-              <div className="font-bold">製作者：樂多綠Gamecaster</div>
-              <div className="flex items-center gap-4">
+{/* Footer 區域 */}
+        <div className="bg-white border-t border-slate-200 text-xs text-slate-500 p-2 md:p-3 shrink-0">
+          {/* 手機版佈局 - 整合為兩行以節省空間 */}
+          <div className="md:hidden flex flex-col gap-1">
+              <div className="flex items-center justify-center gap-6">
                   <a href="https://www.youtube.com/@%E6%A8%82%E5%A4%9A%E7%B6%A0" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-red-600 transition-colors font-bold">
                       <Youtube size={14} /> YouTube
                   </a>
@@ -2804,18 +2804,23 @@ export default function App() {
                       <Facebook size={14} /> 樂多綠Facebook
                   </a>
               </div>
-              <div className="flex items-center justify-between">
-                  <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold">
-                      <ExternalLink size={14} /> 薑餅人對戰卡牌/台灣
-                  </a>
+              <div className="flex items-center justify-between border-t border-slate-100 pt-1.5 mt-0.5">
+                  <div className="flex items-center gap-2 overflow-hidden text-[10px] sm:text-xs">
+                      <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold whitespace-nowrap shrink-0">
+                          <ExternalLink size={12} /> 薑餅人對戰卡牌/台灣
+                      </a>
+                      <span className="text-slate-300">|</span>
+                      <span className="truncate text-slate-400">製作者：樂多綠Gamecaster</span>
+                  </div>
                   {isAdmin ? (
-                    <button onClick={handleLogout} className="p-1 text-slate-400 hover:text-red-500 transition-colors"><LogOut size={16}/></button>
+                    <button onClick={handleLogout} className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0"><LogOut size={14}/></button>
                   ) : (
-                    <button onClick={() => setShowLoginModal(true)} className="p-1 text-slate-300 hover:text-slate-500 transition-colors"><Lock size={16}/></button>
+                    <button onClick={() => setShowLoginModal(true)} className="p-1 text-slate-300 hover:text-slate-500 transition-colors shrink-0"><Lock size={14}/></button>
                   )}
               </div>
           </div>
 
+          {/* 桌面版佈局 (維持不變) */}
           <div className="hidden md:flex flex-row justify-between items-center gap-4">
               <span className="font-bold">製作者：樂多綠Gamecaster</span>
               <div className="flex gap-4">
@@ -2838,7 +2843,6 @@ export default function App() {
               </div>
           </div>
         </div>
-      </div>
 
       {/* 手機版：懸浮按鈕 (FAB) 開啟牌組清單 */}
       <button
@@ -2892,33 +2896,6 @@ export default function App() {
             <StatBadge icon={RotateCw} label="Flip" current={flipCount} max={LIMITS.FLIP} color="orange" />
           </div>
         </div>
-        
-        <div className="mb-4 bg-white rounded-lg border border-slate-200 p-3 shadow-sm">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <BarChart3 size={14} /> 餅乾等級分佈 (Level Curve)
-            </h3>
-            <div className="flex items-end justify-around h-24 gap-2 px-2">
-                {["LV.1", "LV.2", "LV.3"].map(lvl => {
-                    const count = cookieLevelCounts[lvl] || 0;
-                    const heightPct = (count / maxLevelCount) * 100;
-                    const barColor = lvl === "LV.1" ? 'bg-yellow-400' : lvl === "LV.2" ? 'bg-orange-500' : 'bg-red-600';
-                    return (
-                        <div key={lvl} className="flex flex-col items-center flex-1 group w-full">
-                            <div className="text-[10px] font-bold text-slate-600 mb-1">{count}</div>
-                            <div className="w-full bg-slate-100 rounded-t-md relative h-full flex items-end overflow-hidden">
-                                <div 
-                                    style={{ height: `${heightPct}%` }} 
-                                    className={`w-full ${barColor} transition-all duration-500 ease-out rounded-t-md opacity-90 group-hover:opacity-100 relative`}
-                                >
-                                    <div className="absolute top-0 left-0 right-0 h-[1px] bg-white/30"></div>
-                                </div>
-                            </div>
-                            <div className="text-xs font-bold text-slate-500 mt-2">{lvl}</div>
-                        </div>
-                    )
-                })}
-            </div>
-          </div>
         
         {/* 新增：測試工具箱 / Test Toolkit (所有人都可見) */}
         <div className="p-2 bg-slate-700 border-b border-slate-600">
