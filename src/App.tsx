@@ -2319,19 +2319,6 @@ export default function App() {
         setToastMsg("⚠️ 加入了第二張限制卡 (正式比賽無法使用)");
     }
     const isExtra = isExtraDeckCard(card);
-    const levelStats = useMemo(() => {
-    const stats = { [CARD_LEVELS.LV1]: 0, [CARD_LEVELS.LV2]: 0, [CARD_LEVELS.LV3]: 0 };
-    let total = 0;
-    deck.main.forEach(c => {
-        if (c.type === CARD_TYPES.COOKIE && !c.isFlip) {
-            if (stats[c.level] !== undefined) {
-                stats[c.level]++;
-            }
-            total++;
-        }
-    });
-    return { stats, total };
-    }, [deck.main]);
     const targetDeckKey = isExtra ? "extra" : "main";
     const limit = isExtra ? LIMITS.EXTRA : LIMITS.MAIN;
     const current = deck[targetDeckKey];
@@ -2904,50 +2891,6 @@ export default function App() {
             placeholder="命名你的牌組..."
           />
           <div className="flex flex-wrap gap-2">
-            {/* 新增：餅乾等級分佈顯示器 (Level Curve) */}
-          <div className="mt-3 pt-3 border-t border-slate-700/50">
-             <div className="flex justify-between items-center text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">
-                 <span className="flex items-center gap-1">Cookie Levels</span>
-                 <span>Total: {levelStats.total}</span>
-             </div>
-             
-             {/* 進度條容器 */}
-             <div className="flex h-2.5 rounded-full overflow-hidden bg-slate-900/50 border border-slate-600/30">
-                {/* LV.1 黃色 */}
-                <div 
-                    style={{ width: `${(levelStats.stats[CARD_LEVELS.LV1] / Math.max(levelStats.total, 1)) * 100}%` }} 
-                    className="bg-yellow-400 h-full transition-all duration-500 shadow-[0_0_10px_rgba(250,204,21,0.5)_inset]"
-                ></div>
-                {/* LV.2 橘色 */}
-                <div 
-                    style={{ width: `${(levelStats.stats[CARD_LEVELS.LV2] / Math.max(levelStats.total, 1)) * 100}%` }} 
-                    className="bg-orange-500 h-full transition-all duration-500 shadow-[0_0_10px_rgba(249,115,22,0.5)_inset]"
-                ></div>
-                {/* LV.3 紅色 */}
-                <div 
-                    style={{ width: `${(levelStats.stats[CARD_LEVELS.LV3] / Math.max(levelStats.total, 1)) * 100}%` }} 
-                    className="bg-red-600 h-full transition-all duration-500 shadow-[0_0_10px_rgba(220,38,38,0.5)_inset]"
-                ></div>
-             </div>
-
-             {/* 數字標示 */}
-             <div className="flex justify-between text-[10px] text-slate-400 font-mono mt-1.5 px-0.5">
-                 <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-yellow-400"></div>
-                    <span className={levelStats.stats[CARD_LEVELS.LV1] < 12 ? "text-red-400 font-bold" : "text-yellow-100"}>
-                        LV.1: {levelStats.stats[CARD_LEVELS.LV1]}
-                    </span>
-                 </div>
-                 <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                    <span className="text-orange-100">LV.2: {levelStats.stats[CARD_LEVELS.LV2]}</span>
-                 </div>
-                 <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-red-600"></div>
-                    <span className="text-red-100">LV.3: {levelStats.stats[CARD_LEVELS.LV3]}</span>
-                 </div>
-             </div>
-          </div>
             <StatBadge icon={Layers} label="主牌組" current={deck.main.length} max={LIMITS.MAIN} color="blue" warningAtFull={false} />
             <StatBadge icon={Zap} label="額外" current={deck.extra.length} max={LIMITS.EXTRA} color="purple" />
             <StatBadge icon={RotateCw} label="Flip" current={flipCount} max={LIMITS.FLIP} color="orange" />
