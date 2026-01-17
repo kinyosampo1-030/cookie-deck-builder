@@ -2893,6 +2893,33 @@ export default function App() {
           </div>
         </div>
         
+        <div className="mb-4 bg-white rounded-lg border border-slate-200 p-3 shadow-sm">
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <BarChart3 size={14} /> 餅乾等級分佈 (Level Curve)
+            </h3>
+            <div className="flex items-end justify-around h-24 gap-2 px-2">
+                {["LV.1", "LV.2", "LV.3"].map(lvl => {
+                    const count = cookieLevelCounts[lvl] || 0;
+                    const heightPct = (count / maxLevelCount) * 100;
+                    const barColor = lvl === "LV.1" ? 'bg-yellow-400' : lvl === "LV.2" ? 'bg-orange-500' : 'bg-red-600';
+                    return (
+                        <div key={lvl} className="flex flex-col items-center flex-1 group w-full">
+                            <div className="text-[10px] font-bold text-slate-600 mb-1">{count}</div>
+                            <div className="w-full bg-slate-100 rounded-t-md relative h-full flex items-end overflow-hidden">
+                                <div 
+                                    style={{ height: `${heightPct}%` }} 
+                                    className={`w-full ${barColor} transition-all duration-500 ease-out rounded-t-md opacity-90 group-hover:opacity-100 relative`}
+                                >
+                                    <div className="absolute top-0 left-0 right-0 h-[1px] bg-white/30"></div>
+                                </div>
+                            </div>
+                            <div className="text-xs font-bold text-slate-500 mt-2">{lvl}</div>
+                        </div>
+                    )
+                })}
+            </div>
+          </div>
+        
         {/* 新增：測試工具箱 / Test Toolkit (所有人都可見) */}
         <div className="p-2 bg-slate-700 border-b border-slate-600">
             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-2 flex items-center gap-1">
