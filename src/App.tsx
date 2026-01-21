@@ -75,6 +75,7 @@ import {
   query,
   writeBatch,
   deleteDoc,
+    where,
 } from "firebase/firestore";
 
 // --- Firebase 初始化變數 ---
@@ -302,6 +303,7 @@ const LoginModal = ({ onClose, onLogin }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+    const [hasLoadedAll, setHasLoadedAll] = useState(false);
   const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
@@ -2074,13 +2076,48 @@ export default function App() {
   const loadMoreRef = useRef(null);
   const hasShownWelcome = useRef(false);
 
-  useEffect(() => {
-    // 當資料載入完成 (isDataLoaded 為 true) 且尚未顯示過訊息時觸發
-    if (isDataLoaded && !hasShownWelcome.current) {
-      setToastMsg("因卡池太多，將預設讀取 BS9 卡片 / Defaulting to BS9 due to large card pool");
-      hasShownWelcome.current = true;
+    useEffect(() => {
+    if (!user || !db) return;
+
+    let q;
+    // 判斷：如果還沒點擊「載入全部」，就只抓 BS9；否則抓全部
+    if (!hasLoadedAll) {
+       // 注意：這裡假設資料庫欄位 series 存的是 "BS9"
+       q = query(
+          collection(db, 'artifacts', appId, 'public', 'data', 'cards'), 
+          where('series', '==', 'BS9')
+       );
+    } else {
+       q = query(collection(db, 'artifacts', appId, 'public', 'data', 'cards'));
     }
-  }, [isDataLoaded]);
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const cards = snapshot.docs.map(doc => doc.data());
+      cards.sort((a, b) => a.id.localeCompare(b.id));
+      
+      setAllCards(cards);
+      setIsDataLoaded(true); 
+      
+      // 顯示提示訊息
+      if (!hasLoadedAll) {
+          setToastMsg("🚀 預設僅載入 BS9 卡片以加速。如需搜尋舊卡，請點擊「載入完整卡池」。");
+      } else {
+          setToastMsg("✅ 已載入完整卡池！(All Cards Loaded)");
+      }
+
+    }, (error) => { 
+        console.error("Firestore sync error:", error); 
+        // 如果發生查詢錯誤 (例如缺少索引)，自動切換回載入全部作為保險
+        if (error.code === 'failed-precondition') {
+             console.warn("Index missing, falling back to load all.");
+             setHasLoadedAll(true); 
+        } else {
+             setToastMsg("連線資料庫失敗，請檢查網路"); 
+        }
+    });
+    
+    return () => unsubscribe();
+  }, [user, hasLoadedAll]); // 當 hasLoadedAll 改變時，會重新觸發此 useEffect
 
   // 控制手機版 Header 顯示/隱藏
   const [showHeader, setShowHeader] = useState(true);
@@ -2707,6 +2744,21 @@ export default function App() {
                       )}
                     </div>
                 </div>
+
+                {/* --- 新增功能：載入完整卡池按鈕 --- */}
+                {!hasLoadedAll && (
+                  <div className="bg-blue-50 border border-blue-200 p-2 rounded-lg flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+                     <span className="text-xs text-blue-800 font-bold flex items-center gap-1">
+                        <Zap size={14} className="fill-blue-600 text-blue-600"/> 目前僅顯示 BS9
+                     </span>
+                     <button 
+                        onClick={() => setHasLoadedAll(true)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-md font-bold shadow-sm transition-all active:scale-95 flex items-center gap-1"
+                     >
+                        <Database size={12}/> 載入全部
+                     </button>
+                  </div>
+                )}
                 {/* 篩選與搜尋 */}
                 <div className="flex flex-col gap-2">
                     <div className="relative w-full">
@@ -2912,38 +2964,24 @@ export default function App() {
             <StatBadge icon={RotateCw} label="Flip" current={flipCount} max={LIMITS.FLIP} color="orange" />
           </div>
         </div>
-        <div className="mt-2 w-full bg-slate-900/50 p-2.5 rounded-lg border border-slate-600/50">
-             <div className="flex justify-between items-center text-[10px] text-slate-300 mb-2 font-bold tracking-wider uppercase">
-                <span className="flex items-center gap-1.5 text-white">
-                  {/* 使用 Cookie icon 增加識別度，若無引入可移除 */}
-                  <Cookie size={12}/> Cookie Levels
-                </span>
-                <span className="opacity-60 bg-slate-800 px-1.5 py-0.5 rounded text-[9px]">
-                  Total: {levelStats.total}
-                </span>
+        <div className="mt-3 bg-slate-900/50 p-2 rounded-lg border border-slate-600/50 backdrop-blur-sm">
+             <div className="flex justify-between text-[10px] text-slate-300 mb-1.5 font-bold tracking-wider uppercase">
+                <span className="flex items-center gap-1">🍪 Cookie Levels</span>
+                <span className="opacity-50">Total: {levelStats.total}</span>
              </div>
              
              {/* 長條圖本體 */}
-             <div className="flex h-2 w-full rounded-full overflow-hidden bg-slate-800 shadow-inner ring-1 ring-white/10">
-                <div style={{ width: `${levelStats.p1}%` }} className="bg-yellow-400 h-full"></div>
-                <div style={{ width: `${levelStats.p2}%` }} className="bg-orange-500 h-full"></div>
-                <div style={{ width: `${levelStats.p3}%` }} className="bg-red-600 h-full"></div>
+             <div className="flex h-2.5 w-full rounded-full overflow-hidden bg-slate-700 shadow-inner">
+                <div style={{ width: `${levelStats.p1}%` }} className="bg-yellow-400 h-full transition-all duration-500 shadow-[0_0_10px_rgba(250,204,21,0.5)]"></div>
+                <div style={{ width: `${levelStats.p2}%` }} className="bg-orange-500 h-full transition-all duration-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]"></div>
+                <div style={{ width: `${levelStats.p3}%` }} className="bg-red-600 h-full transition-all duration-500 shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>
              </div>
 
-             {/* 數字標籤 - 對齊修正 */}
-             <div className="flex justify-between text-[10px] mt-1.5 font-mono font-bold leading-none text-slate-400">
-                <div className="flex items-center gap-1.5">
-                   <div className="w-1.5 h-1.5 rounded-full bg-yellow-400"></div> 
-                   L1: <span className="text-white">{levelStats.lv1}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                   <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div> 
-                   L2: <span className="text-white">{levelStats.lv2}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                   <div className="w-1.5 h-1.5 rounded-full bg-red-600"></div> 
-                   L3: <span className="text-white">{levelStats.lv3}</span>
-                </div>
+             {/* 數字標籤 */}
+             <div className="flex justify-between text-[10px] mt-1 font-mono font-bold leading-none pt-0.5">
+                <div className="text-yellow-400 flex items-center gap-1">LV.1 <span className="text-white bg-slate-700 px-1 rounded">{levelStats.lv1}</span></div>
+                <div className="text-orange-500 flex items-center gap-1">LV.2 <span className="text-white bg-slate-700 px-1 rounded">{levelStats.lv2}</span></div>
+                <div className="text-red-500 flex items-center gap-1">LV.3 <span className="text-white bg-slate-700 px-1 rounded">{levelStats.lv3}</span></div>
              </div>
           </div>
         
