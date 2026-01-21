@@ -75,7 +75,6 @@ import {
   query,
   writeBatch,
   deleteDoc,
-  where,
 } from "firebase/firestore";
 
 // --- Firebase 初始化變數 ---
@@ -2069,55 +2068,19 @@ export default function App() {
   const [isDataLoaded, setIsDataLoaded] = useState(false); 
   
   const [isMobileDeckOpen, setIsMobileDeckOpen] = useState(false);
-
-  const [hasLoadedAll, setHasLoadedAll] = useState(false); // 控制是否載入全部 
+   
   const [isOffline, setIsOffline] = useState(false);
   const [visibleCount, setVisibleCount] = useState(30);
   const loadMoreRef = useRef(null);
   const hasShownWelcome = useRef(false);
 
   useEffect(() => {
-    if (!user || !db) return;
-
-    let q;
-    // 判斷：如果還沒點擊「載入全部」，就只抓 BS9；否則抓全部
-    if (!hasLoadedAll) {
-       // 注意：這裡假設資料庫欄位 series 存的是 "BS9"
-       q = query(
-          collection(db, 'artifacts', appId, 'public', 'data', 'cards'), 
-          where('series', '==', 'BS9')
-       );
-    } else {
-       q = query(collection(db, 'artifacts', appId, 'public', 'data', 'cards'));
+    // 當資料載入完成 (isDataLoaded 為 true) 且尚未顯示過訊息時觸發
+    if (isDataLoaded && !hasShownWelcome.current) {
+      setToastMsg("因卡池太多，將預設讀取 BS9 卡片 / Defaulting to BS9 due to large card pool");
+      hasShownWelcome.current = true;
     }
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const cards = snapshot.docs.map(doc => doc.data());
-      cards.sort((a, b) => a.id.localeCompare(b.id));
-      
-      setAllCards(cards);
-      setIsDataLoaded(true); 
-      
-      // 顯示提示訊息
-      if (!hasLoadedAll) {
-          setToastMsg("🚀 預設僅載入 BS9 卡片以加速。如需搜尋舊卡，請點擊「載入完整卡池」。");
-      } else {
-          setToastMsg("✅ 已載入完整卡池！(All Cards Loaded)");
-      }
-
-    }, (error) => { 
-        console.error("Firestore sync error:", error); 
-        // 如果發生查詢錯誤 (例如缺少索引)，自動切換回載入全部作為保險
-        if (error.code === 'failed-precondition') {
-             console.warn("Index missing, falling back to load all.");
-             setHasLoadedAll(true); 
-        } else {
-             setToastMsg("連線資料庫失敗，請檢查網路"); 
-        }
-    });
-    
-    return () => unsubscribe();
-  }, [user, hasLoadedAll]); // 當 hasLoadedAll 改變時，會重新觸發此 useEffect
+  }, [isDataLoaded]);
 
   // 控制手機版 Header 顯示/隱藏
   const [showHeader, setShowHeader] = useState(true);
@@ -2634,7 +2597,23 @@ export default function App() {
   const groupedExtraDeck = useMemo(() => groupCards(deck.extra), [deck.extra]);
   
   const flipCount = getFlipCount();
-
+  const levelStats = useMemo(() => {
+    let lv1 = 0, lv2 = 0, lv3 = 0;
+    deck.main.forEach(c => {
+      if (c.type === CARD_TYPES.COOKIE && !c.isFlip) {
+        if (c.level === CARD_LEVELS.LV1) lv1++;
+        else if (c.level === CARD_LEVELS.LV2) lv2++;
+        else if (c.level === CARD_LEVELS.LV3) lv3++;
+      }
+    });
+    const total = lv1 + lv2 + lv3;
+    // 計算百分比供長條圖使用，避免分母為 0
+    const p1 = total ? (lv1 / total) * 100 : 0;
+    const p2 = total ? (lv2 / total) * 100 : 0;
+    const p3 = total ? (lv3 / total) * 100 : 0;
+    
+    return { lv1, lv2, lv3, total, p1, p2, p3 };
+  }, [deck.main]);
   if (loadingError && !isOffline) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-slate-50 p-4 text-center">
@@ -2713,7 +2692,7 @@ export default function App() {
                             Cookierun: Braverse Deck Builder
                         </h1>
                         <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">
-                            新功能：1.改版First Draw，2.牌組驗證更新。有Bug請私訊樂多綠YT或粉絲專頁
+                            新功能：1.改版First Draw，2.牌組驗證更新。
                         </p>
                     </div>
                     
@@ -2728,21 +2707,6 @@ export default function App() {
                       )}
                     </div>
                 </div>
-                {/* <---- 請貼在這裡 (第1步提到的位置)  */}
-                {/* --- 新增功能：載入完整卡池按鈕 --- */}
-                {!hasLoadedAll && (
-                  <div className="bg-blue-50 border border-blue-200 p-2 rounded-lg flex items-center justify-between animate-in fade-in slide-in-from-top-2">
-                     <span className="text-xs text-blue-800 font-bold flex items-center gap-1">
-                        <Zap size={14} className="fill-blue-600 text-blue-600"/> 目前僅顯示 BS9
-                     </span>
-                     <button 
-                        onClick={() => setHasLoadedAll(true)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-md font-bold shadow-sm transition-all active:scale-95 flex items-center gap-1"
-                     >
-                        <Database size={12}/> 載入全部
-                     </button>
-                  </div>
-                )}
                 {/* 篩選與搜尋 */}
                 <div className="flex flex-col gap-2">
                     <div className="relative w-full">
@@ -2845,10 +2809,10 @@ export default function App() {
         </div>
 
         {/* Footer 區域 */}
-        <div className="bg-white border-t border-slate-200 text-xs text-slate-500 p-2 md:p-3">
-          <div className="md:hidden flex flex-col gap-1.5">
-              <div className="font-bold">製作者：樂多綠Gamecaster</div>
-              <div className="flex items-center gap-4">
+        <div className="bg-white border-t border-slate-200 text-xs text-slate-500 p-2 md:p-3 shrink-0">
+          {/* 手機版佈局 - 整合為兩行以節省空間 */}
+          <div className="md:hidden flex flex-col gap-1">
+              <div className="flex items-center justify-center gap-6">
                   <a href="https://www.youtube.com/@%E6%A8%82%E5%A4%9A%E7%B6%A0" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-red-600 transition-colors font-bold">
                       <Youtube size={14} /> YouTube
                   </a>
@@ -2856,14 +2820,18 @@ export default function App() {
                       <Facebook size={14} /> 樂多綠Facebook
                   </a>
               </div>
-              <div className="flex items-center justify-between">
-                  <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold">
-                      <ExternalLink size={14} /> 薑餅人對戰卡牌/台灣
-                  </a>
+              <div className="flex items-center justify-between border-t border-slate-100 pt-1.5 mt-0.5">
+                  <div className="flex items-center gap-2 overflow-hidden text-[10px] sm:text-xs">
+                      <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold whitespace-nowrap shrink-0">
+                          <ExternalLink size={12} /> 薑餅人對戰卡牌/台灣
+                      </a>
+                      <span className="text-slate-300">|</span>
+                      <span className="truncate text-slate-400">製作者：樂多綠Gamecaster</span>
+                  </div>
                   {isAdmin ? (
-                    <button onClick={handleLogout} className="p-1 text-slate-400 hover:text-red-500 transition-colors"><LogOut size={16}/></button>
+                    <button onClick={handleLogout} className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0"><LogOut size={14}/></button>
                   ) : (
-                    <button onClick={() => setShowLoginModal(true)} className="p-1 text-slate-300 hover:text-slate-500 transition-colors"><Lock size={16}/></button>
+                    <button onClick={() => setShowLoginModal(true)} className="p-1 text-slate-300 hover:text-slate-500 transition-colors shrink-0"><Lock size={14}/></button>
                   )}
               </div>
           </div>
@@ -2944,6 +2912,40 @@ export default function App() {
             <StatBadge icon={RotateCw} label="Flip" current={flipCount} max={LIMITS.FLIP} color="orange" />
           </div>
         </div>
+        <div className="mt-2 w-full bg-slate-900/50 p-2.5 rounded-lg border border-slate-600/50">
+             <div className="flex justify-between items-center text-[10px] text-slate-300 mb-2 font-bold tracking-wider uppercase">
+                <span className="flex items-center gap-1.5 text-white">
+                  {/* 使用 Cookie icon 增加識別度，若無引入可移除 */}
+                  <Cookie size={12}/> Cookie Levels
+                </span>
+                <span className="opacity-60 bg-slate-800 px-1.5 py-0.5 rounded text-[9px]">
+                  Total: {levelStats.total}
+                </span>
+             </div>
+             
+             {/* 長條圖本體 */}
+             <div className="flex h-2 w-full rounded-full overflow-hidden bg-slate-800 shadow-inner ring-1 ring-white/10">
+                <div style={{ width: `${levelStats.p1}%` }} className="bg-yellow-400 h-full"></div>
+                <div style={{ width: `${levelStats.p2}%` }} className="bg-orange-500 h-full"></div>
+                <div style={{ width: `${levelStats.p3}%` }} className="bg-red-600 h-full"></div>
+             </div>
+
+             {/* 數字標籤 - 對齊修正 */}
+             <div className="flex justify-between text-[10px] mt-1.5 font-mono font-bold leading-none text-slate-400">
+                <div className="flex items-center gap-1.5">
+                   <div className="w-1.5 h-1.5 rounded-full bg-yellow-400"></div> 
+                   L1: <span className="text-white">{levelStats.lv1}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                   <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div> 
+                   L2: <span className="text-white">{levelStats.lv2}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                   <div className="w-1.5 h-1.5 rounded-full bg-red-600"></div> 
+                   L3: <span className="text-white">{levelStats.lv3}</span>
+                </div>
+             </div>
+          </div>
         
         {/* 新增：測試工具箱 / Test Toolkit (所有人都可見) */}
         <div className="p-2 bg-slate-700 border-b border-slate-600">
