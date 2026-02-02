@@ -77,7 +77,6 @@ import {
   query,
   writeBatch,
   deleteDoc,
-  where,
 } from "firebase/firestore";
 
 // --- Firebase 初始化變數 ---
@@ -2188,10 +2187,11 @@ export default function App() {
     }
   }, []);
 
-useEffect(() => {
+  useEffect(() => {
+    if (isOffline) return;
     if (!auth) {
-        setLoadingError("Firebase 設定錯誤"); 
-        return;
+      setLoadingError("Firebase 設定錯誤");
+      return;
     }
     const timeoutId = setTimeout(() => {
       if (!user && !isOffline) setLoadingError("連線逾時，請檢查瀏覽器設定");
@@ -2226,7 +2226,7 @@ useEffect(() => {
     }
   }, [isAdmin]);
 
-const ADMIN_EMAILS = ["kinyosampo1@gmail.com"]; 
+  const ADMIN_EMAILS = ["kinyosampo1@gmail.com"]; 
 
   const handleUserLogin = async (email, password) => {
       await signInWithEmailAndPassword(auth, email, password);
@@ -2247,7 +2247,7 @@ const ADMIN_EMAILS = ["kinyosampo1@gmail.com"];
           signInAnonymously(auth);
       }
   };
-// Auth 狀態監聽
+
   useEffect(() => {
     if (isOffline) return;
     if (!auth) {
@@ -2277,12 +2277,8 @@ const ADMIN_EMAILS = ["kinyosampo1@gmail.com"];
             setIsAdmin(false);
         }
       } else {
-        // 3. 使用者未登入 (例如剛開啟網頁) -> 執行匿名登入確保能讀取資料
-        console.log("未偵測到使用者，執行匿名登入...");
-        signInAnonymously(auth).catch(err => {
-            console.error("匿名登入失敗", err);
-            setLoadingError(`登入失敗: ${err.message}`);
-        });
+        // 如果沒有使用者，自動匿名登入
+        signInAnonymously(auth).catch(err => setLoadingError(`登入失敗: ${err.message}`));
       }
     });
     return () => {
@@ -2290,49 +2286,6 @@ const ADMIN_EMAILS = ["kinyosampo1@gmail.com"];
       clearTimeout(timeoutId);
     };
   }, [isOffline]);
-
-useEffect(() => {
-    if (!user || !db) return;
-
-    let q;
-    // 判斷：如果還沒點擊「載入全部」，就只抓 BS9；否則抓全部
-    if (!hasLoadedAll) {
-       // 注意：這裡假設資料庫欄位 series 存的是 "BS9"
-       q = query(
-          collection(db, 'artifacts', appId, 'public', 'data', 'cards'), 
-          where('series', '==', 'BS9')
-       );
-    } else {
-       q = query(collection(db, 'artifacts', appId, 'public', 'data', 'cards'));
-    }
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const cards = snapshot.docs.map(doc => doc.data());
-      cards.sort((a, b) => a.id.localeCompare(b.id));
-      
-      setAllCards(cards);
-      setIsDataLoaded(true); 
-      
-      // 顯示提示訊息
-      if (!hasLoadedAll) {
-          setToastMsg("🚀 預設僅載入 BS9 卡片以加速。如需搜尋舊卡，請點擊「載入完整卡池」。");
-      } else {
-          setToastMsg("✅ 已載入完整卡池！(All Cards Loaded)");
-      }
-
-    }, (error) => { 
-        console.error("Firestore sync error:", error); 
-        // 如果發生查詢錯誤 (例如缺少索引)，自動切換回載入全部作為保險
-        if (error.code === 'failed-precondition') {
-             console.warn("Index missing, falling back to load all.");
-             setHasLoadedAll(true); 
-        } else {
-             setToastMsg("連線資料庫失敗，請檢查網路"); 
-        }
-    });
-    
-    return () => unsubscribe();
-  }, [user, hasLoadedAll]);
 
   useEffect(() => {
     if (allCards.length === 0) return; 
