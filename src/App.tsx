@@ -77,6 +77,7 @@ import {
   query,
   writeBatch,
   deleteDoc,
+  where,
 } from "firebase/firestore";
 
 // --- Firebase 初始化變數 ---
@@ -301,10 +302,10 @@ const Toast = ({ message, onClose }) => {
 };
 
 const AuthModal = ({ onClose, onLogin, onRegister }) => {
-  const [isRegister, setIsRegister] = useState(false);
+  const [isRegister, setIsRegister] = useState(false); // 切換登入/註冊
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
+  const [displayName, setDisplayName] = useState(""); // 玩家暱稱
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -314,7 +315,6 @@ const AuthModal = ({ onClose, onLogin, onRegister }) => {
     setError(null);
     try {
       if (isRegister) {
-        if (password.length < 6) throw new Error("密碼長度需大於6位");
         await onRegister(email, password, displayName);
       } else {
         await onLogin(email, password);
@@ -323,7 +323,8 @@ const AuthModal = ({ onClose, onLogin, onRegister }) => {
     } catch (err) {
       let msg = err.message;
       if (err.code === 'auth/email-already-in-use') msg = "此 Email 已被註冊";
-      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') msg = "帳號或密碼錯誤";
+      if (err.code === 'auth/weak-password') msg = "密碼強度不足 (需6位以上)";
+      if (err.code === 'auth/invalid-credential') msg = "帳號或密碼錯誤";
       setError(msg);
     } finally {
       setLoading(false);
@@ -335,15 +336,29 @@ const AuthModal = ({ onClose, onLogin, onRegister }) => {
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800">
-            <UserCog className="text-blue-600" /> {isRegister ? "註冊帳號" : "會員登入"}
+            <UserCog className="text-blue-600" /> {isRegister ? "註冊玩家帳號" : "會員登入"}
           </h2>
-          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24} /></button>
+          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full">
+            <X size={24} />
+          </button>
         </div>
         
-        {/* 分頁切換 */}
+        {/* 切換分頁 */}
         <div className="flex border-b border-slate-200 mb-4">
-          <button type="button" onClick={() => setIsRegister(false)} className={`flex-1 py-2 text-sm font-bold ${!isRegister ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400'}`}>登入</button>
-          <button type="button" onClick={() => setIsRegister(true)} className={`flex-1 py-2 text-sm font-bold ${isRegister ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400'}`}>註冊</button>
+          <button 
+            type="button"
+            onClick={() => setIsRegister(false)}
+            className={`flex-1 py-2 text-sm font-bold ${!isRegister ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400'}`}
+          >
+            登入
+          </button>
+          <button 
+            type="button"
+            onClick={() => setIsRegister(true)}
+            className={`flex-1 py-2 text-sm font-bold ${isRegister ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400'}`}
+          >
+            註冊新帳號
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -351,18 +366,18 @@ const AuthModal = ({ onClose, onLogin, onRegister }) => {
           
           {isRegister && (
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">玩家暱稱</label>
-              <input type="text" required className="w-full border rounded p-2" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="例如：餅乾國王" />
+              <label className="block text-xs font-bold text-slate-700 mb-1">玩家暱稱 (Display Name)</label>
+              <input type="text" required className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="例如：餅乾國王" />
             </div>
           )}
 
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">Email</label>
-            <input type="email" required className="w-full border rounded p-2" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input type="email" required className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">密碼</label>
-            <input type="password" required className="w-full border rounded p-2" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={isRegister ? "需6位以上" : ""} />
+            <label className="block text-xs font-bold text-slate-700 mb-1">Password</label>
+            <input type="password" required className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={isRegister ? "請設定6位以上密碼" : ""} />
           </div>
           <button type="submit" disabled={loading} className="w-full bg-slate-800 text-white py-2 rounded-lg font-bold hover:bg-slate-900 disabled:opacity-50">
             {loading ? "處理中..." : (isRegister ? "註冊並登入" : "登入")}
@@ -2083,6 +2098,14 @@ export default function App() {
   const loadMoreRef = useRef(null);
   const hasShownWelcome = useRef(false);
 
+  useEffect(() => {
+    // 當資料載入完成 (isDataLoaded 為 true) 且尚未顯示過訊息時觸發
+    if (isDataLoaded && !hasShownWelcome.current) {
+      setToastMsg("因卡池太多，將預設讀取 BS9 卡片 / Defaulting to BS9 due to large card pool");
+      hasShownWelcome.current = true;
+    }
+  }, [isDataLoaded]);
+
   // 控制手機版 Header 顯示/隱藏
   const [showHeader, setShowHeader] = useState(true);
   const scrollContainerRef = useRef(null);
@@ -2122,18 +2145,127 @@ export default function App() {
 
   // ... (SEO, Firebase auth, effects remain unchanged) ...
   // 保留 useEffects
-  useEffect(() => { document.title = "Cookierun: Braverse Deck Builder | 薑餅人對戰卡牌組構建器"; const setFavicon = () => { const link = document.querySelector("link[rel*='icon']") || document.createElement('link'); link.type = 'image/svg+xml'; link.rel = 'icon'; link.href = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍪</text></svg>`; document.getElementsByTagName('head')[0].appendChild(link); }; setFavicon(); const setMeta = (name, content) => { let element = document.querySelector(`meta[name='${name}']`); if (!element) { element = document.createElement('meta'); element.name = name; document.head.appendChild(element); } element.content = content; }; const setOgMeta = (property, content) => { let element = document.querySelector(`meta[property='${property}']`); if (!element) { element = document.createElement('meta'); element.setAttribute('property', property); document.head.appendChild(element); } element.content = content; }; setMeta('description', '專為薑餅人對戰卡牌 (Cookierun: Braverse) 打造的牌組構建器。提供卡片搜尋、牌組組建、圖片輸出與短網址分享功能。'); setOgMeta('og:title', 'Cookierun: Braverse Deck Builder'); setOgMeta('og:description', '快速組建你的薑餅人對戰卡牌牌組！支援圖片輸出與雲端分享。'); setOgMeta('og:image', 'https://cookie-run-braverse-deck-builder.vercel.app/og-image.png'); setOgMeta('og:type', 'website'); }, []);
-  useEffect(() => { if (!document.querySelector('script[src="https://cdn.tailwindcss.com"]')) { const script = document.createElement("script"); script.src = "https://cdn.tailwindcss.com"; document.head.appendChild(script); } }, []);
   useEffect(() => {
-    if (!auth) { setLoadingError("Firebase 設定錯誤"); return; }
-    const timeoutId = setTimeout(() => { if (!user) setLoadingError("連線逾時，請檢查瀏覽器設定"); }, 10000);
-    const initAuth = async () => {}; initAuth();
+    document.title = "Cookierun: Braverse Deck Builder | 薑餅人對戰卡牌組構建器";
+    const setFavicon = () => {
+      const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+      link.type = 'image/svg+xml';
+      link.rel = 'icon';
+      link.href = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍪</text></svg>`;
+      document.getElementsByTagName('head')[0].appendChild(link);
+    };
+    setFavicon();
+    const setMeta = (name, content) => {
+      let element = document.querySelector(`meta[name='${name}']`);
+      if (!element) {
+        element = document.createElement('meta');
+        element.name = name;
+        document.head.appendChild(element);
+      }
+      element.content = content;
+    };
+    const setOgMeta = (property, content) => {
+      let element = document.querySelector(`meta[property='${property}']`);
+      if (!element) {
+        element = document.createElement('meta');
+        element.setAttribute('property', property);
+        document.head.appendChild(element);
+      }
+      element.content = content;
+    };
+    setMeta('description', '專為薑餅人對戰卡牌 (Cookierun: Braverse) 打造的牌組構建器。提供卡片搜尋、牌組組建、圖片輸出與短網址分享功能。');
+    setOgMeta('og:title', 'Cookierun: Braverse Deck Builder');
+    setOgMeta('og:description', '快速組建你的薑餅人對戰卡牌牌組！支援圖片輸出與雲端分享。');
+    setOgMeta('og:image', 'https://cookie-run-braverse-deck-builder.vercel.app/og-image.png');
+    setOgMeta('og:type', 'website');
+  }, []);
+
+  useEffect(() => {
+    if (!document.querySelector('script[src="https://cdn.tailwindcss.com"]')) {
+      const script = document.createElement("script");
+      script.src = "https://cdn.tailwindcss.com";
+      document.head.appendChild(script);
+    }
+  }, []);
+
+useEffect(() => {
+    if (!auth) {
+        setLoadingError("Firebase 設定錯誤"); 
+        return;
+    }
+    const timeoutId = setTimeout(() => {
+      if (!user && !isOffline) setLoadingError("連線逾時，請檢查瀏覽器設定");
+    }, 10000);
+    const initAuth = async () => {};
+    initAuth();
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       if (u) {
-        setUser(u); clearTimeout(timeoutId); setLoadingError(null);
+        setUser(u);
+        clearTimeout(timeoutId);
+        setLoadingError(null);
         if (!u.isAnonymous) {
-            // *** 重要：請在這裡設定您的管理員 Email ***
-            const ADMIN_EMAILS = ["your-email@example.com"]; 
+            setIsAdmin(true);
+            setToastMsg(`歡迎管理員：${u.email}`);
+        } else {
+            setIsAdmin(false);
+        }
+      } else {
+        signInAnonymously(auth).catch(err => setLoadingError(`登入失敗: ${err.message}`));
+      }
+    });
+    return () => {
+      unsubscribe();
+      clearTimeout(timeoutId);
+    };
+  }, [isOffline]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("cookieadmin") === "true" && !isAdmin) {
+      // setIsAdmin(true); 
+    }
+  }, [isAdmin]);
+
+const ADMIN_EMAILS = ["kinyosampo1@gmail.com"]; 
+
+  const handleUserLogin = async (email, password) => {
+      await signInWithEmailAndPassword(auth, email, password);
+  };
+
+  const handleUserRegister = async (email, password, displayName) => {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(userCredential.user, { displayName: displayName });
+      // 觸發重新整理以更新顯示名稱
+      setUser({ ...userCredential.user, displayName });
+  };
+
+  const handleLogout = async () => {
+      if (confirm("確定要登出嗎？")) {
+          await signOut(auth);
+          setToastMsg("已登出");
+          // 登出後自動以匿名身分登入，保持 app 可用
+          signInAnonymously(auth);
+      }
+  };
+// Auth 狀態監聽
+  useEffect(() => {
+    if (isOffline) return;
+    if (!auth) {
+      setLoadingError("Firebase 設定錯誤");
+      return;
+    }
+    const timeoutId = setTimeout(() => {
+      if (!user && !isOffline) setLoadingError("連線逾時，請檢查瀏覽器設定");
+    }, 10000);
+
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      if (u) {
+        setUser(u);
+        clearTimeout(timeoutId);
+        setLoadingError(null);
+        
+        if (!u.isAnonymous) {
+            // 只有在名單內的 Email 才是管理員
             if (ADMIN_EMAILS.includes(u.email)) {
                 setIsAdmin(true);
                 setToastMsg(`歡迎管理員：${u.displayName || u.email}`);
@@ -2141,36 +2273,64 @@ export default function App() {
                 setIsAdmin(false);
                 setToastMsg(`歡迎回來，${u.displayName || '玩家'}！`);
             }
-        } else { setIsAdmin(false); }
-      } else { signInAnonymously(auth).catch(err => setLoadingError(`登入失敗: ${err.message}`)); }
+        } else {
+            setIsAdmin(false);
+        }
+      } else {
+        // 3. 使用者未登入 (例如剛開啟網頁) -> 執行匿名登入確保能讀取資料
+        console.log("未偵測到使用者，執行匿名登入...");
+        signInAnonymously(auth).catch(err => {
+            console.error("匿名登入失敗", err);
+            setLoadingError(`登入失敗: ${err.message}`);
+        });
+      }
     });
-    return () => { unsubscribe(); clearTimeout(timeoutId); };
-  }, []);
+    return () => {
+      unsubscribe();
+      clearTimeout(timeoutId);
+    };
+  }, [isOffline]);
 
-  const handleUserLogin = async (email, password) => { await signInWithEmailAndPassword(auth, email, password); };
-  const handleUserRegister = async (email, password, displayName) => { const userCredential = await createUserWithEmailAndPassword(auth, email, password); await updateProfile(userCredential.user, { displayName: displayName }); setUser({ ...userCredential.user, displayName }); setToastMsg(`歡迎加入！${displayName}`); };
-  const handleLogout = async () => { if (confirm("確定要登出嗎？")) { await signOut(auth); setToastMsg("已登出"); signInAnonymously(auth); } };
-
-  // 資料讀取 (支援分階段載入)
-  useEffect(() => {
+useEffect(() => {
     if (!user || !db) return;
+
     let q;
+    // 判斷：如果還沒點擊「載入全部」，就只抓 BS9；否則抓全部
     if (!hasLoadedAll) {
-       q = query(collection(db, 'artifacts', appId, 'public', 'data', 'cards'), where('series', '==', 'BS9'));
+       // 注意：這裡假設資料庫欄位 series 存的是 "BS9"
+       q = query(
+          collection(db, 'artifacts', appId, 'public', 'data', 'cards'), 
+          where('series', '==', 'BS9')
+       );
     } else {
        q = query(collection(db, 'artifacts', appId, 'public', 'data', 'cards'));
     }
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const cards = snapshot.docs.map(doc => doc.data());
       cards.sort((a, b) => a.id.localeCompare(b.id));
+      
       setAllCards(cards);
       setIsDataLoaded(true); 
-      if (!hasLoadedAll && !hasShownWelcome.current) { setToastMsg("🚀 預設僅載入 BS9 卡片以加速。如需搜尋舊卡，請點擊「載入完整卡池」。"); hasShownWelcome.current = true; }
+      
+      // 顯示提示訊息
+      if (!hasLoadedAll) {
+          setToastMsg("🚀 預設僅載入 BS9 卡片以加速。如需搜尋舊卡，請點擊「載入完整卡池」。");
+      } else {
+          setToastMsg("✅ 已載入完整卡池！(All Cards Loaded)");
+      }
+
     }, (error) => { 
         console.error("Firestore sync error:", error); 
-        setIsDataLoaded(true); // 發生錯誤也要停止轉圈
-        if (error.code === 'failed-precondition') { console.warn("Index missing, falling back to load all."); setHasLoadedAll(true); } else { setToastMsg("連線資料庫失敗，請檢查網路"); }
+        // 如果發生查詢錯誤 (例如缺少索引)，自動切換回載入全部作為保險
+        if (error.code === 'failed-precondition') {
+             console.warn("Index missing, falling back to load all.");
+             setHasLoadedAll(true); 
+        } else {
+             setToastMsg("連線資料庫失敗，請檢查網路"); 
+        }
     });
+    
     return () => unsubscribe();
   }, [user, hasLoadedAll]);
 
@@ -2793,10 +2953,7 @@ export default function App() {
               <div className="flex justify-end">
                 {user && !user.isAnonymous ? (
                     <button onClick={handleLogout} className="flex items-center gap-1 p-1 text-slate-500 hover:text-red-500 transition-colors shrink-0" title="登出">
-                        <div className="flex flex-col items-start leading-none">
-                            <span className="text-[10px] font-bold truncate max-w-[80px]">{user.displayName || '玩家'}</span>
-                            <span className="text-[8px] opacity-50">已登入</span>
-                        </div>
+                        <span className="text-[10px] font-bold truncate max-w-[80px]">{user.displayName || user.email}</span>
                         <LogOut size={14}/>
                     </button>
                   ) : (
