@@ -61,8 +61,6 @@ import {
   signInAnonymously,
   signInWithCustomToken,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword, // 新增：註冊功能
-  updateProfile,                  // 新增：更新使用者暱稱
   signOut,
   onAuthStateChanged,
 } from "firebase/auth";
@@ -300,11 +298,9 @@ const Toast = ({ message, onClose }) => {
   );
 };
 
-const AuthModal = ({ onClose, onLogin, onRegister }) => {
-  const [isRegister, setIsRegister] = useState(false);
+const LoginModal = ({ onClose, onLogin }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -313,18 +309,10 @@ const AuthModal = ({ onClose, onLogin, onRegister }) => {
     setLoading(true);
     setError(null);
     try {
-      if (isRegister) {
-        if (password.length < 6) throw new Error("密碼長度需大於6位");
-        await onRegister(email, password, displayName);
-      } else {
-        await onLogin(email, password);
-      }
+      await onLogin(email, password);
       onClose();
     } catch (err) {
-      let msg = err.message;
-      if (err.code === 'auth/email-already-in-use') msg = "此 Email 已被註冊";
-      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') msg = "帳號或密碼錯誤";
-      setError(msg);
+      setError("登入失敗：" + (err.message || "請檢查帳號密碼"));
     } finally {
       setLoading(false);
     }
@@ -333,39 +321,42 @@ const AuthModal = ({ onClose, onLogin, onRegister }) => {
   return (
     <div className="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800">
-            <UserCog className="text-blue-600" /> {isRegister ? "註冊帳號" : "會員登入"}
+            <UserCog className="text-blue-600" /> 管理員登入
           </h2>
-          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24} /></button>
+          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full">
+            <X size={24} />
+          </button>
         </div>
-        
-        {/* 分頁切換 */}
-        <div className="flex border-b border-slate-200 mb-4">
-          <button type="button" onClick={() => setIsRegister(false)} className={`flex-1 py-2 text-sm font-bold ${!isRegister ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400'}`}>登入</button>
-          <button type="button" onClick={() => setIsRegister(true)} className={`flex-1 py-2 text-sm font-bold ${isRegister ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400'}`}>註冊</button>
-        </div>
-
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && <div className="text-red-500 text-xs bg-red-50 p-2 rounded">{error}</div>}
-          
-          {isRegister && (
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">玩家暱稱</label>
-              <input type="text" required className="w-full border rounded p-2" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="例如：餅乾國王" />
-            </div>
-          )}
-
+          {error && <div className="text-red-500 text-sm bg-red-50 p-2 rounded">{error}</div>}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Email</label>
-            <input type="email" required className="w-full border rounded p-2" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <label className="block text-sm font-bold text-slate-700 mb-1">Email</label>
+            <input 
+              type="email" 
+              required 
+              className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">密碼</label>
-            <input type="password" required className="w-full border rounded p-2" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={isRegister ? "需6位以上" : ""} />
+            <label className="block text-sm font-bold text-slate-700 mb-1">Password</label>
+            <input 
+              type="password" 
+              required 
+              className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
           </div>
-          <button type="submit" disabled={loading} className="w-full bg-slate-800 text-white py-2 rounded-lg font-bold hover:bg-slate-900 disabled:opacity-50">
-            {loading ? "處理中..." : (isRegister ? "註冊並登入" : "登入")}
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="w-full bg-slate-800 text-white py-2 rounded-lg font-bold hover:bg-slate-900 disabled:opacity-50"
+          >
+            {loading ? "驗證中..." : "登入"}
           </button>
         </form>
       </div>
@@ -2083,65 +2074,13 @@ export default function App() {
   const loadMoreRef = useRef(null);
   const hasShownWelcome = useRef(false);
 
-useEffect(() => {
-    // 1. 安全檢查：如果沒有 db 物件，停止載入並報錯 (避免無限轉圈)
-    if (!db) {
-        console.error("Firestore db has not been initialized.");
-        setToastMsg("資料庫連線異常，請檢查 API Key 設定");
-        setIsDataLoaded(true); // 強制停止轉圈
-        return;
+  useEffect(() => {
+    // 當資料載入完成 (isDataLoaded 為 true) 且尚未顯示過訊息時觸發
+    if (isDataLoaded && !hasShownWelcome.current) {
+      setToastMsg("因卡池太多，將預設讀取 BS9 卡片 / Defaulting to BS9 due to large card pool");
+      hasShownWelcome.current = true;
     }
-    
-    // 2. 等待使用者登入 (匿名或正式)
-    if (!user) return;
-
-    // 3. 開始載入：先顯示轉圈圈
-    setIsDataLoaded(false);
-
-    let q;
-    try {
-        // 建立查詢
-        if (!hasLoadedAll) {
-           q = query(collection(db, 'artifacts', appId, 'public', 'data', 'cards'), where('series', '==', 'BS9'));
-        } else {
-           q = query(collection(db, 'artifacts', appId, 'public', 'data', 'cards'));
-        }
-    } catch (e) {
-        console.error("Query Error:", e);
-        setIsDataLoaded(true); // 發生錯誤也要停止
-        return;
-    }
-
-    // 4. 監聽資料
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const cards = snapshot.docs.map(doc => doc.data());
-      cards.sort((a, b) => a.id.localeCompare(b.id));
-      
-      setAllCards(cards);
-      setIsDataLoaded(true); // 成功載入，停止轉圈
-      
-      // 顯示提示訊息 (只在第一次載入 BS9 時顯示)
-      if (!hasLoadedAll && !hasShownWelcome.current) { 
-          setToastMsg("🚀 預設僅載入 BS9 卡片以加速。如需搜尋舊卡，請點擊「載入完整卡池」。"); 
-          hasShownWelcome.current = true; 
-      }
-    }, (error) => { 
-        console.error("Firestore sync error:", error); 
-        setIsDataLoaded(true); // 失敗載入，停止轉圈
-        
-        // 錯誤處理
-        if (error.code === 'failed-precondition') { 
-            console.warn("Index missing, falling back to load all."); 
-            setHasLoadedAll(true); // 缺少索引時自動嘗試載入全部
-        } else if (error.code === 'permission-denied') {
-            setToastMsg("權限不足：無法讀取卡片資料 (Permission Denied)");
-        } else { 
-            setToastMsg(`資料庫連線失敗: ${error.message}`); 
-        }
-    });
-    
-    return () => unsubscribe();
-  }, [user, hasLoadedAll]);
+  }, [isDataLoaded]);
 
   // 控制手機版 Header 顯示/隱藏
   const [showHeader, setShowHeader] = useState(true);
@@ -2264,62 +2203,36 @@ useEffect(() => {
     }
   }, [isAdmin]);
 
-const ADMIN_EMAILS = ["kinyosampo1@gmail.com"]; 
-
-  const handleUserLogin = async (email, password) => {
+  const handleAdminLogin = async (email, password) => {
       await signInWithEmailAndPassword(auth, email, password);
   };
 
-  const handleUserRegister = async (email, password, displayName) => {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      // 更新使用者的暱稱
-      await updateProfile(userCredential.user, { displayName: displayName });
-      // 手動更新狀態以即時顯示暱稱
-      setUser({ ...userCredential.user, displayName });
-      setToastMsg(`歡迎加入！${displayName}`);
-  };
-
   const handleLogout = async () => {
-      if (confirm("確定要登出嗎？")) {
+      if (confirm("確定要登出管理員模式嗎？")) {
           await signOut(auth);
-          setToastMsg("已登出，切換回訪客模式");
-          // 登出後自動以匿名身分登入，確保 App 功能可用
-          signInAnonymously(auth).catch(e => console.error(e));
+          setToastMsg("已登出管理員模式");
       }
   };
 
-  // Auth 狀態監聽 (包含管理員權限判斷)
   useEffect(() => {
-    if (!auth) return;
-    
-    // 初始化匿名登入
-    const initAuth = async () => {
-       // 如果沒有登入任何帳號，就自動匿名登入
-       if (!auth.currentUser) {
-           await signInAnonymously(auth).catch(e => console.error("匿名登入失敗", e));
-       }
-    };
-    initAuth();
-
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      if (u) {
-        setUser(u);
-        
-        // 判斷是否為管理員
-        // 條件：必須不是匿名用戶 且 Email 在管理員名單內
-        if (!u.isAnonymous && u.email && ADMIN_EMAILS.includes(u.email)) {
-            setIsAdmin(true);
-            setToastMsg(`管理員模式已啟動`);
-        } else {
-            setIsAdmin(false);
+    if (isOffline) {
+        if (allCards.length === 0) {
+            setAllCards(INITIAL_CARDS);
+            setIsDataLoaded(true);
+            setToastMsg("已載入離線模擬資料");
         }
-      } else {
-        // 使用者登出後，會變成 null，這時觸發匿名登入
-        signInAnonymously(auth).catch(e => console.error(e));
-      }
-    });
+        return;
+    }
+    if (!user || !db) return;
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'cards'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const cards = snapshot.docs.map(doc => doc.data());
+      cards.sort((a, b) => a.id.localeCompare(b.id));
+      setAllCards(cards);
+      setIsDataLoaded(true); 
+    }, (error) => { console.error("Firestore sync error:", error); setToastMsg("連線資料庫失敗，請檢查網路"); });
     return () => unsubscribe();
-  }, []);
+  }, [user, isOffline]);
 
   useEffect(() => {
     if (allCards.length === 0) return; 
@@ -2750,10 +2663,9 @@ const ADMIN_EMAILS = ["kinyosampo1@gmail.com"];
       {showExportModal && <ExportModal deck={deck} allCards={allCards} onClose={() => setShowExportModal(false)} deckName={deckName} />}
 
       {showLoginModal && (
-        <AuthModal 
+        <LoginModal 
           onClose={() => setShowLoginModal(false)} 
-          onLogin={handleUserLogin} 
-          onRegister={handleUserRegister}
+          onLogin={handleAdminLogin} 
         />
       )}
 
@@ -2938,20 +2850,11 @@ const ADMIN_EMAILS = ["kinyosampo1@gmail.com"];
                   </a>
               </div>
               <div className="flex justify-end">
-                {user && !user.isAnonymous ? (
-                    <button onClick={handleLogout} className="flex items-center gap-1 p-1 text-slate-500 hover:text-red-500 transition-colors shrink-0" title="登出">
-                        <div className="flex flex-col items-start leading-none">
-                            <span className="text-[10px] font-bold truncate max-w-[80px]">{user.displayName || '玩家'}</span>
-                            <span className="text-[8px] opacity-50">已登入</span>
-                        </div>
-                        <LogOut size={14}/>
-                    </button>
-                  ) : (
-                    <button onClick={() => setShowLoginModal(true)} className="flex items-center gap-1 p-1 text-blue-600 hover:text-blue-800 transition-colors shrink-0 font-bold" title="登入/註冊">
-                        <span className="text-[10px]">登入/註冊</span>
-                        <UserCog size={14}/>
-                    </button>
-                  )}
+                {isAdmin ? (
+                  <button onClick={handleLogout} className="p-1 text-slate-400 hover:text-red-500 transition-colors" title="登出"><LogOut size={16}/></button>
+                ) : (
+                  <button onClick={() => setShowLoginModal(true)} className="p-1 text-slate-300 hover:text-slate-500 transition-colors" title="管理員登入"><Lock size={16}/></button>
+                )}
               </div>
           </div>
         </div>
