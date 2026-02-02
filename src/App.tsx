@@ -77,7 +77,6 @@ import {
   query,
   writeBatch,
   deleteDoc,
-  where,
 } from "firebase/firestore";
 
 // --- Firebase 初始化變數 ---
@@ -2099,12 +2098,68 @@ export default function App() {
   const hasShownWelcome = useRef(false);
 
   useEffect(() => {
-    // 當資料載入完成 (isDataLoaded 為 true) 且尚未顯示過訊息時觸發
-    if (isDataLoaded && !hasShownWelcome.current) {
-      setToastMsg("因卡池太多，將預設讀取 BS9 卡片 / Defaulting to BS9 due to large card pool");
-      hasShownWelcome.current = true;
+    // 1. 安全檢查：如果 Firebase 初始化失敗，停止載入並報錯
+    if (!db) {
+        console.error("Firestore db has not been initialized.");
+        setToastMsg("資料庫未連線，請檢查 API Key 設定");
+        setIsDataLoaded(true); // ★ 關鍵修正：強制停止轉圈
+        return;
     }
-  }, [isDataLoaded]);
+    
+    // 2. 等待使用者登入 (匿名或正式) - 若未登入則等待 Auth 監聽器處理
+    if (!user) return;
+
+    // 3. 開始載入：重置載入狀態
+    setIsDataLoaded(false);
+
+    let q;
+    try {
+        // 建立查詢
+        if (!hasLoadedAll) {
+           // 嘗試讀取 BS9
+           q = query(collection(db, 'artifacts', appId, 'public', 'data', 'cards'), where('series', '==', 'BS9'));
+        } else {
+           // 讀取全部
+           q = query(collection(db, 'artifacts', appId, 'public', 'data', 'cards'));
+        }
+    } catch (e) {
+        console.error("Query Creation Error:", e);
+        setToastMsg("查詢語法錯誤，請聯繫管理員");
+        setIsDataLoaded(true); // ★ 發生錯誤也要停止
+        return;
+    }
+
+    // 4. 監聽資料
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const cards = snapshot.docs.map(doc => doc.data());
+      cards.sort((a, b) => a.id.localeCompare(b.id));
+      
+      setAllCards(cards);
+      setIsDataLoaded(true); // ★ 成功載入，停止轉圈
+      
+      // 顯示提示訊息 (只在第一次載入 BS9 時顯示)
+      if (!hasLoadedAll && !hasShownWelcome.current) { 
+          setToastMsg("🚀 預設僅載入 BS9 卡片以加速。如需搜尋舊卡，請點擊「載入完整卡池」。"); 
+          hasShownWelcome.current = true; 
+      }
+    }, (error) => { 
+        console.error("Firestore sync error:", error); 
+        setIsDataLoaded(true); // ★ 失敗載入，停止轉圈
+        
+        // 錯誤處理
+        if (error.code === 'failed-precondition') { 
+            // 這通常是缺索引導致的，自動切換回讀取全部
+            console.warn("Index missing, falling back to load all."); 
+            setHasLoadedAll(true); 
+        } else if (error.code === 'permission-denied') {
+            setToastMsg("權限不足：無法讀取卡片資料");
+        } else { 
+            setToastMsg(`資料庫讀取失敗: ${error.message}`); 
+        }
+    });
+    
+    return () => unsubscribe();
+  }, [user, hasLoadedAll]);
 
   // 控制手機版 Header 顯示/隱藏
   const [showHeader, setShowHeader] = useState(true);
