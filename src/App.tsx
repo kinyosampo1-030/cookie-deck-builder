@@ -2752,16 +2752,28 @@ export default function App() {
             <h2 className="text-lg font-bold flex items-center gap-2 flex-1"><Box size={20} className="text-blue-400"/> 目前牌組</h2>
             <div className="flex gap-2">
               <button onClick={handleShareClick} className="bg-blue-600 hover:bg-blue-500 text-white p-1.5 rounded transition-colors" title="分享/輸出"><Share2 size={18} /></button>
-              {/* 新增：儲存按鈕 (僅限登入會員) */}
-              {user && !user.isAnonymous && (
-                 <button 
-                    onClick={() => setShowStorageModal(true)} 
-                    className="bg-green-600 hover:bg-green-500 text-white px-2 py-1.5 rounded transition-colors text-sm font-bold flex items-center gap-1"
-                    title="儲存/讀取我的牌組"
-                 >
-                    <Save size={14} />
-                 </button>
-              )}
+              
+              {/* 修改：儲存按鈕 - 永遠顯示，若未登入則引導登入 */}
+              <button 
+                onClick={() => {
+                    if (user && !user.isAnonymous) {
+                        setShowStorageModal(true);
+                    } else {
+                        if (confirm("儲存牌組功能僅限註冊會員使用。\n是否前往登入/註冊？")) {
+                            setShowLoginModal(true);
+                        }
+                    }
+                }}
+                className={`px-2 py-1.5 rounded transition-colors text-sm font-bold flex items-center gap-1 ${
+                    user && !user.isAnonymous 
+                    ? "bg-green-600 hover:bg-green-500 text-white" 
+                    : "bg-slate-700 text-slate-500 hover:bg-slate-600 hover:text-slate-300"
+                }`}
+                title={user && !user.isAnonymous ? "儲存/讀取我的牌組" : "登入以使用雲端儲存功能"}
+              >
+                <Save size={14} />
+              </button>
+
               <button onClick={clearDeck} className="bg-red-600 hover:bg-red-500 text-white px-2 py-1.5 rounded transition-colors text-sm font-bold flex items-center gap-1">
                 <Trash2 size={14} />
               </button>
