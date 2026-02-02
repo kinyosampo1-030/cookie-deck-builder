@@ -77,6 +77,7 @@ import {
   query,
   writeBatch,
   deleteDoc,
+  where, // ★★★ 關鍵修正：補上 where，解決讀取崩潰問題
 } from "firebase/firestore";
 
 // --- Firebase 初始化變數 ---
@@ -314,6 +315,7 @@ const AuthModal = ({ onClose, onLogin, onRegister }) => {
     setError(null);
     try {
       if (isRegister) {
+        if (password.length < 6) throw new Error("密碼長度需大於6位");
         await onRegister(email, password, displayName);
       } else {
         await onLogin(email, password);
@@ -1202,11 +1204,11 @@ const ExportModal = ({ deck, deckName, onClose }) => {
               </div>
 
               {/* --- 圖片輸出核心區塊 --- */}
-              {/* 修正：加入 overflow-x-auto 與 min-w-[800px] 解決手機版卡片過小問題 */}
+              {/* 修正：加入 overflow-x-auto 與 min-w-[1200px] 解決手機版卡片過小問題 */}
               <div className="w-full overflow-x-auto pb-4">
                 <div
                     ref={exportRef}
-                    className="bg-white p-8 rounded-lg shadow-lg min-w-[800px] w-full max-w-[1000px] mx-auto border border-slate-200"
+                    className="bg-white p-8 rounded-lg shadow-lg min-w-[1200px] w-fit mx-auto border border-slate-200"
                 >
                     <div className="flex justify-between items-end border-b-4 border-slate-800 pb-4 mb-6">
                         <div className="flex-1">
@@ -2097,6 +2099,10 @@ export default function App() {
   const loadMoreRef = useRef(null);
   const hasShownWelcome = useRef(false);
 
+  // 新增：控制是否已載入全部卡片 (分階段載入)
+  const [hasLoadedAll, setHasLoadedAll] = useState(false);
+
+  // 資料讀取 (支援分階段載入 - 強固修正版)
   useEffect(() => {
     // 1. 安全檢查：如果 Firebase 初始化失敗，停止載入並報錯
     if (!db) {
@@ -2243,37 +2249,46 @@ export default function App() {
     }
   }, []);
 
+  // Auth 狀態監聽 (包含管理員權限判斷 - 修正版)
   useEffect(() => {
-    if (isOffline) return;
     if (!auth) {
-      setLoadingError("Firebase 設定錯誤");
-      return;
+        setLoadingError("Firebase 設定錯誤"); 
+        return;
     }
-    const timeoutId = setTimeout(() => {
-      if (!user && !isOffline) setLoadingError("連線逾時，請檢查瀏覽器設定");
-    }, 10000);
-    const initAuth = async () => {};
-    initAuth();
+    
+    // *** 修正重點：管理員名單 (請確認您的 Email 有在裡面) ***
+    const ADMIN_EMAILS = ["kinyosampo1@gmail.com", "your-email@example.com"]; 
+
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       if (u) {
+        // 1. 使用者已登入 (包含匿名或正式會員) - 恢復狀態
         setUser(u);
-        clearTimeout(timeoutId);
         setLoadingError(null);
-        if (!u.isAnonymous) {
+        
+        // 2. 判斷是否為管理員
+        if (!u.isAnonymous && u.email && ADMIN_EMAILS.includes(u.email)) {
             setIsAdmin(true);
-            setToastMsg(`歡迎管理員：${u.email}`);
+            setToastMsg(`歡迎管理員：${u.displayName || u.email}`);
         } else {
             setIsAdmin(false);
+            // 如果是正式會員但非管理員，顯示歡迎訊息
+            if (!u.isAnonymous) {
+                // 避免重複跳出 Toast，這裡可以選擇性顯示
+                // setToastMsg(`歡迎回來，${u.displayName || '玩家'}！`);
+            }
         }
       } else {
-        signInAnonymously(auth).catch(err => setLoadingError(`登入失敗: ${err.message}`));
+        // 3. 使用者未登入 (例如剛開啟網頁) -> 執行匿名登入確保能讀取資料
+        console.log("未偵測到使用者，執行匿名登入...");
+        signInAnonymously(auth).catch(err => {
+            console.error("匿名登入失敗", err);
+            setLoadingError(`登入失敗: ${err.message}`);
+        });
       }
     });
-    return () => {
-      unsubscribe();
-      clearTimeout(timeoutId);
-    };
-  }, [isOffline]);
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -2281,8 +2296,6 @@ export default function App() {
       // setIsAdmin(true); 
     }
   }, [isAdmin]);
-
-  const ADMIN_EMAILS = ["kinyosampo1@gmail.com"]; 
 
   const handleUserLogin = async (email, password) => {
       await signInWithEmailAndPassword(auth, email, password);
@@ -2298,50 +2311,12 @@ export default function App() {
   const handleLogout = async () => {
       if (confirm("確定要登出嗎？")) {
           await signOut(auth);
-          setToastMsg("已登出");
-          // 登出後自動以匿名身分登入，保持 app 可用
-          signInAnonymously(auth);
+          setToastMsg("已登出，切換回訪客模式");
+          // 登出後自動以匿名身分登入，確保 App 功能可用
+          signInAnonymously(auth).catch(e => console.error(e));
       }
   };
 
-  useEffect(() => {
-    if (isOffline) return;
-    if (!auth) {
-      setLoadingError("Firebase 設定錯誤");
-      return;
-    }
-    const timeoutId = setTimeout(() => {
-      if (!user && !isOffline) setLoadingError("連線逾時，請檢查瀏覽器設定");
-    }, 10000);
-
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      if (u) {
-        setUser(u);
-        clearTimeout(timeoutId);
-        setLoadingError(null);
-        
-        if (!u.isAnonymous) {
-            // 只有在名單內的 Email 才是管理員
-            if (ADMIN_EMAILS.includes(u.email)) {
-                setIsAdmin(true);
-                setToastMsg(`歡迎管理員：${u.displayName || u.email}`);
-            } else {
-                setIsAdmin(false);
-                setToastMsg(`歡迎回來，${u.displayName || '玩家'}！`);
-            }
-        } else {
-            setIsAdmin(false);
-        }
-      } else {
-        // 如果沒有使用者，自動匿名登入
-        signInAnonymously(auth).catch(err => setLoadingError(`登入失敗: ${err.message}`));
-      }
-    });
-    return () => {
-      unsubscribe();
-      clearTimeout(timeoutId);
-    };
-  }, [isOffline]);
 
   useEffect(() => {
     if (allCards.length === 0) return; 
@@ -2723,6 +2698,7 @@ export default function App() {
     
     return { lv1, lv2, lv3, total, p1, p2, p3 };
   }, [deck.main]);
+
   if (loadingError && !isOffline) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-slate-50 p-4 text-center">
@@ -2817,6 +2793,21 @@ export default function App() {
                       )}
                     </div>
                 </div>
+                {/* --- 新增功能：載入完整卡池按鈕 --- */}
+                {!hasLoadedAll && (
+                  <div className="bg-blue-50 border border-blue-200 p-2 rounded-lg flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+                     <span className="text-xs text-blue-800 font-bold flex items-center gap-1">
+                        <Zap size={14} className="fill-blue-600 text-blue-600"/> 目前僅顯示 BS9
+                     </span>
+                     <button 
+                        onClick={() => setHasLoadedAll(true)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-md font-bold shadow-sm transition-all active:scale-95 flex items-center gap-1"
+                     >
+                        <Database size={12}/> 載入全部
+                     </button>
+                  </div>
+                )}
+                
                 {/* 篩選與搜尋 */}
                 <div className="flex flex-col gap-2">
                     <div className="relative w-full">
@@ -2938,10 +2929,19 @@ export default function App() {
                       <span className="text-slate-300">|</span>
                       <span className="truncate text-slate-400">製作者：樂多綠Gamecaster</span>
                   </div>
-                  {isAdmin ? (
-                    <button onClick={handleLogout} className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0"><LogOut size={14}/></button>
+                  {user && !user.isAnonymous ? (
+                    <button onClick={handleLogout} className="flex items-center gap-1 p-1 text-slate-500 hover:text-red-500 transition-colors shrink-0" title="登出">
+                        <div className="flex flex-col items-start leading-none">
+                            <span className="text-[10px] font-bold truncate max-w-[80px]">{user.displayName || '玩家'}</span>
+                            <span className="text-[8px] opacity-50">已登入</span>
+                        </div>
+                        <LogOut size={14}/>
+                    </button>
                   ) : (
-                    <button onClick={() => setShowLoginModal(true)} className="p-1 text-slate-300 hover:text-slate-500 transition-colors shrink-0"><Lock size={14}/></button>
+                    <button onClick={() => setShowLoginModal(true)} className="flex items-center gap-1 p-1 text-blue-600 hover:text-blue-800 transition-colors shrink-0 font-bold" title="登入/註冊">
+                        <span className="text-[10px]">登入/註冊</span>
+                        <UserCog size={14}/>
+                    </button>
                   )}
               </div>
           </div>
