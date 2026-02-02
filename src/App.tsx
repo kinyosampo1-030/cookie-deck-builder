@@ -77,6 +77,7 @@ import {
   query,
   writeBatch,
   deleteDoc,
+  where,
 } from "firebase/firestore";
 
 // --- Firebase 初始化變數 ---
