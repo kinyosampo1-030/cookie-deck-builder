@@ -377,6 +377,7 @@ const AuthModal = ({ onClose, onLogin, onRegister }) => {
   );
 };
 
+// Deck Detail View Component (Sorted Display)
 const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
     const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState("");
@@ -904,215 +905,119 @@ export default function App() {
   const [showLoginModal, setShowLoginModal] = useState(false); 
   const [showDrawTestModal, setShowDrawTestModal] = useState(false); 
   const [showPackOpenerModal, setShowPackOpenerModal] = useState(false); 
-  
   const [viewingCard, setViewingCard] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [editingCard, setEditingCard] = useState(null);
   const [isDataLoaded, setIsDataLoaded] = useState(false); 
-  
   const [isMobileDeckOpen, setIsMobileDeckOpen] = useState(false);
-   
   const [isOffline, setIsOffline] = useState(false);
   const [visibleCount, setVisibleCount] = useState(30);
   const loadMoreRef = useRef(null);
   const hasShownWelcome = useRef(false);
-
-  // 新增：控制是否已載入全部卡片 (分階段載入)
   const [hasLoadedAll, setHasLoadedAll] = useState(false);
-
-  // 新增：牌組儲存 Modal 控制
+  
+  // New States
   const [showStorageModal, setShowStorageModal] = useState(false);
   const [showCommunityModal, setShowCommunityModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
-  // 資料讀取 (支援分階段載入 - 強固修正版)
+  // Data Loading Effect
   useEffect(() => {
-    // 1. 安全檢查：如果 Firebase 初始化失敗，停止載入並報錯
     if (!db) {
         console.error("Firestore db has not been initialized.");
         setToastMsg("資料庫未連線，請檢查 API Key 設定");
-        setIsDataLoaded(true); // ★ 關鍵修正：強制停止轉圈
+        setIsDataLoaded(true);
         return;
     }
     
-    // 2. 等待使用者登入 (匿名或正式) - 若未登入則等待 Auth 監聽器處理
     if (!user) return;
 
-    // 3. 開始載入：重置載入狀態
     setIsDataLoaded(false);
 
     let q;
     try {
-        // 建立查詢
         if (!hasLoadedAll) {
-           // 嘗試讀取 BS9
            q = query(collection(db, 'artifacts', appId, 'public', 'data', 'cards'), where('series', '==', 'BS9'));
         } else {
-           // 讀取全部
            q = query(collection(db, 'artifacts', appId, 'public', 'data', 'cards'));
         }
     } catch (e) {
         console.error("Query Creation Error:", e);
         setToastMsg("查詢語法錯誤，請聯繫管理員");
-        setIsDataLoaded(true); // ★ 發生錯誤也要停止
+        setIsDataLoaded(true);
         return;
     }
 
-    // 4. 監聽資料
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const cards = snapshot.docs.map(doc => doc.data());
       cards.sort((a, b) => a.id.localeCompare(b.id));
-      
       setAllCards(cards);
-      setIsDataLoaded(true); // ★ 成功載入，停止轉圈
-      
-      // 顯示提示訊息 (只在第一次載入 BS9 時顯示)
-      if (!hasLoadedAll && !hasShownWelcome.current) { 
-          setToastMsg("🚀 預設僅載入 BS9 卡片以加速。如需搜尋舊卡，請點擊「載入完整卡池」。"); 
-          hasShownWelcome.current = true; 
-      }
+      setIsDataLoaded(true);
+      if (!hasLoadedAll && !hasShownWelcome.current) { setToastMsg("🚀 預設僅載入 BS9 卡片。如需搜尋舊卡，請點擊「載入完整卡池」。"); hasShownWelcome.current = true; }
     }, (error) => { 
-        console.error("Firestore sync error:", error); 
-        setIsDataLoaded(true); // ★ 失敗載入，停止轉圈
-        
-        // 錯誤處理
-        if (error.code === 'failed-precondition') { 
-            // 這通常是缺索引導致的，自動切換回讀取全部
-            console.warn("Index missing, falling back to load all."); 
-            setHasLoadedAll(true); 
-        } else if (error.code === 'permission-denied') {
-            setToastMsg("權限不足：無法讀取卡片資料");
-        } else { 
-            setToastMsg(`資料庫讀取失敗: ${error.message}`); 
-        }
+        console.error("Firestore sync error:", error); setIsDataLoaded(true);
+        if (error.code === 'failed-precondition') { console.warn("Index missing, falling back to load all."); setHasLoadedAll(true); } 
+        else if (error.code === 'permission-denied') { setToastMsg("權限不足：無法讀取卡片資料"); } 
+        else { setToastMsg(`資料庫讀取失敗: ${error.message}`); }
     });
-    
     return () => unsubscribe();
   }, [user, hasLoadedAll]);
 
-  // 控制手機版 Header 顯示/隱藏
+  // Scroll Header Effect
   const [showHeader, setShowHeader] = useState(true);
   const scrollContainerRef = useRef(null);
   const lastScrollY = useRef(0);
-
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
-
     const handleScroll = () => {
       const currentScrollY = container.scrollTop;
       const diff = currentScrollY - lastScrollY.current;
-
-      // 加入緩衝機制，避免因為手指輕微抖動而閃爍
-      // 當往下捲動超過 10px 且目前位置不是在最頂端 (避免誤判) -> 隱藏
-      if (diff > 10 && currentScrollY > 50) {
-        setShowHeader(false);
-      } 
-      // 當往上捲動超過 10px -> 顯示
-      else if (diff < -10) {
-        setShowHeader(true);
-      }
-      
+      if (diff > 10 && currentScrollY > 50) { setShowHeader(false); } else if (diff < -10) { setShowHeader(true); }
       lastScrollY.current = currentScrollY;
     };
-
-    // passive: true 可以提升手機滑動時的效能
     container.addEventListener("scroll", handleScroll, { passive: true });
     return () => container.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const LIMITS = { MAIN: 60, EXTRA: 6, COPY: 4, FLIP: 16 };
-
-  const closeToast = useCallback(() => {
-    setToastMsg(null);
-  }, []);
+  const closeToast = useCallback(() => { setToastMsg(null); }, []);
 
   // ... (SEO & Auth Effects) ...
   useEffect(() => { document.title = "Cookierun: Braverse Deck Builder"; const setFavicon = () => { const link = document.querySelector("link[rel*='icon']") || document.createElement('link'); link.type = 'image/svg+xml'; link.rel = 'icon'; link.href = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍪</text></svg>`; document.getElementsByTagName('head')[0].appendChild(link); }; setFavicon(); }, []);
   useEffect(() => { if (!document.querySelector('script[src="https://cdn.tailwindcss.com"]')) { const script = document.createElement("script"); script.src = "https://cdn.tailwindcss.com"; document.head.appendChild(script); } }, []);
   
-  // Auth State Listener
   useEffect(() => {
     if (!auth) { setLoadingError("Firebase 設定錯誤"); return; }
-    
-    // *** 修正重點：管理員名單 (請確認您的 Email 有在裡面) ***
-    const ADMIN_EMAILS = ["kinyosampo1@gmail.com", "your-email@example.com"]; 
-
+    const ADMIN_EMAILS = ["kinyosampo1@gmail.com"]; 
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       if (u) {
-        // 1. 使用者已登入 (包含匿名或正式會員) - 恢復狀態
-        setUser(u);
-        setLoadingError(null);
-        
-        // 2. 判斷是否為管理員
-        if (!u.isAnonymous && u.email && ADMIN_EMAILS.includes(u.email)) {
-            setIsAdmin(true);
-            setToastMsg(`歡迎管理員：${u.displayName || u.email}`);
-        } else {
-            setIsAdmin(false);
-            // 如果是正式會員但非管理員，顯示歡迎訊息
-            if (!u.isAnonymous) {
-                // 避免重複跳出 Toast，這裡可以選擇性顯示
-                // setToastMsg(`歡迎回來，${u.displayName || '玩家'}！`);
-            }
-        }
-      } else {
-        // 3. 使用者未登入 (例如剛開啟網頁) -> 執行匿名登入確保能讀取資料
-        console.log("未偵測到使用者，執行匿名登入...");
-        signInAnonymously(auth).catch(err => {
-            console.error("匿名登入失敗", err);
-            setLoadingError(`登入失敗: ${err.message}`);
-        });
-      }
+        setUser(u); setLoadingError(null);
+        if (!u.isAnonymous && u.email && ADMIN_EMAILS.includes(u.email)) { setIsAdmin(true); setToastMsg(`歡迎管理員：${u.displayName || u.email}`); } else { setIsAdmin(false); }
+      } else { signInAnonymously(auth).catch(err => { console.error("匿名登入失敗", err); setLoadingError(`登入失敗: ${err.message}`); }); }
     });
-
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("cookieadmin") === "true" && !isAdmin) {
-      // setIsAdmin(true); 
-    }
-  }, [isAdmin]);
-
-  const handleUserLogin = async (email, password) => {
-      await signInWithEmailAndPassword(auth, email, password);
-  };
-
-  const handleUserRegister = async (email, password, displayName) => {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(userCredential.user, { displayName: displayName });
-      // 觸發重新整理以更新顯示名稱
-      setUser({ ...userCredential.user, displayName });
-  };
-
-  const handleLogout = async () => {
-      if (confirm("確定要登出嗎？")) {
-          await signOut(auth);
-          setToastMsg("已登出，切換回訪客模式");
-          // 登出後自動以匿名身分登入，確保 App 功能可用
-          signInAnonymously(auth).catch(e => console.error(e));
-      }
-  };
-
-  // 2. 新增 Handle Update Profile
+  // Handlers
+  const handleUserLogin = async (email, password) => { await signInWithEmailAndPassword(auth, email, password); };
+  const handleUserRegister = async (email, password, displayName) => { const userCredential = await createUserWithEmailAndPassword(auth, email, password); await updateProfile(userCredential.user, { displayName: displayName }); setUser({ ...userCredential.user, displayName }); };
+  const handleLogout = async () => { if (confirm("確定要登出嗎？")) { await signOut(auth); setToastMsg("已登出"); signInAnonymously(auth); } };
+  
   const handleUpdateProfile = async (displayName) => {
       await updateProfile(user, { displayName: displayName });
-      // 更新本地 user 狀態以即時顯示
       setUser({ ...user, displayName });
       setToastMsg("暱稱已更新！");
   };
 
-  // 載入牌組功能 (從 Storage Modal 呼叫)
-  const handleLoadDeckFromStorage = (newDeck, newName) => {
-      setDeck(newDeck);
-      setDeckName(newName);
-      setToastMsg("牌組載入成功！");
+  const handleLoadDeckFromStorage = (newDeck, newName) => { 
+      const mainCards = newDeck.m.map(id => allCards.find(c => c.id === id)).filter(Boolean);
+      const extraCards = newDeck.e.map(id => allCards.find(c => c.id === id)).filter(Boolean);
+      setDeck({ main: mainCards, extra: extraCards }); 
+      setDeckName(newName); 
+      setToastMsg("牌組載入成功！"); 
   };
 
-  // 3. 修改 handlePublishDeck (加入 coverId)
   const handlePublishDeck = async (deckToPublish) => {
       try {
           // Identify colors
@@ -1143,384 +1048,56 @@ export default function App() {
       }
   };
 
-  useEffect(() => {
-    if (allCards.length === 0) return; 
-    const params = new URLSearchParams(window.location.search);
-    const shortId = params.get('s');
-    if (shortId && db) {
-        const loadSharedDeck = async () => {
-            try {
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'shared_decks', shortId);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    const decoded = docSnap.data();
-                    if (decoded.m && decoded.e) {
-                        const mainCards = [], extraCards = [];
-                        decoded.m.forEach(id => { const c = allCards.find(c => c.id === id); if (c) mainCards.push(c); });
-                        decoded.e.forEach(id => { const c = allCards.find(c => c.id === id); if (c) extraCards.push(c); });
-                        setDeck({ main: mainCards, extra: extraCards });
-                        if (decoded.n) setDeckName(decoded.n);
-                        setToastMsg('已成功載入分享的牌組！');
-                    }
-                } else {
-                    setToastMsg('找不到該分享的牌組，可能已被刪除');
-                }
-            } catch (e) {
-                console.error("載入短網址失敗", e);
-                setToastMsg('載入牌組時發生錯誤');
-            }
-        };
-        loadSharedDeck();
-        return;
-    }
-    const deckData = params.get('d');
-    if (deckData) {
-      try {
-        const decodedString = decodeURIComponent(atob(deckData));
-        const decoded = JSON.parse(decodedString);
-        if (decoded.m && decoded.e) {
-          const mainCards = [], extraCards = [];
-          decoded.m.forEach(id => { const c = allCards.find(c => c.id === id); if (c) mainCards.push(c); });
-          decoded.e.forEach(id => { const c = allCards.find(c => c.id === id); if (c) extraCards.push(c); });
-          setDeck({ main: mainCards, extra: extraCards });
-          if (decoded.n) setDeckName(decoded.n);
-          setToastMsg('已成功載入分享的牌組！');
-        }
-      } catch (e) { console.error("牌組載入失敗", e); }
-    }
-  }, [allCards, db]);
+  // ... (URL loading logic) ...
+  useEffect(() => { if (allCards.length === 0) return; const params = new URLSearchParams(window.location.search); const shortId = params.get('s'); if (shortId && db) { const loadSharedDeck = async () => { try { const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'shared_decks', shortId); const docSnap = await getDoc(docRef); if (docSnap.exists()) { const decoded = docSnap.data(); if (decoded.m && decoded.e) { const mainCards = [], extraCards = []; decoded.m.forEach(id => { const c = allCards.find(c => c.id === id); if (c) mainCards.push(c); }); decoded.e.forEach(id => { const c = allCards.find(c => c.id === id); if (c) extraCards.push(c); }); setDeck({ main: mainCards, extra: extraCards }); if (decoded.n) setDeckName(decoded.n); setToastMsg('已成功載入分享的牌組！'); } } else { setToastMsg('找不到該分享的牌組，可能已被刪除'); } } catch (e) { console.error("載入短網址失敗", e); setToastMsg('載入牌組時發生錯誤'); } }; loadSharedDeck(); return; } const deckData = params.get('d'); if (deckData) { try { const decodedString = decodeURIComponent(atob(deckData)); const decoded = JSON.parse(decodedString); if (decoded.m && decoded.e) { const mainCards = [], extraCards = []; decoded.m.forEach(id => { const c = allCards.find(c => c.id === id); if (c) mainCards.push(c); }); decoded.e.forEach(id => { const c = allCards.find(c => c.id === id); if (c) extraCards.push(c); }); setDeck({ main: mainCards, extra: extraCards }); if (decoded.n) setDeckName(decoded.n); setToastMsg('已成功載入分享的牌組！'); } } catch (e) { console.error("牌組載入失敗", e); } } }, [allCards, db]);
 
-  // ... (getCardCount, getFlipCount, counts, addToDeck, removeFromDeck, etc.) ...
-  
-  const getCardCount = useCallback((cardId) => {
-     return deck.main.filter(c => c.id === cardId).length + deck.extra.filter(c => c.id === cardId).length;
-  }, [deck]);
-  
+  const getCardCount = useCallback((cardId) => { return deck.main.filter(c => c.id === cardId).length + deck.extra.filter(c => c.id === cardId).length; }, [deck]);
   const getFlipCount = () => deck.main.filter(c => c.isFlip).length;
+  const nonFlipCookieCount = useMemo(() => deck.main.filter((c) => c.type === CARD_TYPES.COOKIE && c.isFlip === false).length, [deck.main]);
+  const forbiddenCount = useMemo(() => deck.main.filter(c => c.isForbidden).length + deck.extra.filter(c => c.isForbidden).length, [deck]);
+  const limitOneViolation = useMemo(() => { const allLimitCards = [...deck.main, ...deck.extra].filter(c => c.isLimitOne); const counts = {}; let violation = false; allLimitCards.forEach(c => { counts[c.id] = (counts[c.id] || 0) + 1; if (counts[c.id] > 1) violation = true; }); return violation; }, [deck]);
+  const addToDeck = useCallback((card) => { if (card.isForbidden) setToastMsg("❌ 加入了禁止卡"); const currentCount = deck.main.filter(c => c.id === card.id).length + deck.extra.filter(c => c.id === card.id).length; if (card.isLimitOne && currentCount >= 1) setToastMsg("⚠️ 加入了第二張限制卡"); const isExtra = isExtraDeckCard(card); const targetDeckKey = isExtra ? "extra" : "main"; const limit = isExtra ? LIMITS.EXTRA : LIMITS.MAIN; const current = deck[targetDeckKey]; const flipCountCurrent = deck.main.filter(c => c.isFlip).length; if (isExtra && current.length >= limit) { setToastMsg(`額外牌組已滿 (${LIMITS.EXTRA}張)`); return; } if (currentCount >= LIMITS.COPY) { setToastMsg(`同名卡片最多 ${LIMITS.COPY} 張`); return; } if (card.isFlip && !isExtra && flipCountCurrent >= LIMITS.FLIP) { setToastMsg(`Flip 卡片上限 ${LIMITS.FLIP} 張`); return; } setDeck((prev) => ({ ...prev, [targetDeckKey]: [...prev[targetDeckKey], card].sort((a, b) => a.id.localeCompare(b.id)), })); }, [deck]);
+  const removeFromDeck = (card, fromExtra) => { const deckKey = fromExtra ? "extra" : "main"; setDeck((prev) => { const newList = [...prev[deckKey]]; const index = newList.findIndex((c) => c.id === card.id); if (index > -1) newList.splice(index, 1); return { ...prev, [deckKey]: newList }; }); };
+  const clearDeck = () => { if (confirm("確定要清空所有牌組嗎？")) setDeck({ main: [], extra: [] }); };
+  const handleShareClick = () => { if (deck.main.length > LIMITS.MAIN) { if (window.confirm("主牌組張數已超過 60 張上限，確定要繼續分享/輸出嗎？")) setShowExportModal(true); } else { setShowExportModal(true); } };
+  const handleSaveCard = async (cardData) => { if (!user || !db) return; if (!editingCard && allCards.some((c) => c.id === cardData.id)) { if (!confirm("ID 已存在，確定覆蓋？")) return; } setIsProcessing(true); try { await setDoc(doc(db, "artifacts", appId, "public", "data", "cards", cardData.id), cardData); setToastMsg(editingCard ? "卡片更新成功" : "卡片新增成功"); setShowAddModal(false); setEditingCard(null); } catch (err) { console.error(err); setToastMsg("儲存失敗"); } finally { setIsProcessing(false); } };
+  const handleBulkImport = async (cardsData) => { if (!user || !db) return; setIsProcessing(true); const batch = writeBatch(db); let count = 0; try { cardsData.forEach((card) => { if (!card.id || !card.name) return; const ref = doc(db, "artifacts", appId, "public", "data", "cards", card.id); batch.set(ref, card); count++; }); await batch.commit(); setToastMsg(`成功匯入 ${count} 張卡片！`); setShowBulkModal(false); } catch (err) { console.error(err); setToastMsg("匯入失敗"); } finally { setIsProcessing(false); } };
+  const handleDeleteCard = async (card) => { if (!confirm(`確定要永久刪除「${card.name}」嗎？`)) return; try { await deleteDoc(doc(db, "artifacts", appId, "public", "data", "cards", card.id)); setToastMsg(`已刪除 ${card.name}`); } catch (err) { console.error(err); setToastMsg("刪除失敗"); } };
+  const openEditModal = (card) => { setEditingCard(card); setShowAddModal(true); };
 
-  const nonFlipCookieCount = useMemo(() => {
-    return deck.main.filter(
-      (c) => c.type === CARD_TYPES.COOKIE && c.isFlip === false
-    ).length;
-  }, [deck.main]);
+  // ... (Filtered Cards Logic) ...
+  const filteredCards = useMemo(() => allCards.filter((card) => {
+    const search = filters.search.toLowerCase();
+    const matchSearch = (card.name || "").toLowerCase().includes(search) || (card.id || "").toLowerCase().includes(search);
+    const matchType = filters.type === "ALL" || card.type === filters.type;
+    const matchColor = filters.color === "ALL" || card.color === filters.color;
+    const matchSeries = filters.series === "ALL" ? true : filters.series === "ST" ? (card.series || "").startsWith("ST") : card.series === filters.series;
+    const matchLevelOrRarity = (() => { if (filters.levelOrRarity === "ALL") return true; if (Object.values(CARD_LEVELS).includes(filters.levelOrRarity)) { return card.level === filters.levelOrRarity; } if (Object.keys(CARD_RARITIES).includes(filters.levelOrRarity)) { return card.rarity === filters.levelOrRarity; } return false; })();
+    const matchExtra = filters.showExtra ? card.isExtra : true;
+    const matchFlip = filters.showFlip ? card.isFlip : true;
+    const matchAncient = filters.showAncient ? card.isAncient : true;
+    const matchDragon = filters.showDragon ? card.isDragon : true;
+    const matchBeast = filters.showBeast ? card.isBeast : true;
+    const matchSoulJam = filters.showSoulJam ? card.isSoulJam : true;
+    const matchArena = filters.showArena ? card.isArena : true; 
+    return matchSearch && matchType && matchColor && matchSeries && matchLevelOrRarity && matchExtra && matchFlip && matchAncient && matchDragon && matchBeast && matchSoulJam && matchArena;
+  }), [filters, allCards]);
 
-  const forbiddenCount = useMemo(() => {
-    return deck.main.filter(c => c.isForbidden).length + deck.extra.filter(c => c.isForbidden).length;
-  }, [deck]);
+  useEffect(() => { setVisibleCount(30); }, [filteredCards]);
+  const displayedCards = useMemo(() => { return filteredCards.slice(0, visibleCount); }, [filteredCards, visibleCount]);
+  useEffect(() => { const observer = new IntersectionObserver((entries) => { if (entries[0].isIntersecting) { setVisibleCount((prev) => prev + 30); } }, { threshold: 0.5 }); if (loadMoreRef.current) { observer.observe(loadMoreRef.current); } return () => observer.disconnect(); }, [displayedCards]);
 
-  const limitOneViolation = useMemo(() => {
-    const allLimitCards = [...deck.main, ...deck.extra].filter(c => c.isLimitOne);
-    const counts = {};
-    let violation = false;
-    allLimitCards.forEach(c => {
-        counts[c.id] = (counts[c.id] || 0) + 1;
-        if (counts[c.id] > 1) violation = true;
-    });
-    return violation;
-  }, [deck]);
-
-  const addToDeck = useCallback((card) => {
-    if (card.isForbidden) {
-        setToastMsg("❌ 加入了禁止卡 (正式比賽無法使用)");
-    }
-    const currentCount = deck.main.filter(c => c.id === card.id).length + deck.extra.filter(c => c.id === card.id).length;
-    if (card.isLimitOne && currentCount >= 1) {
-        setToastMsg("⚠️ 加入了第二張限制卡 (正式比賽無法使用)");
-    }
-    const isExtra = isExtraDeckCard(card);
-    const targetDeckKey = isExtra ? "extra" : "main";
-    const limit = isExtra ? LIMITS.EXTRA : LIMITS.MAIN;
-    const current = deck[targetDeckKey];
-    const flipCountCurrent = deck.main.filter(c => c.isFlip).length;
-    if (isExtra && current.length >= limit) {
-      setToastMsg(`額外牌組已滿 (${LIMITS.EXTRA}張)`);
-      return;
-    }
-    if (currentCount >= LIMITS.COPY) {
-      setToastMsg(`同名卡片最多 ${LIMITS.COPY} 張`);
-      return;
-    }
-    if (card.isFlip && !isExtra && flipCountCurrent >= LIMITS.FLIP) {
-      setToastMsg(`Flip 卡片上限 ${LIMITS.FLIP} 張`);
-      return;
-    }
-    setDeck((prev) => ({
-      ...prev,
-      [targetDeckKey]: [...prev[targetDeckKey], card].sort((a, b) =>
-        a.id.localeCompare(b.id)
-      ),
-    }));
-  }, [deck]);
-
-  const removeFromDeck = (card, fromExtra) => {
-    const deckKey = fromExtra ? "extra" : "main";
-    setDeck((prev) => {
-      const newList = [...prev[deckKey]];
-      const index = newList.findIndex((c) => c.id === card.id);
-      if (index > -1) newList.splice(index, 1);
-      return { ...prev, [deckKey]: newList };
-    });
-  };
-
-  const clearDeck = () => {
-    if (confirm("確定要清空所有牌組嗎？")) setDeck({ main: [], extra: [] });
-  };
-
-  const handleShareClick = () => {
-    if (deck.main.length > LIMITS.MAIN) {
-      if (window.confirm("主牌組張數已超過 60 張上限，確定要繼續分享/輸出嗎？")) {
-        setShowExportModal(true);
-      }
-    } else {
-      setShowExportModal(true);
-    }
-  };
-
-  const handleSaveCard = async (cardData) => {
-    if (isOffline) {
-        setAllCards(prev => {
-            const existingIndex = prev.findIndex(c => c.id === cardData.id);
-            if (existingIndex >= 0) {
-                const newCards = [...prev];
-                newCards[existingIndex] = cardData;
-                return newCards;
-            } else {
-                return [...prev, cardData].sort((a, b) => a.id.localeCompare(b.id));
-            }
-        });
-        setShowAddModal(false);
-        setEditingCard(null);
-        setToastMsg("離線模式：已更新卡片 (未存入資料庫)");
-        return;
-    }
-    if (!user || !db) return;
-    if (!editingCard && allCards.some((c) => c.id === cardData.id)) {
-      if (!confirm("ID 已存在，確定覆蓋？")) return;
-    }
-    setIsProcessing(true);
-    try {
-      await setDoc(
-        doc(db, "artifacts", appId, "public", "data", "cards", cardData.id),
-        cardData
-      );
-      setToastMsg(editingCard ? "卡片更新成功" : "卡片新增成功");
-      setShowAddModal(false);
-      setEditingCard(null);
-    } catch (err) {
-      console.error(err);
-      setToastMsg("儲存失敗");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleBulkImport = async (cardsData) => {
-    if (isOffline) {
-        setAllCards(prev => {
-            const cardMap = new Map(prev.map(c => [c.id, c]));
-            cardsData.forEach(c => cardMap.set(c.id, c));
-            return Array.from(cardMap.values()).sort((a, b) => a.id.localeCompare(b.id));
-        });
-        setShowBulkModal(false);
-        setToastMsg(`離線模式：已匯入 ${cardsData.length} 張卡片`);
-        return;
-    }
-    if (!user || !db) return;
-    setIsProcessing(true);
-    const batch = writeBatch(db);
-    let count = 0;
-    try {
-      cardsData.forEach((card) => {
-        if (!card.id || !card.name) return; 
-        const ref = doc(
-          db,
-          "artifacts",
-          appId,
-          "public",
-          "data",
-          "cards",
-          card.id
-        );
-        batch.set(ref, card);
-        count++;
-      });
-      await batch.commit();
-      setToastMsg(`成功匯入 ${count} 張卡片！`);
-      setShowBulkModal(false);
-    } catch (err) {
-      console.error(err);
-      setToastMsg("匯入失敗，請檢查 JSON 格式或網路");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleDeleteCard = async (card) => {
-    if (!confirm(`確定要永久刪除「${card.name}」嗎？此動作無法復原。`)) return;
-    try {
-      await deleteDoc(
-        doc(db, "artifacts", appId, "public", "data", "cards", card.id)
-      );
-      setToastMsg(`已刪除 ${card.name}`);
-    } catch (err) {
-      console.error(err);
-      setToastMsg("刪除失敗");
-    }
-  };
-
-  const openEditModal = (card) => {
-    setEditingCard(card);
-    setShowAddModal(true);
-  };
-
-  const initializeDatabase = async () => {
-    if (isOffline) {
-        setAllCards(INITIAL_CARDS);
-        setToastMsg("離線模式：已重置為預設資料");
-        return;
-    }
-    if (!user || !db || !confirm("確定匯入預設資料？")) return;
-    setIsProcessing(true);
-    const batch = writeBatch(db);
-    try {
-      INITIAL_CARDS.forEach((card) =>
-        batch.set(
-          doc(db, "artifacts", appId, "public", "data", "cards", card.id),
-          card
-        )
-      );
-      await batch.commit();
-      setToastMsg("匯入成功");
-    } catch (err) {
-      console.error(err);
-      setToastMsg("匯入失敗");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  // ... (filteredCards, displayedCards effects) ...
-  const filteredCards = useMemo(
-    () =>
-      allCards.filter((card) => {
-        const search = filters.search.toLowerCase();
-        const matchSearch =
-          (card.name || "").toLowerCase().includes(search) ||
-          (card.id || "").toLowerCase().includes(search);
-        const matchType = filters.type === "ALL" || card.type === filters.type;
-        const matchColor =
-          filters.color === "ALL" || card.color === filters.color;
-        
-        const matchSeries =
-          filters.series === "ALL"
-            ? true
-            : filters.series === "ST"
-            ? (card.series || "").startsWith("ST")
-            : card.series === filters.series;
-
-        // 合併等級與稀有度篩選
-        const matchLevelOrRarity = (() => {
-          if (filters.levelOrRarity === "ALL") return true;
-          // Check if it's a level
-          if (Object.values(CARD_LEVELS).includes(filters.levelOrRarity)) {
-              return card.level === filters.levelOrRarity;
-          }
-          // Check if it's a rarity key
-          if (Object.keys(CARD_RARITIES).includes(filters.levelOrRarity)) {
-             return card.rarity === filters.levelOrRarity;
-          }
-          return false;
-        })();
-
-        const matchExtra = filters.showExtra ? card.isExtra : true;
-        const matchFlip = filters.showFlip ? card.isFlip : true;
-        const matchAncient = filters.showAncient ? card.isAncient : true;
-        const matchDragon = filters.showDragon ? card.isDragon : true;
-        const matchBeast = filters.showBeast ? card.isBeast : true;
-        const matchSoulJam = filters.showSoulJam ? card.isSoulJam : true;
-        const matchArena = filters.showArena ? card.isArena : true; // 新增：競技場篩選
-
-        return (
-          matchSearch &&
-          matchType &&
-          matchColor &&
-          matchSeries &&
-          matchLevelOrRarity && 
-          matchExtra &&
-          matchFlip &&
-          matchAncient &&
-          matchDragon &&
-          matchBeast &&
-          matchSoulJam &&
-          matchArena
-        );
-      }),
-    [filters, allCards]
-  );
-
-  useEffect(() => {
-    setVisibleCount(30);
-  }, [filteredCards]);
-
-  const displayedCards = useMemo(() => {
-    return filteredCards.slice(0, visibleCount);
-  }, [filteredCards, visibleCount]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          setVisibleCount((prev) => prev + 30);
-        }
-      },
-      { threshold: 0.5 }
-    );
-
-    if (loadMoreRef.current) {
-      observer.observe(loadMoreRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, [displayedCards]);
-
-  // --- 重構：右側牌組清單的資料準備 ---
-  // 1. 分離一般卡片與 FLIP 卡片 (兩者都來自 deck.main)
+  // --- Right Side Deck Logic ---
   const mainDeckNormal = useMemo(() => deck.main.filter(c => !c.isFlip), [deck.main]);
   const mainDeckFlip = useMemo(() => deck.main.filter(c => c.isFlip), [deck.main]);
-
-  // 2. 分組並排序一般卡片 (使用新的排序邏輯)
-  const groupedMainDeckNormal = useMemo(() => {
-      const groups = groupCards(mainDeckNormal);
-      return groups.sort((a, b) => {
-          const wA = getDisplaySortWeight(a);
-          const wB = getDisplaySortWeight(b);
-          if (wA !== wB) return wA - wB;
-          return a.id.localeCompare(b.id);
-      });
-  }, [mainDeckNormal]);
-
-  // 3. 分組 FLIP 卡片 (FLIP 卡通常依 ID 排序即可)
+  const groupedMainDeckNormal = useMemo(() => { const groups = groupCards(mainDeckNormal); return groups.sort((a, b) => { const wA = getDisplaySortWeight(a); const wB = getDisplaySortWeight(b); if (wA !== wB) return wA - wB; return a.id.localeCompare(b.id); }); }, [mainDeckNormal]);
   const groupedMainDeckFlip = useMemo(() => groupCards(mainDeckFlip), [mainDeckFlip]);
-
-  // 4. 分組額外卡片
   const groupedExtraDeck = useMemo(() => groupCards(deck.extra), [deck.extra]);
-  
-  const flipCount = getFlipCount();
   const levelStats = useMemo(() => {
     let lv1 = 0, lv2 = 0, lv3 = 0;
-    deck.main.forEach(c => {
-      if (c.type === CARD_TYPES.COOKIE && !c.isFlip) {
-        if (c.level === CARD_LEVELS.LV1) lv1++;
-        else if (c.level === CARD_LEVELS.LV2) lv2++;
-        else if (c.level === CARD_LEVELS.LV3) lv3++;
-      }
-    });
+    deck.main.forEach(c => { if (c.type === CARD_TYPES.COOKIE && !c.isFlip) { if (c.level === CARD_LEVELS.LV1) lv1++; else if (c.level === CARD_LEVELS.LV2) lv2++; else if (c.level === CARD_LEVELS.LV3) lv3++; } });
     const total = lv1 + lv2 + lv3;
-    // 計算百分比供長條圖使用，避免分母為 0
-    const p1 = total ? (lv1 / total) * 100 : 0;
-    const p2 = total ? (lv2 / total) * 100 : 0;
-    const p3 = total ? (lv3 / total) * 100 : 0;
-    
+    const p1 = total ? (lv1 / total) * 100 : 0; const p2 = total ? (lv2 / total) * 100 : 0; const p3 = total ? (lv3 / total) * 100 : 0;
     return { lv1, lv2, lv3, total, p1, p2, p3 };
   }, [deck.main]);
 
@@ -1540,80 +1117,21 @@ export default function App() {
     );
   }
 
-  if (!user && !isOffline)
-    return (
-      <div className="flex h-screen items-center justify-center bg-slate-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
+  if (!user && !isOffline) return (<div className="flex h-screen items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>);
 
   return (
     <div className="flex fixed inset-0 flex-col md:flex-row bg-slate-50 overflow-hidden font-sans text-slate-900 overscroll-contain h-[100dvh]">
-      {viewingCard && (
-        <CardDetailModal
-          card={viewingCard}
-          onClose={() => setViewingCard(null)}
-        />
-      )}
-      {toastMsg && (
-        <Toast message={toastMsg} onClose={closeToast} />
-      )}
-       
-      {showAddModal && (
-        <AddCardModal 
-          onClose={() => { setShowAddModal(false); setEditingCard(null); }} 
-          onAdd={handleSaveCard} 
-          isProcessing={isProcessing} 
-          initialData={editingCard} 
-        />
-      )}
-
+      {viewingCard && (<CardDetailModal card={viewingCard} onClose={() => setViewingCard(null)} />)}
+      {toastMsg && (<Toast message={toastMsg} onClose={closeToast} />)}
+      {showAddModal && (<AddCardModal onClose={() => { setShowAddModal(false); setEditingCard(null); }} onAdd={handleSaveCard} isProcessing={isProcessing} initialData={editingCard} />)}
       {showBulkModal && <BulkImportModal onClose={() => setShowBulkModal(false)} onImport={handleBulkImport} isProcessing={isProcessing} />}
-
       {showExportModal && <ExportModal deck={deck} allCards={allCards} onClose={() => setShowExportModal(false)} deckName={deckName} />}
-
-      {showLoginModal && (
-        <AuthModal 
-          onClose={() => setShowLoginModal(false)} 
-          onLogin={handleUserLogin} 
-          onRegister={handleUserRegister}
-        />
-      )}
-      
-      {/* 牌組管理 Modal */}
-      {showStorageModal && (
-        <DeckStorageModal 
-            userId={user.uid}
-            currentDeck={deck}
-            currentDeckName={deckName}
-            allCards={allCards}
-            onClose={() => setShowStorageModal(false)}
-            onLoadDeck={handleLoadDeckFromStorage}
-            onPublish={handlePublishDeck}
-        />
-      )}
-      
-      {/* 社群廣場 Modal */}
-      {showCommunityModal && (
-        <CommunityModal 
-            allCards={allCards} 
-            onClose={() => setShowCommunityModal(false)} 
-            onLoadDeck={(d, n) => {
-                const mainCards = d.m.map(id => allCards.find(c => c.id === id)).filter(Boolean);
-                const extraCards = d.e.map(id => allCards.find(c => c.id === id)).filter(Boolean);
-                setDeck({ main: mainCards, extra: extraCards });
-                setDeckName(n);
-                setToastMsg("社群牌組載入成功！");
-            }}
-            user={user}
-        />
-      )}
-
+      {showLoginModal && (<AuthModal onClose={() => setShowLoginModal(false)} onLogin={handleUserLogin} onRegister={handleUserRegister} />)}
+      {showStorageModal && (<DeckStorageModal userId={user.uid} currentDeck={deck} currentDeckName={deckName} allCards={allCards} onClose={() => setShowStorageModal(false)} onLoadDeck={handleLoadDeckFromStorage} onPublish={handlePublishDeck} />)}
+      {showCommunityModal && (<CommunityModal allCards={allCards} onClose={() => setShowCommunityModal(false)} onLoadDeck={(d, n) => { setDeck(d); setDeckName(n); setToastMsg("社群牌組載入成功！"); }} user={user} />)}
       {showDrawTestModal && <DrawTestModal deck={deck} onClose={() => setShowDrawTestModal(false)} />}
-      
       {showPackOpenerModal && <PackOpenerModal allCards={allCards} onClose={() => setShowPackOpenerModal(false)} />}
       
-      {/* 4. 加入 ProfileModal (放在 showPackOpenerModal 下方) */}
       {showProfileModal && (
         <ProfileModal 
             user={user} 
@@ -1622,69 +1140,28 @@ export default function App() {
         />
       )}
 
-      {/* 左側：卡片清單 (手機上為滿版，桌面版在左側) */}
       <div className="flex-1 flex flex-col min-w-0 border-r border-slate-200 min-h-0 relative">
-        {/* Header 區域：加入 transition 與 transform */}
-        <div 
-            className={`
-              bg-white border-b border-slate-200 shadow-sm z-10 shrink-0 
-              transition-all duration-300 ease-in-out overflow-hidden
-              ${showHeader ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}
-              md:max-h-none md:opacity-100 md:static md:overflow-visible
-            `}
-        >
+        <div className={`bg-white border-b border-slate-200 shadow-sm z-10 shrink-0 transition-all duration-300 ease-in-out overflow-hidden ${showHeader ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'} md:max-h-none md:opacity-100 md:static md:overflow-visible`}>
              <div className="p-3 md:p-4 space-y-2 md:space-y-3">
                 <div className="flex justify-between items-start">
                     <div className="flex flex-col">
-                        <h1 className="text-lg md:text-2xl font-black flex items-center gap-2 text-slate-800">
-                            <Cloud className={isOffline ? "text-slate-400" : "text-blue-600"} size={24} />
-                            Cookierun: Braverse Deck Builder
-                        </h1>
-                        <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">
-                            New! Registration to save and share deck!
-                        </p>
+                        <h1 className="text-lg md:text-2xl font-black flex items-center gap-2 text-slate-800"><Cloud className={isOffline ? "text-slate-400" : "text-blue-600"} size={24} />Cookierun: Braverse Deck Builder</h1>
+                        <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">New!Registration to save and share decks!。</p>
                     </div>
-                    
                     <div className="flex gap-2">
-                      {/* 社群按鈕 - 獨立在右上角，讓所有人都能看到並點擊 */}
-                      <button 
-                        onClick={() => setShowCommunityModal(true)}
-                        className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow-md transition-transform active:scale-95"
-                      >
-                          <Globe size={16} /> 社群廣場
-                      </button>
-
-                      {isAdmin ? (
-                        <>
-                          <button onClick={() => { setEditingCard(null); setShowAddModal(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors"><Plus size={16} /> <span className="hidden md:inline">新增</span></button>
-                          <button onClick={() => setShowBulkModal(true)} className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors"><FileJson size={16} /> <span className="hidden md:inline">匯入</span></button>
-                        </>
-                      ) : (
-                        <div className="flex items-center gap-1 text-slate-400 text-xs bg-slate-100 px-2 py-1 rounded"><Lock size={12} /> 僅供瀏覽</div>
-                      )}
+                        <button onClick={() => setShowCommunityModal(true)} className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow-md transition-transform active:scale-95"><Globe size={16} /> 社群廣場</button>
+                        {isAdmin && (
+                            <>
+                            <button onClick={() => { setEditingCard(null); setShowAddModal(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors"><Plus size={16} /> <span className="hidden md:inline">新增</span></button>
+                            <button onClick={() => setShowBulkModal(true)} className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors"><FileJson size={16} /> <span className="hidden md:inline">匯入</span></button>
+                            </>
+                        )}
+                        {!isAdmin && <div className="flex items-center gap-1 text-slate-400 text-xs bg-slate-100 px-2 py-1 rounded"><Lock size={12} /> 僅供瀏覽</div>}
                     </div>
                 </div>
-                {/* --- 新增功能：載入完整卡池按鈕 --- */}
-                {!hasLoadedAll && (
-                  <div className="bg-blue-50 border border-blue-200 p-2 rounded-lg flex items-center justify-between animate-in fade-in slide-in-from-top-2">
-                     <span className="text-xs text-blue-800 font-bold flex items-center gap-1">
-                        <Zap size={14} className="fill-blue-600 text-blue-600"/> 目前僅顯示 BS9
-                     </span>
-                     <button 
-                        onClick={() => setHasLoadedAll(true)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-md font-bold shadow-sm transition-all active:scale-95 flex items-center gap-1"
-                     >
-                        <Database size={12}/> 載入全部
-                     </button>
-                  </div>
-                )}
-                
-                {/* 篩選與搜尋 */}
+                {!hasLoadedAll && (<div className="bg-blue-50 border border-blue-200 p-2 rounded-lg flex items-center justify-between animate-in fade-in slide-in-from-top-2"><span className="text-xs text-blue-800 font-bold flex items-center gap-1"><Zap size={14} className="fill-blue-600 text-blue-600"/> 目前僅顯示 BS9</span><button onClick={() => setHasLoadedAll(true)} className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-md font-bold shadow-sm transition-all active:scale-95 flex items-center gap-1"><Database size={12}/> 載入全部</button></div>)}
                 <div className="flex flex-col gap-2">
-                    <div className="relative w-full">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
-                      <input type="text" placeholder="搜尋名稱或編號..." className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} />
-                    </div>
+                    <div className="relative w-full"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><input type="text" placeholder="搜尋名稱或編號..." className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} /></div>
                     <div className="flex gap-2">
                       <div className="relative flex-1"><Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.type} onChange={(e) => setFilters({...filters, type: e.target.value})}>{['ALL', ...Object.values(CARD_TYPES)].map(t => <option key={t} value={t}>{t === 'ALL' ? '全部種類' : t}</option>)}</select></div>
                       <div className="relative flex-1"><Palette className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.color} onChange={(e) => setFilters({...filters, color: e.target.value})}>{['ALL', ...Object.values(CARD_COLORS)].map(c => <option key={c} value={c}>{c === 'ALL' ? '全部顏色' : c}</option>)}</select></div>
@@ -1694,115 +1171,46 @@ export default function App() {
                       <div className="relative flex-1"><Gem className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.levelOrRarity} onChange={(e) => setFilters({...filters, levelOrRarity: e.target.value})}><option value="ALL">全部等級/稀有度</option><optgroup label="等級 (Levels)">{Object.values(CARD_LEVELS).map((l) => (<option key={l} value={l}>{l}</option>))}</optgroup><optgroup label="稀有度 (Rarities)">{Object.entries(CARD_RARITIES).map(([k, v]) => (<option key={k} value={k}>{v}</option>))}</optgroup></select></div>
                     </div>
                     <div className="flex flex-wrap gap-3 mt-2 pl-1 select-none items-center">
-                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                        <input type="checkbox" className="hidden peer" checked={filters.showExtra} onChange={(e) => setFilters({ ...filters, showExtra: e.target.checked })} />
-                        <span className="flex items-center gap-1.5 text-xs md:text-sm uppercase tracking-wider bg-purple-100 text-purple-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-purple-300 peer-checked:bg-purple-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-purple-400 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
-                          <Zap size={16} className="w-3 h-3 md:w-4 md:h-4" /> EXTRA
-                        </span>
-                      </label>
-
-                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                        <input type="checkbox" className="hidden peer" checked={filters.showFlip} onChange={(e) => setFilters({ ...filters, showFlip: e.target.checked })} />
-                        <span className="flex items-center gap-1.5 text-xs md:text-sm bg-slate-200 text-slate-700 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-slate-300 peer-checked:bg-slate-800 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-slate-500 opacity-70 peer-checked:opacity-100 font-bold tracking-wider shadow-sm transition-all">
-                          <RotateCw size={16} className="w-3 h-3 md:w-4 md:h-4" /> FLIP
-                        </span>
-                      </label>
-
+                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95"><input type="checkbox" className="hidden peer" checked={filters.showExtra} onChange={(e) => setFilters({ ...filters, showExtra: e.target.checked })} /><span className="flex items-center gap-1.5 text-xs md:text-sm uppercase tracking-wider bg-purple-100 text-purple-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-purple-300 peer-checked:bg-purple-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-purple-400 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all"><Zap size={16} className="w-3 h-3 md:w-4 md:h-4" /> EXTRA</span></label>
+                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95"><input type="checkbox" className="hidden peer" checked={filters.showFlip} onChange={(e) => setFilters({ ...filters, showFlip: e.target.checked })} /><span className="flex items-center gap-1.5 text-xs md:text-sm bg-slate-200 text-slate-700 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-slate-300 peer-checked:bg-slate-800 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-slate-500 opacity-70 peer-checked:opacity-100 font-bold tracking-wider shadow-sm transition-all"><RotateCw size={16} className="w-3 h-3 md:w-4 md:h-4" /> FLIP</span></label>
                       <div className="h-6 w-px bg-slate-300 mx-1 hidden md:block"></div>
-
-                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                        <input type="checkbox" className="hidden peer" checked={filters.showAncient} onChange={(e) => setFilters({ ...filters, showAncient: e.target.checked })} />
-                        <span className="flex items-center gap-1.5 text-xs md:text-sm bg-amber-100 text-amber-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-amber-300 peer-checked:bg-amber-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-amber-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
-                          <Crown size={16} className="w-3 h-3 md:w-4 md:h-4" /> 上古
-                        </span>
-                      </label>
-
-                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                        <input type="checkbox" className="hidden peer" checked={filters.showDragon} onChange={(e) => setFilters({ ...filters, showDragon: e.target.checked })} />
-                        <span className="flex items-center gap-1.5 text-xs md:text-sm bg-red-100 text-red-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-red-300 peer-checked:bg-red-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-red-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
-                          <Flame size={16} className="w-3 h-3 md:w-4 md:h-4" /> 龍族
-                        </span>
-                      </label>
-
-                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                        <input type="checkbox" className="hidden peer" checked={filters.showBeast} onChange={(e) => setFilters({ ...filters, showBeast: e.target.checked })} />
-                        <span className="flex items-center gap-1.5 text-xs md:text-sm bg-stone-200 text-stone-800 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-stone-300 peer-checked:bg-stone-700 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-stone-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
-                          <PawPrint size={16} className="w-3 h-3 md:w-4 md:h-4" /> 野獸
-                        </span>
-                      </label>
-
-                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                        <input type="checkbox" className="hidden peer" checked={filters.showSoulJam} onChange={(e) => setFilters({ ...filters, showSoulJam: e.target.checked })} />
-                        <span className="flex items-center gap-1.5 text-xs md:text-sm bg-pink-100 text-pink-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-pink-300 peer-checked:bg-pink-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-pink-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
-                          <Sparkles size={16} className="w-3 h-3 md:w-4 md:h-4" /> 靈魂果醬
-                        </span>
-                      </label>
-                      
-                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                        <input type="checkbox" className="hidden peer" checked={filters.showArena} onChange={(e) => setFilters({ ...filters, showArena: e.target.checked })} />
-                        <span className="flex items-center gap-1.5 text-xs md:text-sm bg-cyan-100 text-cyan-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-cyan-300 peer-checked:bg-cyan-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-cyan-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
-                          <Swords size={16} className="w-3 h-3 md:w-4 md:h-4" /> 競技場
-                        </span>
-                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95"><input type="checkbox" className="hidden peer" checked={filters.showAncient} onChange={(e) => setFilters({ ...filters, showAncient: e.target.checked })} /><span className="flex items-center gap-1.5 text-xs md:text-sm bg-amber-100 text-amber-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-amber-300 peer-checked:bg-amber-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-amber-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all"><Crown size={16} className="w-3 h-3 md:w-4 md:h-4" /> 上古</span></label>
+                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95"><input type="checkbox" className="hidden peer" checked={filters.showDragon} onChange={(e) => setFilters({ ...filters, showDragon: e.target.checked })} /><span className="flex items-center gap-1.5 text-xs md:text-sm bg-red-100 text-red-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-red-300 peer-checked:bg-red-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-red-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all"><Flame size={16} className="w-3 h-3 md:w-4 md:h-4" /> 龍族</span></label>
+                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95"><input type="checkbox" className="hidden peer" checked={filters.showBeast} onChange={(e) => setFilters({ ...filters, showBeast: e.target.checked })} /><span className="flex items-center gap-1.5 text-xs md:text-sm bg-stone-200 text-stone-800 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-stone-300 peer-checked:bg-stone-700 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-stone-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all"><PawPrint size={16} className="w-3 h-3 md:w-4 md:h-4" /> 野獸</span></label>
+                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95"><input type="checkbox" className="hidden peer" checked={filters.showSoulJam} onChange={(e) => setFilters({ ...filters, showSoulJam: e.target.checked })} /><span className="flex items-center gap-1.5 text-xs md:text-sm bg-pink-100 text-pink-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-pink-300 peer-checked:bg-pink-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-pink-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all"><Sparkles size={16} className="w-3 h-3 md:w-4 md:h-4" /> 靈魂果醬</span></label>
+                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95"><input type="checkbox" className="hidden peer" checked={filters.showArena} onChange={(e) => setFilters({ ...filters, showArena: e.target.checked })} /><span className="flex items-center gap-1.5 text-xs md:text-sm bg-cyan-100 text-cyan-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-cyan-300 peer-checked:bg-cyan-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-cyan-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all"><Swords size={16} className="w-3 h-3 md:w-4 md:h-4" /> 競技場</span></label>
                     </div>
                 </div>
             </div>
         </div>
         
-        {/* 左側卡片列表容器：綁定 ref 以偵測捲動 */}
-        <div 
-            ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto p-4 bg-slate-50 overscroll-contain" 
-            style={{ WebkitOverflowScrolling: 'touch' }}
-        >
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 bg-slate-50 overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
           {!isDataLoaded ? (
-            <div className="flex flex-col items-center justify-center h-64 text-slate-500 gap-3">
-               <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-               <p className="font-bold text-sm">正在從雲端載入卡片資料... (可能需要一些時間)</p>
-            </div>
+            <div className="flex flex-col items-center justify-center h-64 text-slate-500 gap-3"><div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div><p className="font-bold text-sm">正在從雲端載入卡片資料... (可能需要一些時間)</p></div>
           ) : (
              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 pb-20">
-                {displayedCards.map(card => (
-                  <CardItem 
-                    key={card.id} 
-                    card={card} 
-                    onClick={addToDeck} 
-                    onView={setViewingCard} 
-                    count={getCardCount(card.id)}
-                    onEdit={isAdmin ? openEditModal : null}
-                    onDelete={isAdmin ? handleDeleteCard : null}
-                  />
-                ))}
-                <div ref={loadMoreRef} className="col-span-full h-10 flex items-center justify-center text-slate-400 text-sm">
-                    {displayedCards.length < filteredCards.length ? "載入更多..." : "已顯示所有卡片"}
-                </div>
+                {displayedCards.map(card => (<CardItem key={card.id} card={card} onClick={addToDeck} onView={setViewingCard} count={getCardCount(card.id)} onEdit={isAdmin ? openEditModal : null} onDelete={isAdmin ? handleDeleteCard : null} />))}
+                <div ref={loadMoreRef} className="col-span-full h-10 flex items-center justify-center text-slate-400 text-sm">{displayedCards.length < filteredCards.length ? "載入更多..." : "已顯示所有卡片"}</div>
               </div>
           )}
         </div>
 
         {/* Footer 區域 */}
         <div className="bg-white border-t border-slate-200 text-xs text-slate-500 p-2 md:p-3 shrink-0">
-          {/* 手機版佈局 - 整合為兩行以節省空間 */}
           <div className="md:hidden flex flex-col gap-1">
               <div className="flex items-center justify-center gap-6">
-                  <a href="https://www.youtube.com/@%E6%A8%82%E5%A4%9A%E7%B6%A0" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-red-600 transition-colors font-bold">
-                      <Youtube size={14} /> YouTube
-                  </a>
-                  <a href="https://www.facebook.com/midaylovesworld/" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold">
-                      <Facebook size={14} /> 樂多綠Facebook
-                  </a>
+                  <a href="https://www.youtube.com/@%E6%A8%82%E5%A4%9A%E7%B6%A0" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-red-600 transition-colors font-bold"><Youtube size={14} /> YouTube</a>
+                  <a href="https://www.facebook.com/midaylovesworld/" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold"><Facebook size={14} /> 樂多綠Facebook</a>
               </div>
               <div className="flex items-center justify-between border-t border-slate-100 pt-1.5 mt-0.5">
                   <div className="flex items-center gap-2 overflow-hidden text-[10px] sm:text-xs">
-                      <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold whitespace-nowrap shrink-0">
-                          <ExternalLink size={12} /> 薑餅人對戰卡牌/台灣
-                      </a>
+                      <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold whitespace-nowrap shrink-0"><ExternalLink size={12} /> 薑餅人對戰卡牌/台灣</a>
                       <span className="text-slate-300">|</span>
                       <span className="truncate text-slate-400">製作者：樂多綠Gamecaster</span>
                   </div>
                   {user && !user.isAnonymous ? (
                     <button 
-                        onClick={() => setShowProfileModal(true)} // 5. 修改這裡：點擊開啟修改個人資料
+                        onClick={() => setShowProfileModal(true)} 
                         className="flex items-center gap-1 p-1 text-slate-500 hover:text-blue-500 transition-colors shrink-0" 
                         title="點擊修改暱稱"
                     >
@@ -1824,22 +1232,12 @@ export default function App() {
 
           <div className="hidden md:flex flex-row justify-between items-center gap-4">
               <span className="font-bold">製作者：樂多綠Gamecaster</span>
-              <div className="flex gap-4">
-                  <a href="https://www.youtube.com/@%E6%A8%82%E5%A4%9A%E7%B6%A0" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-red-600 transition-colors font-bold">
-                      <Youtube size={14} /> YouTube
-                  </a>
-                  <a href="https://www.facebook.com/midaylovesworld/" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold">
-                      <Facebook size={14} /> 樂多綠Facebook
-                  </a>
-                  <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold">
-                      <ExternalLink size={14} /> 薑餅人對戰卡牌/台灣
-                  </a>
-              </div>
+              <div className="flex gap-4"><a href="https://www.youtube.com/@%E6%A8%82%E5%A4%9A%E7%B6%A0" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-red-600 transition-colors font-bold"><Youtube size={14} /> YouTube</a><a href="https://www.facebook.com/midaylovesworld/" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold"><Facebook size={14} /> 樂多綠Facebook</a><a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold"><ExternalLink size={14} /> 薑餅人對戰卡牌/台灣</a></div>
               <div className="flex justify-end items-center gap-2">
                 {user && !user.isAnonymous ? (
                     <>
                     <button 
-                        onClick={() => setShowProfileModal(true)} // 5. 修改這裡：點擊開啟修改個人資料
+                        onClick={() => setShowProfileModal(true)} 
                         className="flex items-center gap-1 p-1 text-slate-500 hover:text-blue-500 transition-colors shrink-0 cursor-pointer" 
                         title="點擊修改暱稱"
                     >
@@ -1894,7 +1292,6 @@ export default function App() {
             <div className="flex gap-2">
               <button onClick={handleShareClick} className="bg-blue-600 hover:bg-blue-500 text-white p-1.5 rounded transition-colors" title="分享/輸出"><Share2 size={18} /></button>
               
-              {/* 修改：儲存按鈕 - 永遠顯示，若未登入則引導登入 */}
               <button 
                 onClick={() => {
                     if (user && !user.isAnonymous) {
