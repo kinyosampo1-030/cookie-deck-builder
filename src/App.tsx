@@ -455,9 +455,7 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
         }
     };
 
-    // --- 排序邏輯 ---
     const getSortedGroups = (cardList) => {
-        // 1. 餅乾 (LV1 -> LV3)
         const cookies = groupCards(cardList.filter(c => c.type === CARD_TYPES.COOKIE && !c.isFlip));
         cookies.sort((a, b) => {
             const getLevelVal = (lvl) => {
@@ -472,7 +470,6 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
             return a.id.localeCompare(b.id);
         });
 
-        // 2. 其他 (道具 -> 陷阱 -> 場景)
         const others = groupCards(cardList.filter(c => c.type !== CARD_TYPES.COOKIE && !c.isFlip));
         others.sort((a, b) => {
              const getTypeVal = (t) => {
@@ -487,7 +484,6 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
               return a.id.localeCompare(b.id);
         });
 
-        // 3. Flip
         const flips = groupCards(cardList.filter(c => c.isFlip));
         flips.sort((a, b) => a.id.localeCompare(b.id));
 
@@ -1091,7 +1087,7 @@ export default function App() {
                 <div className="flex justify-between items-start">
                     <div className="flex flex-col">
                         <h1 className="text-lg md:text-2xl font-black flex items-center gap-2 text-slate-800"><Cloud className={isOffline ? "text-slate-400" : "text-blue-600"} size={24} />Cookierun: Braverse Deck Builder</h1>
-                        <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">New!Registration to save and share decks!</p>
+                        <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">新功能：社群分享上線！歡迎分享牌組。</p>
                     </div>
                     <div className="flex gap-2">
                         <button onClick={() => setShowCommunityModal(true)} className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow-md transition-transform active:scale-95"><Globe size={16} /> 社群廣場</button>
