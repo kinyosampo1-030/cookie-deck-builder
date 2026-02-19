@@ -2168,34 +2168,65 @@ export default function App() {
             `}
         >
              <div className="p-3 md:p-4 space-y-2 md:space-y-3">
-                <div className="flex justify-between items-start">
+                {/* --- 增強版 Header：強調社群與註冊功能 --- */}
+                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
                     <div className="flex flex-col">
                         <h1 className="text-lg md:text-2xl font-black flex items-center gap-2 text-slate-800">
                             <Cloud className={isOffline ? "text-slate-400" : "text-blue-600"} size={24} />
                             Cookierun: Braverse Deck Builder
                         </h1>
                         <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">
-                            新功能：牌組註冊上線！歡迎分享你的強力牌組。
+                            新功能：<span className="text-blue-600 font-black">社群廣場</span> 與 <span className="text-emerald-600 font-black">雲端儲存</span> 上線！
                         </p>
                     </div>
                     
-                    <div className="flex gap-2">
-                      {/* 社群按鈕 - 獨立在右上角，讓所有人都能看到並點擊 */}
-                      <button 
-                        onClick={() => setShowCommunityModal(true)}
-                        className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow-md transition-transform active:scale-95"
-                      >
-                         <Globe size={16} /> 社群廣場
-                      </button>
+                    <div className="flex flex-wrap items-center gap-4">
+                        {/* 強調功能 1：社群廣場 (加上呼吸動畫、光暈與 HOT 標籤) */}
+                        <button 
+                            onClick={() => setShowCommunityModal(true)} 
+                            className="relative bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-500/40 transition-all hover:-translate-y-0.5 active:scale-95 border border-blue-400"
+                        >
+                            <Globe size={20} className="animate-pulse" /> 
+                            <span className="tracking-wide">社群廣場</span>
+                            <span className="absolute -top-2.5 -right-2 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-bounce shadow-md">HOT</span>
+                        </button>
 
-                      {isAdmin ? (
-                        <>
-                          <button onClick={() => { setEditingCard(null); setShowAddModal(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors"><Plus size={16} /> <span className="hidden md:inline">新增</span></button>
-                          <button onClick={() => setShowBulkModal(true)} className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors"><FileJson size={16} /> <span className="hidden md:inline">匯入</span></button>
-                        </>
-                      ) : (
-                        <div className="flex items-center gap-1 text-slate-400 text-xs bg-slate-100 px-2 py-1 rounded"><Lock size={12} /> 僅供瀏覽</div>
-                      )}
+                        {/* 強調功能 2：將註冊/登入按鈕移至上方最顯眼處 (加上綠色漸層與 NEW 標籤) */}
+                        {user && !user.isAnonymous ? (
+                            <button 
+                                onClick={() => setShowProfileModal(true)} 
+                                className="flex items-center gap-2 bg-white hover:bg-slate-50 border-2 border-emerald-200 hover:border-emerald-400 px-4 py-2 rounded-xl text-slate-700 transition-all shadow-sm" 
+                                title="點擊修改個人資料"
+                            >
+                                <UserCog size={20} className="text-emerald-500"/>
+                                <div className="flex flex-col items-start leading-none">
+                                    <span className="text-sm font-bold truncate max-w-[100px]">{user.displayName || '設定暱稱'}</span>
+                                    <span className="text-[10px] text-emerald-600 font-black mt-0.5">已登入會員</span>
+                                </div>
+                            </button>
+                        ) : (
+                            <button 
+                                onClick={() => setShowLoginModal(true)} 
+                                className="relative bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-green-500/40 transition-all hover:-translate-y-0.5 active:scale-95 ring-2 ring-green-300 ring-offset-1"
+                            >
+                                <UserCog size={20} /> 
+                                <span className="tracking-wide">註冊 / 登入</span>
+                                <span className="absolute -top-2.5 -right-2 bg-yellow-400 text-yellow-900 text-[10px] px-2 py-0.5 rounded-full font-black shadow-md border border-yellow-200">NEW</span>
+                            </button>
+                        )}
+
+                        {/* 管理員工具 (視覺弱化，不搶走新功能的焦點) */}
+                        {isAdmin && (
+                            <div className="flex gap-2 border-l-2 border-slate-200 pl-3">
+                                <button onClick={() => { setEditingCard(null); setShowAddModal(true); }} className="bg-slate-700 hover:bg-slate-800 text-white p-2 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors" title="新增卡片"><Plus size={18} /></button>
+                                <button onClick={() => setShowBulkModal(true)} className="bg-slate-700 hover:bg-slate-800 text-white p-2 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors" title="匯入卡片"><FileJson size={18} /></button>
+                            </div>
+                        )}
+                        {!isAdmin && user && user.isAnonymous && (
+                            <div className="hidden sm:flex items-center gap-1 text-slate-400 text-xs bg-slate-100 px-2 py-1 rounded ml-1 border border-slate-200">
+                                <Lock size={12} /> 訪客模式
+                            </div>
+                        )}
                     </div>
                 </div>
                 
