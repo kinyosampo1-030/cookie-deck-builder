@@ -286,34 +286,21 @@ const Toast = ({ message, onClose }) => {
   );
 };
 
-const AuthModal = ({ onClose, onLogin, onRegister }) => {
-  const [isRegister, setIsRegister] = useState(false); // 切換登入/註冊
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState(""); // 玩家暱稱
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+const ProfileModal = ({ user, onClose, onUpdateProfile }) => {
+  const [displayName, setDisplayName] = useState(user.displayName || "");
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
+    if (!displayName.trim()) return alert("請輸入暱稱");
+    setIsUpdating(true);
     try {
-      if (isRegister) {
-        if (password.length < 6) throw new Error("密碼長度需大於6位");
-        await onRegister(email, password, displayName);
-      } else {
-        await onLogin(email, password);
-      }
+      await onUpdateProfile(displayName);
       onClose();
-    } catch (err) {
-      let msg = err.message;
-      if (err.code === 'auth/email-already-in-use') msg = "此 Email 已被註冊";
-      if (err.code === 'auth/weak-password') msg = "密碼強度不足 (需6位以上)";
-      if (err.code === 'auth/invalid-credential') msg = "帳號或密碼錯誤";
-      setError(msg);
+    } catch (error) {
+      alert("更新失敗: " + error.message);
     } finally {
-      setLoading(false);
+      setIsUpdating(false);
     }
   };
 
@@ -322,51 +309,26 @@ const AuthModal = ({ onClose, onLogin, onRegister }) => {
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800">
-            <UserCog className="text-blue-600" /> {isRegister ? "註冊玩家帳號" : "會員登入"}
+            <UserCog className="text-blue-600" /> 修改個人資料
           </h2>
           <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full">
             <X size={24} />
           </button>
         </div>
-        
-        {/* 切換分頁 */}
-        <div className="flex border-b border-slate-200 mb-4">
-          <button 
-            type="button"
-            onClick={() => setIsRegister(false)}
-            className={`flex-1 py-2 text-sm font-bold ${!isRegister ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400'}`}
-          >
-            登入
-          </button>
-          <button 
-            type="button"
-            onClick={() => setIsRegister(true)}
-            className={`flex-1 py-2 text-sm font-bold ${isRegister ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400'}`}
-          >
-            註冊新帳號
-          </button>
-        </div>
-
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && <div className="text-red-500 text-xs bg-red-50 p-2 rounded">{error}</div>}
-          
-          {isRegister && (
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">玩家暱稱 (Display Name)</label>
-              <input type="text" required className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="例如：餅乾國王" />
-            </div>
-          )}
-
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Email</label>
-            <input type="email" required className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <label className="block text-xs font-bold text-slate-700 mb-1">顯示名稱 (暱稱)</label>
+            <input 
+                type="text" 
+                required 
+                className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" 
+                value={displayName} 
+                onChange={(e) => setDisplayName(e.target.value)} 
+                placeholder="例如：銀河餅乾" 
+            />
           </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Password</label>
-            <input type="password" required className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={isRegister ? "請設定6位以上密碼" : ""} />
-          </div>
-          <button type="submit" disabled={loading} className="w-full bg-slate-800 text-white py-2 rounded-lg font-bold hover:bg-slate-900 disabled:opacity-50">
-            {loading ? "處理中..." : (isRegister ? "註冊並登入" : "登入")}
+          <button type="submit" disabled={isUpdating} className="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50">
+            {isUpdating ? "更新中..." : "儲存修改"}
           </button>
         </form>
       </div>
@@ -386,7 +348,6 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
     const [hasLiked, setHasLiked] = useState(false);
     const [likesCount, setLikesCount] = useState(deckData.likes || 0);
 
-    // 載入留言與檢查按讚狀態
     useEffect(() => {
         if (!db) return;
         const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'community_comments'), where('deckId', '==', deckData.id), orderBy('createdAt', 'desc'));
@@ -394,7 +355,6 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
             setComments(snap.docs.map(d => ({id: d.id, ...d.data()})));
         });
 
-        // Check if user liked
         if (user && !user.isAnonymous) {
             const checkLike = async () => {
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'community_likes', `${deckData.id}_${user.uid}`);
@@ -420,7 +380,6 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
                 content: newComment.trim(),
                 createdAt: new Date().toISOString()
             });
-            // Update comment count on deck
             const deckRef = doc(db, 'artifacts', appId, 'public', 'data', 'community_decks', deckData.id);
             await updateDoc(deckRef, { commentCount: increment(1) });
             setNewComment("");
@@ -458,16 +417,55 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
         }
     };
 
+    const getSortedGroups = (cardList) => {
+        const cookies = groupCards(cardList.filter(c => c.type === CARD_TYPES.COOKIE && !c.isFlip));
+        cookies.sort((a, b) => {
+            const getLevelVal = (lvl) => {
+                if (lvl === CARD_LEVELS.LV1) return 1;
+                if (lvl === CARD_LEVELS.LV2) return 2;
+                if (lvl === CARD_LEVELS.LV3) return 3;
+                return 99;
+            }
+            return getLevelVal(a.level) - getLevelVal(b.level) || a.id.localeCompare(b.id);
+        });
+
+        const others = groupCards(cardList.filter(c => c.type !== CARD_TYPES.COOKIE && !c.isFlip));
+        others.sort((a, b) => {
+             const getTypeVal = (t) => {
+                  if (t === CARD_TYPES.ITEM) return 1;
+                  if (t === CARD_TYPES.TRAP) return 2;
+                  if (t === CARD_TYPES.SCENE) return 3;
+                  return 4;
+              }
+              return getTypeVal(a.type) - getTypeVal(b.type) || a.id.localeCompare(b.id);
+        });
+
+        const flips = groupCards(cardList.filter(c => c.isFlip));
+        flips.sort((a, b) => a.id.localeCompare(b.id));
+
+        return { cookies, others, flips };
+    };
+
     const getDeckCards = () => {
         const m = (deckData.m || []).map(id => allCards.find(c => c.id === id)).filter(Boolean);
         const e = (deckData.e || []).map(id => allCards.find(c => c.id === id)).filter(Boolean);
-        return { m, e };
+        const { cookies, others, flips } = getSortedGroups(m);
+        const extras = groupCards(e).sort((a, b) => a.id.localeCompare(b.id));
+        return { cookies, others, flips, extras, rawM: m, rawE: e };
     };
-    const { m, e } = getDeckCards();
+    
+    const { cookies, others, flips, extras, rawM, rawE } = getDeckCards();
+
+    const renderMiniCard = (group) => (
+        <div key={group.id} className="relative aspect-[3/4] bg-slate-200 rounded border border-slate-300 overflow-hidden group">
+             {group.imageUrl ? <img src={group.imageUrl} className="w-full h-full object-cover"/> : <div className={`w-full h-full p-1 text-[8px] flex flex-col ${getCardColorStyles(group.color)}`}><span className="font-bold leading-tight">{group.name}</span><span className="mt-1">{group.id}</span></div>}
+             <div className="absolute bottom-0 right-0 bg-black/70 text-white text-[10px] px-1.5 font-bold">x{group.stackCount}</div>
+        </div>
+    );
 
     return (
         <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-slate-50 rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="bg-slate-50 rounded-xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
                 <div className="bg-white p-4 border-b flex justify-between items-center shrink-0">
                     <div>
                         <h2 className="text-xl font-bold text-slate-800">{deckData.name}</h2>
@@ -476,11 +474,10 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
                     <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24}/></button>
                 </div>
                 
-                <div className="flex-1 overflow-y-auto p-4 grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Left: Deck Info & Cards */}
-                    <div className="md:col-span-2 space-y-4">
+                <div className="flex-1 overflow-y-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2 space-y-4">
                         <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
-                             <div className="flex justify-between items-center mb-2">
+                             <div className="flex justify-between items-center mb-4">
                                 <div className="flex gap-2">
                                     <button onClick={handleToggleLike} className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-bold transition-colors ${hasLiked ? 'bg-pink-100 text-pink-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                                         <Heart size={16} className={hasLiked ? "fill-pink-600" : ""} /> {likesCount}
@@ -489,43 +486,41 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
                                         <MessageCircle size={16} /> {comments.length}
                                     </div>
                                 </div>
-                                <button onClick={() => { onLoadDeck({main: m, extra: e}, deckData.name); onClose(); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 shadow-sm flex items-center gap-2">
+                                <button onClick={() => { onLoadDeck({main: rawM, extra: rawE}, deckData.name); onClose(); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 shadow-sm flex items-center gap-2">
                                     <Copy size={16}/> 複製並編輯
                                 </button>
                              </div>
                              
-                             {/* Mini Card Preview */}
-                             <div className="space-y-4">
-                                <div>
-                                    <h4 className="font-bold text-slate-700 text-sm mb-2 border-l-4 border-blue-500 pl-2">主要牌組 ({m.length})</h4>
-                                    <div className="grid grid-cols-6 sm:grid-cols-8 gap-1">
-                                        {groupCards(m).map(g => (
-                                            <div key={g.id} className="relative aspect-[3/4] bg-slate-200 rounded border border-slate-300 overflow-hidden">
-                                                {g.imageUrl ? <img src={g.imageUrl} className="w-full h-full object-cover"/> : <div className={`w-full h-full p-0.5 text-[6px] ${getCardColorStyles(g.color)}`}>{g.name}</div>}
-                                                <div className="absolute bottom-0 right-0 bg-black/70 text-white text-[8px] px-1 font-bold">x{g.stackCount}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                                {e.length > 0 && (
+                             <div className="space-y-6">
+                                {cookies.length > 0 && (
                                     <div>
-                                        <h4 className="font-bold text-slate-700 text-sm mb-2 border-l-4 border-purple-500 pl-2">額外牌組 ({e.length})</h4>
-                                        <div className="grid grid-cols-6 sm:grid-cols-8 gap-1">
-                                            {groupCards(e).map(g => (
-                                                <div key={g.id} className="relative aspect-[3/4] bg-slate-200 rounded border border-slate-300 overflow-hidden">
-                                                    {g.imageUrl ? <img src={g.imageUrl} className="w-full h-full object-cover"/> : <div className={`w-full h-full p-0.5 text-[6px] ${getCardColorStyles(g.color)}`}>{g.name}</div>}
-                                                    <div className="absolute bottom-0 right-0 bg-black/70 text-white text-[8px] px-1 font-bold">x{g.stackCount}</div>
-                                                </div>
-                                            ))}
-                                        </div>
+                                        <h4 className="font-bold text-slate-700 text-sm mb-2 border-l-4 border-yellow-400 pl-2">餅乾卡 (Cookies)</h4>
+                                        <div className="grid grid-cols-6 sm:grid-cols-8 gap-1">{cookies.map(renderMiniCard)}</div>
+                                    </div>
+                                )}
+                                {others.length > 0 && (
+                                    <div>
+                                        <h4 className="font-bold text-slate-700 text-sm mb-2 border-l-4 border-blue-400 pl-2">道具 / 陷阱 / 場景</h4>
+                                        <div className="grid grid-cols-6 sm:grid-cols-8 gap-1">{others.map(renderMiniCard)}</div>
+                                    </div>
+                                )}
+                                {flips.length > 0 && (
+                                    <div>
+                                        <h4 className="font-bold text-slate-700 text-sm mb-2 border-l-4 border-slate-600 pl-2">FLIP 區</h4>
+                                        <div className="grid grid-cols-6 sm:grid-cols-8 gap-1">{flips.map(renderMiniCard)}</div>
+                                    </div>
+                                )}
+                                {extras.length > 0 && (
+                                    <div>
+                                        <h4 className="font-bold text-slate-700 text-sm mb-2 border-l-4 border-purple-500 pl-2">額外牌組 (Extra)</h4>
+                                        <div className="grid grid-cols-6 sm:grid-cols-8 gap-1">{extras.map(renderMiniCard)}</div>
                                     </div>
                                 )}
                              </div>
                         </div>
                     </div>
 
-                    {/* Right: Comments */}
-                    <div className="flex flex-col h-full bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="flex flex-col h-full bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden min-h-[400px]">
                         <div className="p-3 border-b bg-slate-50 font-bold text-slate-700">留言板</div>
                         <div className="flex-1 overflow-y-auto p-3 space-y-3">
                             {comments.length === 0 ? <div className="text-center text-slate-400 text-sm py-4">還沒有留言，搶頭香！</div> : comments.map(c => (
@@ -576,7 +571,6 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user }) => {
                 setDecks(snapshot.docs.map(d => ({id: d.id, ...d.data()})));
             } catch (e) {
                 console.error(e);
-                // Fallback if index missing
                 if (e.code === 'failed-precondition') {
                     const q2 = query(collection(db, 'artifacts', appId, 'public', 'data', 'community_decks'), limit(50));
                     const s2 = await getDocs(q2);
@@ -591,25 +585,33 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user }) => {
         };
         fetchDecks();
     }, [filterColor]);
+    
+    // 輔助函式：取得封面圖片
+    const getCoverImage = (deck) => {
+        if (deck.coverId) {
+            const card = allCards.find(c => c.id === deck.coverId);
+            if (card && card.imageUrl) return card.imageUrl;
+        }
+        if (deck.m && deck.m.length > 0) {
+             const firstCard = allCards.find(c => c.id === deck.m[0]);
+             if (firstCard && firstCard.imageUrl) return firstCard.imageUrl;
+        }
+        return CARD_BACK_URL;
+    };
 
     return (
         <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4" onClick={onClose}>
             <div className="bg-slate-100 rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-                {/* Header */}
                 <div className="bg-white p-4 border-b flex justify-between items-center shrink-0">
                     <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2"><Globe className="text-blue-500" /> 牌組社群廣場</h2>
                     <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24}/></button>
                 </div>
-
-                {/* Filters */}
                 <div className="bg-white p-3 border-b flex gap-2 overflow-x-auto shrink-0">
                     <button onClick={() => setFilterColor("ALL")} className={`px-4 py-1 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filterColor === "ALL" ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>全部</button>
                     {Object.values(CARD_COLORS).map(c => (
                          <button key={c} onClick={() => setFilterColor(c)} className={`px-4 py-1 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filterColor === c ? "ring-2 ring-offset-1 ring-slate-400" : "opacity-60 hover:opacity-100"}`} style={{backgroundColor: c === '紅色' ? '#fee2e2' : c === '黃色' ? '#fef9c3' : c === '綠色' ? '#d1fae5' : c === '藍色' ? '#dbeafe' : c === '紫色' ? '#f3e8ff' : '#f1f5f9', color: '#334155'}}>{c}</button>
                     ))}
                 </div>
-
-                {/* Deck Grid */}
                 <div className="flex-1 overflow-y-auto p-4">
                     {loading ? (
                         <div className="flex justify-center items-center h-full"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>
@@ -621,10 +623,16 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user }) => {
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {decks.map(d => (
-                                <div key={d.id} onClick={() => setSelectedDeck(d)} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer overflow-hidden flex flex-col group">
-                                    <div className="h-2 bg-gradient-to-r from-slate-200 to-slate-300" style={{
-                                        backgroundImage: `linear-gradient(to right, ${d.colors && d.colors.length > 0 ? d.colors.map(c => c==='紅色'?'#ef4444':c==='黃色'?'#eab308':c==='綠色'?'#10b981':c==='藍色'?'#3b82f6':c==='紫色'?'#a855f7':'#94a3b8').join(',') : '#cbd5e1'})`
-                                    }}></div>
+                                <div key={d.id} onClick={() => setSelectedDeck(d)} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer overflow-hidden flex flex-col group h-full">
+                                    <div className="h-32 bg-slate-200 overflow-hidden relative">
+                                        <img src={getCoverImage(d)} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt="Deck Cover" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                                        <div className="absolute bottom-2 left-2 flex gap-1">
+                                             {d.colors && d.colors.map(c => (
+                                                 <div key={c} className="w-3 h-3 rounded-full border border-white" style={{backgroundColor: c === '紅色' ? '#ef4444' : c === '黃色' ? '#eab308' : c === '綠色' ? '#10b981' : c === '藍色' ? '#3b82f6' : c === '紫色' ? '#a855f7' : '#94a3b8'}}></div>
+                                             ))}
+                                        </div>
+                                    </div>
                                     <div className="p-4 flex-1 flex flex-col">
                                         <h3 className="font-bold text-lg text-slate-800 line-clamp-1 mb-1 group-hover:text-blue-600">{d.name}</h3>
                                         <div className="text-xs text-slate-400 mb-4 flex items-center gap-2">
@@ -664,7 +672,21 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
   const [decks, setDecks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saveName, setSaveName] = useState(currentDeckName);
+  const [selectedCover, setSelectedCover] = useState(""); // 新增：封面選擇
   const [isSaving, setIsSaving] = useState(false);
+
+  // 取得目前牌組中所有不重複的卡片，供選擇封面
+  const deckUniqueCards = useMemo(() => {
+      const uniqueIds = [...new Set(currentDeck.main.map(c => c.id))];
+      return uniqueIds.map(id => allCards.find(c => c.id === id)).filter(Boolean);
+  }, [currentDeck.main, allCards]);
+
+  // 預設選擇第一張卡當封面
+  useEffect(() => {
+    if (deckUniqueCards.length > 0 && !selectedCover) {
+        setSelectedCover(deckUniqueCards[0].id);
+    }
+  }, [deckUniqueCards]);
 
   useEffect(() => {
     if (!userId || !db) return;
@@ -697,6 +719,7 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
             name: saveName,
             m: currentDeck.main.map(c => c.id),
             e: currentDeck.extra.map(c => c.id),
+            coverId: selectedCover, // 儲存封面 ID
             updatedAt: new Date().toISOString()
         };
         const existing = decks.find(d => d.name === saveName);
@@ -708,7 +731,6 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
         } else {
             await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'decks'), deckData);
         }
-        // Refresh
         const q = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'), orderBy('updatedAt', 'desc'));
         const snapshot = await getDocs(q);
         setDecks(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -733,10 +755,8 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
 
   const handleLoadDeck = (savedDeck) => {
      if (currentDeck.main.length > 0 && !confirm("目前的牌組將被覆蓋，確定要載入嗎？")) return;
-     
      const mainCards = [];
      const extraCards = [];
-     
      savedDeck.m.forEach(id => {
          const c = allCards.find(card => card.id === id);
          if (c) mainCards.push(c);
@@ -745,25 +765,45 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
          const c = allCards.find(card => card.id === id);
          if (c) extraCards.push(c);
      });
-     
      onLoadDeck({ main: mainCards, extra: extraCards }, savedDeck.name);
      onClose();
   };
 
   return (
     <div className="fixed inset-0 bg-black/80 z-[90] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-slate-50 rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+      <div className="bg-slate-50 rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
          <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white rounded-t-xl">
             <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Save className="text-blue-600"/> 我的雲端牌組</h2>
             <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24}/></button>
          </div>
-         <div className="p-4 bg-blue-50 border-b border-blue-100 shrink-0">
-             <label className="block text-xs font-bold text-blue-800 mb-1">儲存目前牌組</label>
-             <div className="flex gap-2">
-                 <input type="text" value={saveName} onChange={e => setSaveName(e.target.value)} className="flex-1 border border-blue-200 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="輸入牌組名稱..." />
-                 <button onClick={handleSave} disabled={isSaving} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-bold text-sm flex items-center gap-1 disabled:opacity-50">{isSaving ? "..." : <><Save size={16}/> 儲存</>}</button>
+         
+         {/* Save Section */}
+         <div className="p-4 bg-blue-50 border-b border-blue-100 shrink-0 space-y-3">
+             <div className="flex flex-col gap-1">
+                 <label className="text-xs font-bold text-blue-800">1. 輸入牌組名稱</label>
+                 <input type="text" value={saveName} onChange={e => setSaveName(e.target.value)} className="border border-blue-200 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="例如：紅藍快攻..." />
              </div>
+             
+             {deckUniqueCards.length > 0 && (
+                <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold text-blue-800">2. 選擇封面卡片 (Cover Card)</label>
+                    <select 
+                        value={selectedCover} 
+                        onChange={e => setSelectedCover(e.target.value)}
+                        className="border border-blue-200 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    >
+                        {deckUniqueCards.map(c => (
+                            <option key={c.id} value={c.id}>{c.name} ({c.id})</option>
+                        ))}
+                    </select>
+                </div>
+             )}
+
+             <button onClick={handleSave} disabled={isSaving} className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-bold text-sm flex items-center justify-center gap-1 disabled:opacity-50 mt-2">
+                {isSaving ? "儲存中..." : <><Save size={16}/> 儲存目前的配置</>}
+             </button>
          </div>
+
          <div className="flex-1 overflow-y-auto p-4 bg-slate-100">
              <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">已儲存的牌組 ({decks.length})</h3>
              {loading ? <div className="text-center py-8 text-slate-400">載入中...</div> : decks.length === 0 ? <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-200 rounded-lg">目前沒有牌組</div> : (
@@ -1463,6 +1503,12 @@ export default function App() {
   // New States
   const [showStorageModal, setShowStorageModal] = useState(false);
   const [showCommunityModal, setShowCommunityModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const handleUpdateProfile = async (displayName) => {
+      await updateProfile(user, { displayName: displayName });
+      setUser({ ...user, displayName });
+      setToastMsg("暱稱已更新！");
+  };
 
   // Data Loading Effect
   useEffect(() => {
@@ -1600,7 +1646,6 @@ export default function App() {
 
   const handlePublishDeck = async (deckToPublish) => {
       try {
-          // Identify colors
           const cardIds = [...(deckToPublish.m || [])];
           const cards = cardIds.map(id => allCards.find(c => c.id === id)).filter(Boolean);
           const colors = [...new Set(cards.map(c => c.color).filter(Boolean))];
@@ -1614,6 +1659,7 @@ export default function App() {
               colors: colors,
               likes: 0,
               commentCount: 0,
+              coverId: deckToPublish.coverId || null, // ★ 確保寫入 coverId
               createdAt: new Date().toISOString()
           };
           
@@ -2096,6 +2142,14 @@ export default function App() {
       {showDrawTestModal && <DrawTestModal deck={deck} onClose={() => setShowDrawTestModal(false)} />}
       
       {showPackOpenerModal && <PackOpenerModal allCards={allCards} onClose={() => setShowPackOpenerModal(false)} />}
+      
+      {showProfileModal && (
+        <ProfileModal 
+            user={user} 
+            onClose={() => setShowProfileModal(false)} 
+            onUpdateProfile={handleUpdateProfile} 
+        />
+      )}
 
       {/* 左側：卡片清單 (手機上為滿版，桌面版在左側) */}
       <div className="flex-1 flex flex-col min-w-0 border-r border-slate-200 min-h-0 relative">
@@ -2116,7 +2170,7 @@ export default function App() {
                             Cookierun: Braverse Deck Builder
                         </h1>
                         <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">
-                            新功能：社群分享上線！歡迎分享你牌組。
+                            新功能：牌組註冊分享！歡迎分享你的強力牌組。
                         </p>
                     </div>
                     
@@ -2262,13 +2316,22 @@ export default function App() {
                       <span className="truncate text-slate-400">製作者：樂多綠Gamecaster</span>
                   </div>
                   {user && !user.isAnonymous ? (
-                    <button onClick={handleLogout} className="flex items-center gap-1 p-1 text-slate-500 hover:text-red-500 transition-colors shrink-0" title="登出">
+                    <>
+                    <button 
+                        onClick={() => setShowProfileModal(true)} 
+                        className="flex items-center gap-1 p-1 text-slate-500 hover:text-blue-500 transition-colors shrink-0 cursor-pointer" 
+                        title="點擊修改暱稱"
+                    >
                         <div className="flex flex-col items-start leading-none">
-                            <span className="text-[10px] font-bold truncate max-w-[80px]">{user.displayName || '玩家'}</span>
+                            <span className="text-[10px] font-bold truncate max-w-[80px]">{user.displayName || '設定暱稱'}</span>
                             <span className="text-[8px] opacity-50">已登入</span>
                         </div>
+                        <UserCog size={14}/>
+                    </button>
+                    <button onClick={handleLogout} className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0" title="登出">
                         <LogOut size={14}/>
                     </button>
+                    </>
                   ) : (
                     <button onClick={() => setShowLoginModal(true)} className="flex items-center gap-1 p-1 text-blue-600 hover:text-blue-800 transition-colors shrink-0 font-bold" title="登入/註冊">
                         <span className="text-[10px]">登入/註冊</span>
@@ -2293,10 +2356,22 @@ export default function App() {
               </div>
               <div className="flex justify-end">
                 {user && !user.isAnonymous ? (
-                    <button onClick={handleLogout} className="flex items-center gap-1 p-1 text-slate-500 hover:text-red-500 transition-colors shrink-0" title="登出">
-                        <span className="text-[10px] font-bold truncate max-w-[80px]">{user.displayName || user.email}</span>
+                    <>
+                    <button 
+                        onClick={() => setShowProfileModal(true)} 
+                        className="flex items-center gap-1 p-1 text-slate-500 hover:text-blue-500 transition-colors shrink-0 cursor-pointer" 
+                        title="點擊修改暱稱"
+                    >
+                        <div className="flex flex-col items-start leading-none">
+                            <span className="text-[10px] font-bold truncate max-w-[80px]">{user.displayName || '設定暱稱'}</span>
+                            <span className="text-[8px] opacity-50">已登入</span>
+                        </div>
+                        <UserCog size={14}/>
+                    </button>
+                    <button onClick={handleLogout} className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0" title="登出">
                         <LogOut size={14}/>
                     </button>
+                    </>
                   ) : (
                     <button onClick={() => setShowLoginModal(true)} className="flex items-center gap-1 p-1 text-blue-600 hover:text-blue-800 transition-colors shrink-0 font-bold" title="登入/註冊">
                         <span className="text-[10px]">登入/註冊</span>
