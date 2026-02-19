@@ -286,49 +286,120 @@ const Toast = ({ message, onClose }) => {
   );
 };
 
-const ProfileModal = ({ user, onClose, onUpdateProfile }) => {
-  const [displayName, setDisplayName] = useState(user.displayName || "");
-  const [isUpdating, setIsUpdating] = useState(false);
+const AuthModal = ({ onClose, onLogin, onRegister }) => {
+  const [isRegister, setIsRegister] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!displayName.trim()) return alert("請輸入暱稱");
-    setIsUpdating(true);
+    setLoading(true);
+    setError(null);
     try {
-      await onUpdateProfile(displayName);
+      if (isRegister) {
+        if (password.length < 6) throw new Error("密碼長度需大於6位");
+        if (!displayName.trim()) throw new Error("請輸入玩家暱稱");
+        await onRegister(email, password, displayName);
+      } else {
+        await onLogin(email, password);
+      }
       onClose();
-    } catch (error) {
-      alert("更新失敗: " + error.message);
+    } catch (err) {
+      let msg = err.message;
+      if (err.code === 'auth/email-already-in-use') msg = "此 Email 已被註冊";
+      if (err.code === 'auth/weak-password') msg = "密碼強度不足 (需6位以上)";
+      if (err.code === 'auth/invalid-credential') msg = "帳號或密碼錯誤";
+      setError(msg);
     } finally {
-      setIsUpdating(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
+    <div 
+        className="fixed inset-0 bg-black/60 z-[999] flex items-center justify-center p-4 overflow-y-auto"
+        onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 my-auto" 
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800">
-            <UserCog className="text-blue-600" /> 修改個人資料
+            <UserCog className={isRegister ? "text-green-600" : "text-blue-600"} /> 
+            {isRegister ? "註冊新帳號" : "會員登入"}
           </h2>
-          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full">
+          <button onClick={onClose} className="p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-800 rounded-full transition-colors">
             <X size={24} />
           </button>
         </div>
+        
+        {/* 清晰的按鈕切換區 */}
+        <div className="flex bg-slate-100 p-1 rounded-lg mb-6">
+          <button 
+            type="button"
+            onClick={() => { setIsRegister(false); setError(null); }}
+            className={`flex-1 py-2 text-sm font-black rounded-md transition-all ${!isRegister ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            登入
+          </button>
+          <button 
+            type="button"
+            onClick={() => { setIsRegister(true); setError(null); }}
+            className={`flex-1 py-2 text-sm font-black rounded-md transition-all ${isRegister ? 'bg-white text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            註冊
+          </button>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">顯示名稱 (暱稱)</label>
-            <input 
+          {error && <div className="text-red-600 text-xs font-bold bg-red-50 p-3 rounded-lg border border-red-200">{error}</div>}
+          
+          {isRegister && (
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">玩家暱稱 (Display Name)</label>
+              <input 
                 type="text" 
-                required 
-                className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" 
+                required={isRegister} 
+                className="w-full border-2 border-slate-200 rounded-lg p-2.5 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition-all" 
                 value={displayName} 
                 onChange={(e) => setDisplayName(e.target.value)} 
                 placeholder="例如：銀河餅乾" 
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">電子信箱 (Email)</label>
+            <input 
+                type="email" 
+                required 
+                className={`w-full border-2 border-slate-200 rounded-lg p-2.5 outline-none transition-all ${isRegister ? 'focus:border-green-500 focus:ring-2 focus:ring-green-200' : 'focus:border-blue-500 focus:ring-2 focus:ring-blue-200'}`} 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
+                placeholder="請輸入 Email"
             />
           </div>
-          <button type="submit" disabled={isUpdating} className="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50">
-            {isUpdating ? "更新中..." : "儲存修改"}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">密碼 (Password)</label>
+            <input 
+                type="password" 
+                required 
+                className={`w-full border-2 border-slate-200 rounded-lg p-2.5 outline-none transition-all ${isRegister ? 'focus:border-green-500 focus:ring-2 focus:ring-green-200' : 'focus:border-blue-500 focus:ring-2 focus:ring-blue-200'}`} 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                placeholder={isRegister ? "請設定 6 位以上密碼" : "請輸入密碼"} 
+            />
+          </div>
+          <button 
+            type="submit" 
+            disabled={loading} 
+            className={`w-full text-white py-3 rounded-xl font-black text-lg transition-all shadow-lg active:scale-95 disabled:opacity-50 mt-2 ${isRegister ? 'bg-green-600 hover:bg-green-700 shadow-green-600/30' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/30'}`}
+          >
+            {loading ? "處理中..." : (isRegister ? "立即註冊並登入" : "確認登入")}
           </button>
         </form>
       </div>
