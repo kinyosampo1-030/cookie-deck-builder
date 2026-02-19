@@ -457,11 +457,12 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
     const { cookies, others, flips, extras, rawM, rawE } = getDeckCards();
 
     const renderMiniCard = (group) => (
-        <div key={group.id} className="relative aspect-[3/4] bg-slate-200 rounded border border-slate-300 overflow-hidden group">
-             {group.imageUrl ? <img src={group.imageUrl} className="w-full h-full object-cover"/> : <div className={`w-full h-full p-1 text-[8px] flex flex-col ${getCardColorStyles(group.color)}`}><span className="font-bold leading-tight">{group.name}</span><span className="mt-1">{group.id}</span></div>}
-             <div className="absolute bottom-0 right-0 bg-black/70 text-white text-[10px] px-1.5 font-bold">x{group.stackCount}</div>
-        </div>
-    );
+    <div key={group.id} className="relative aspect-[3/4] rounded overflow-hidden border border-slate-200 shadow-sm bg-slate-50 group">
+        {group.imageUrl ? (<img src={group.imageUrl} alt={group.name} className="w-full h-full object-cover" />) : (<div className={`w-full h-full flex flex-col p-1 text-[8px] ${getCardColorStyles(group.color)}`}><span className="font-bold leading-tight line-clamp-2">{group.name}</span><span className="mt-0.5 font-mono opacity-70 font-bold scale-90 origin-left">{group.id}</span></div>)}
+        {/* 這裡放大了張數標籤：字體改為 text-lg、粗細改為 font-black、尺寸改為 w-10 h-10、距離邊緣改為 bottom-1.5 right-1.5 */}
+        <div className="absolute bottom-1.5 right-1.5 bg-black text-white text-lg font-black w-10 h-10 rounded-lg shadow-lg border-2 border-white/40 z-10 flex items-center justify-center leading-none pb-0.5">x{group.stackCount}</div>
+    </div>
+  );
 
     return (
         <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4" onClick={onClose}>
@@ -1228,8 +1229,12 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                 <span className="text-slate-600 text-sm">將牌組匯出為高解析度 PNG 圖片 (適合社群分享)</span>
                 <button onClick={handleDownloadImage} disabled={isGenerating} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 disabled:opacity-50 shrink-0">{isGenerating ? "生成中..." : <><Download size={18} /> 下載圖片</>}</button>
               </div>
+              {/* --- 圖片輸出核心區塊 --- */}
               <div className="w-full overflow-x-auto pb-4">
-                <div ref={exportRef} className="bg-white p-8 rounded-lg shadow-lg min-w-[1200px] w-fit mx-auto border border-slate-200">
+                <div
+                    ref={exportRef}
+                    className="bg-white p-4 md:p-8 rounded-lg shadow-lg min-w-[800px] lg:min-w-0 w-full mx-auto border border-slate-200"
+                >
                     <div className="flex justify-between items-end border-b-4 border-slate-800 pb-4 mb-6">
                         <div className="flex-1"><h1 className="text-4xl font-black text-slate-900 uppercase tracking-tight leading-none">{deckName || "My Deck"}</h1></div>
                         <div className="flex flex-col items-end gap-1 text-sm font-bold text-slate-600 uppercase tracking-wider min-w-max ml-4">
@@ -2170,7 +2175,7 @@ export default function App() {
                             Cookierun: Braverse Deck Builder
                         </h1>
                         <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">
-                            新功能：牌組註冊分享！歡迎分享你的強力牌組。
+                            新功能：牌組註冊上線！歡迎分享你的強力牌組。
                         </p>
                     </div>
                     
