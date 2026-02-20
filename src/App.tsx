@@ -820,7 +820,7 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
   const [decks, setDecks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saveName, setSaveName] = useState(currentDeckName);
-  const [selectedCover, setSelectedCover] = useState(""); // 新增：封面選擇
+  const [selectedCover, setSelectedCover] = useState(""); 
   const [isSaving, setIsSaving] = useState(false);
 
   // 取得目前牌組中所有不重複的卡片，供選擇封面
@@ -840,18 +840,15 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
     if (!userId || !db) return;
     const fetchDecks = async () => {
        try {
-         const q = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'), orderBy('updatedAt', 'desc'));
+         // 修正 1：移除 orderBy，改用純前端排序避免 Firestore 索引報錯
+         const q = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'));
          const snapshot = await getDocs(q);
-         setDecks(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+         const loadedDecks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+         // 前端根據更新時間降冪排序 (最新的在最上面)
+         loadedDecks.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+         setDecks(loadedDecks);
        } catch (e) {
          console.error("Error fetching decks", e);
-         if (e.code === 'failed-precondition') {
-             const q2 = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'));
-             const snapshot = await getDocs(q2);
-             const loadedDecks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-             loadedDecks.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-             setDecks(loadedDecks);
-         }
        } finally {
          setLoading(false);
        }
@@ -867,7 +864,7 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
             name: saveName,
             m: currentDeck.main.map(c => c.id),
             e: currentDeck.extra.map(c => c.id),
-            coverId: selectedCover, // 儲存封面 ID
+            coverId: selectedCover, 
             updatedAt: new Date().toISOString()
         };
         const existing = decks.find(d => d.name === saveName);
@@ -879,11 +876,21 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
         } else {
             await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'decks'), deckData);
         }
-        const q = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'), orderBy('updatedAt', 'desc'));
+        
+        // 修正 2：存檔後重新讀取時，一樣在前端排序避免報錯
+        const q = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'));
         const snapshot = await getDocs(q);
-        setDecks(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        const loadedDecks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        loadedDecks.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+        setDecks(loadedDecks);
+        
         alert("儲存成功！");
-    } catch (e) { console.error(e); alert("儲存失敗: " + e.message); } finally { setIsSaving(false); }
+    } catch (e) { 
+        console.error(e); 
+        alert("儲存失敗: " + e.message); 
+    } finally { 
+        setIsSaving(false); 
+    }
   };
 
   const handleDelete = async (e, deckId) => {
@@ -924,34 +931,21 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
             <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Save className="text-blue-600"/> 我的雲端牌組</h2>
             <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24}/></button>
          </div>
-         
-         {/* Save Section */}
          <div className="p-4 bg-blue-50 border-b border-blue-100 shrink-0 space-y-3">
              <div className="flex flex-col gap-1">
                  <label className="text-xs font-bold text-blue-800">1. 輸入牌組名稱</label>
                  <input type="text" value={saveName} onChange={e => setSaveName(e.target.value)} className="border border-blue-200 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="例如：紅藍快攻..." />
              </div>
-             
              {deckUniqueCards.length > 0 && (
                 <div className="flex flex-col gap-1">
                     <label className="text-xs font-bold text-blue-800">2. 選擇封面卡片 (Cover Card)</label>
-                    <select 
-                        value={selectedCover} 
-                        onChange={e => setSelectedCover(e.target.value)}
-                        className="border border-blue-200 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                    >
-                        {deckUniqueCards.map(c => (
-                            <option key={c.id} value={c.id}>{c.name} ({c.id})</option>
-                        ))}
+                    <select value={selectedCover} onChange={e => setSelectedCover(e.target.value)} className="border border-blue-200 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        {deckUniqueCards.map(c => (<option key={c.id} value={c.id}>{c.name} ({c.id})</option>))}
                     </select>
                 </div>
              )}
-
-             <button onClick={handleSave} disabled={isSaving} className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-bold text-sm flex items-center justify-center gap-1 disabled:opacity-50 mt-2">
-                {isSaving ? "儲存中..." : <><Save size={16}/> 儲存目前的配置</>}
-             </button>
+             <button onClick={handleSave} disabled={isSaving} className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-bold text-sm flex items-center justify-center gap-1 disabled:opacity-50 mt-2">{isSaving ? "儲存中..." : <><Save size={16}/> 儲存目前的配置</>}</button>
          </div>
-
          <div className="flex-1 overflow-y-auto p-4 bg-slate-100">
              <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">已儲存的牌組 ({decks.length})</h3>
              {loading ? <div className="text-center py-8 text-slate-400">載入中...</div> : decks.length === 0 ? <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-200 rounded-lg">目前沒有牌組</div> : (
@@ -2493,9 +2487,10 @@ export default function App() {
 
         {/* Footer 區域 */}
         <div className="bg-white border-t border-slate-200 text-xs text-slate-500 p-2 md:p-3 shrink-0">
-          {/* 手機版佈局 - 整合為兩行以節省空間 */}
-          <div className="md:hidden flex flex-col gap-1">
-              <div className="flex items-center justify-center gap-6">
+          
+          {/* 手機版佈局 - 置左對齊並刪除登入按鈕 */}
+          <div className="md:hidden flex flex-col gap-2">
+              <div className="flex items-center justify-start gap-6 px-1">
                   <a href="https://www.youtube.com/@%E6%A8%82%E5%A4%9A%E7%B6%A0" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-red-600 transition-colors font-bold">
                       <Youtube size={14} /> YouTube
                   </a>
@@ -2503,40 +2498,16 @@ export default function App() {
                       <Facebook size={14} /> 樂多綠Facebook
                   </a>
               </div>
-              <div className="flex items-center justify-between border-t border-slate-100 pt-1.5 mt-0.5">
-                  <div className="flex items-center gap-2 overflow-hidden text-[10px] sm:text-xs">
-                      <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold whitespace-nowrap shrink-0">
-                          <ExternalLink size={12} /> 薑餅人對戰卡牌/台灣
-                      </a>
-                      <span className="text-slate-300">|</span>
-                      <span className="truncate text-slate-400">製作者：樂多綠Gamecaster</span>
-                  </div>
-                  {user && !user.isAnonymous ? (
-                    <>
-                    <button 
-                        onClick={() => setShowProfileModal(true)} 
-                        className="flex items-center gap-1 p-1 text-slate-500 hover:text-blue-500 transition-colors shrink-0 cursor-pointer" 
-                        title="點擊修改暱稱"
-                    >
-                        <div className="flex flex-col items-start leading-none">
-                            <span className="text-[10px] font-bold truncate max-w-[80px]">{user.displayName || '設定暱稱'}</span>
-                            <span className="text-[8px] opacity-50">已登入</span>
-                        </div>
-                        <UserCog size={14}/>
-                    </button>
-                    <button onClick={handleLogout} className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0" title="登出">
-                        <LogOut size={14}/>
-                    </button>
-                    </>
-                  ) : (
-                    <button onClick={() => setShowLoginModal(true)} className="flex items-center gap-1 p-1 text-blue-600 hover:text-blue-800 transition-colors shrink-0 font-bold" title="登入/註冊">
-                        <span className="text-[10px]">登入/註冊</span>
-                        <UserCog size={14}/>
-                    </button>
-                  )}
+              <div className="flex items-center justify-start gap-2 overflow-hidden text-[10px] sm:text-xs border-t border-slate-100 pt-2 px-1">
+                  <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold whitespace-nowrap shrink-0">
+                      <ExternalLink size={12} /> 薑餅人對戰卡牌/台灣
+                  </a>
+                  <span className="text-slate-300">|</span>
+                  <span className="truncate text-slate-400">製作者：樂多綠Gamecaster</span>
               </div>
           </div>
 
+          {/* 桌面版佈局 - 刪除登入按鈕 */}
           <div className="hidden md:flex flex-row justify-between items-center gap-4">
               <span className="font-bold">製作者：樂多綠Gamecaster</span>
               <div className="flex gap-4">
@@ -2550,34 +2521,8 @@ export default function App() {
                       <ExternalLink size={14} /> 薑餅人對戰卡牌/台灣
                   </a>
               </div>
-              <div className="flex justify-end">
-                {user && !user.isAnonymous ? (
-                    <>
-                    <button 
-                        onClick={() => setShowProfileModal(true)} 
-                        className="flex items-center gap-1 p-1 text-slate-500 hover:text-blue-500 transition-colors shrink-0 cursor-pointer" 
-                        title="點擊修改暱稱"
-                    >
-                        <div className="flex flex-col items-start leading-none">
-                            <span className="text-[10px] font-bold truncate max-w-[80px]">{user.displayName || '設定暱稱'}</span>
-                            <span className="text-[8px] opacity-50">已登入</span>
-                        </div>
-                        <UserCog size={14}/>
-                    </button>
-                    <button onClick={handleLogout} className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0" title="登出">
-                        <LogOut size={14}/>
-                    </button>
-                    </>
-                  ) : (
-                    <button onClick={() => setShowLoginModal(true)} className="flex items-center gap-1 p-1 text-blue-600 hover:text-blue-800 transition-colors shrink-0 font-bold" title="登入/註冊">
-                        <span className="text-[10px]">登入/註冊</span>
-                        <UserCog size={14}/>
-                    </button>
-                  )}
-              </div>
           </div>
-        </div>
-      </div>
+       </div>
 
       {/* 手機版：懸浮按鈕 (FAB) 開啟牌組清單 */}
       <button
