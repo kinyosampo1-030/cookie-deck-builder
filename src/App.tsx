@@ -331,7 +331,7 @@ const ProfileModal = ({ user, onClose, onUpdateProfile, onLogout }) => {
                 className="w-full border-2 border-slate-200 rounded-lg p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all" 
                 value={displayName} 
                 onChange={(e) => setDisplayName(e.target.value)} 
-                placeholder="例如：餅乾國王" 
+                placeholder="例如：銀河餅乾" 
             />
           </div>
           
@@ -819,14 +819,15 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user }) => {
 const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onClose, onLoadDeck, onPublish }) => {
   const [decks, setDecks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [saveName, setSaveName] = useState(currentDeckName);
+  const [saveName, setSaveName] = useState(currentDeckName || "");
   const [selectedCover, setSelectedCover] = useState(""); 
   const [isSaving, setIsSaving] = useState(false);
 
   const deckUniqueCards = useMemo(() => {
-      const uniqueIds = [...new Set(currentDeck.main.map(c => c.id))];
+      // 加上 ?. 防呆
+      const uniqueIds = [...new Set((currentDeck?.main || []).map(c => c.id))];
       return uniqueIds.map(id => allCards.find(c => c.id === id)).filter(Boolean);
-  }, [currentDeck.main, allCards]);
+  }, [currentDeck, allCards]);
 
   useEffect(() => {
     if (deckUniqueCards.length > 0 && !selectedCover) {
@@ -838,14 +839,18 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
     if (!userId || !db) return;
     const fetchDecks = async () => {
        try {
-         // 完全移除 orderBy 防止 Firebase missing index 錯誤，改用純前端排序
-         const q = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'));
+         const q = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'), orderBy('updatedAt', 'desc'));
          const snapshot = await getDocs(q);
-         const loadedDecks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-         loadedDecks.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-         setDecks(loadedDecks);
+         setDecks(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
        } catch (e) {
          console.error("Error fetching decks", e);
+         if (e.code === 'failed-precondition') {
+             const q2 = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'));
+             const snapshot = await getDocs(q2);
+             const loadedDecks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+             loadedDecks.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+             setDecks(loadedDecks);
+         }
        } finally {
          setLoading(false);
        }
@@ -859,8 +864,8 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
     try {
         const deckData = {
             name: saveName,
-            m: currentDeck.main.map(c => c.id),
-            e: currentDeck.extra.map(c => c.id),
+            m: (currentDeck?.main || []).map(c => c.id),
+            e: (currentDeck?.extra || []).map(c => c.id),
             coverId: selectedCover, 
             updatedAt: new Date().toISOString()
         };
@@ -873,11 +878,9 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
         } else {
             await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'decks'), deckData);
         }
-        const q = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'));
+        const q = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'), orderBy('updatedAt', 'desc'));
         const snapshot = await getDocs(q);
-        const loadedDecks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        loadedDecks.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-        setDecks(loadedDecks);
+        setDecks(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
         alert("儲存成功！");
     } catch (e) { console.error(e); alert("儲存失敗: " + e.message); } finally { setIsSaving(false); }
   };
@@ -897,22 +900,11 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
       await onPublish(deck);
   };
 
-  const handleLoadDeckClick = (savedDeck) => {
-     if (currentDeck.main.length > 0 && !confirm("目前的牌組將被覆蓋，確定要載入嗎？")) return;
-     const mainCards = [];
-     const extraCards = [];
+  const handleLoadDeck = (savedDeck) => {
+     if (currentDeck?.main?.length > 0 && !confirm("目前的牌組將被覆蓋，確定要載入嗎？")) return;
      
-     // 加上 || [] 陣列防呆，避免舊版資料格式出錯
-     (savedDeck.m || []).forEach(id => {
-         const c = allCards.find(card => card.id === id);
-         if (c) mainCards.push(c);
-     });
-     (savedDeck.e || []).forEach(id => {
-         const c = allCards.find(card => card.id === id);
-         if (c) extraCards.push(c);
-     });
-     
-     onLoadDeck(mainCards, extraCards, savedDeck.name);
+     // ★ 核心修復點：直接把資料庫的物件傳回給 App，讓 App 處理，避免格式不合崩潰
+     onLoadDeck(savedDeck, savedDeck.name);
      onClose();
   };
 
@@ -943,10 +935,11 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
              {loading ? <div className="text-center py-8 text-slate-400">載入中...</div> : decks.length === 0 ? <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-200 rounded-lg">目前沒有牌組</div> : (
                  <div className="space-y-2">
                      {decks.map(d => (
-                         <div key={d.id} onClick={() => handleLoadDeckClick(d)} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md cursor-pointer transition-all flex justify-between items-center group">
+                         <div key={d.id} onClick={() => handleLoadDeck(d)} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md cursor-pointer transition-all flex justify-between items-center group">
                              <div>
                                  <div className="font-bold text-slate-800 text-sm md:text-base">{d.name}</div>
-                                 <div className="text-[10px] md:text-xs text-slate-400 mt-1 flex gap-2"><span>{new Date(d.updatedAt).toLocaleDateString()}</span><span>·</span><span>{d.m ? d.m.length : 0} 張</span></div>
+                                 {/* 修正：加入 d.updatedAt 防呆避免舊資料沒有日期時導致白畫面 */}
+                                 <div className="text-[10px] md:text-xs text-slate-400 mt-1 flex gap-2"><span>{d.updatedAt ? new Date(d.updatedAt).toLocaleDateString() : '未知時間'}</span><span>·</span><span>{d.m ? d.m.length : 0} 張</span></div>
                              </div>
                              <div className="flex gap-1">
                                 <button onClick={(e) => handlePublish(e, d)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded transition-all" title="發布到社群"><Globe size={16}/></button>
@@ -961,8 +954,6 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
     </div>
   );
 };
-
-
 
 const DrawTestModal = ({ deck, onClose }) => {
   const [drawCount, setDrawCount] = useState(1);
@@ -1782,6 +1773,13 @@ export default function App() {
       }
   };
 
+  const handleLoadDeckFromStorage = (mainCards, extraCards, newName) => { 
+      // 確保即使沒有傳入資料也會預設為空陣列 []
+      setDeck({ main: mainCards || [], extra: extraCards || [] }); 
+      setDeckName(newName); 
+      setToastMsg("牌組載入成功！"); 
+  };
+
   const handleLoadDeckFromCommunity = (loadedCards, newName) => {
       // 1. 檢查目前是否有牌組，如果有，跳出確認提示
       if (deck.main.length > 0 || deck.extra.length > 0) {
@@ -2481,10 +2479,9 @@ export default function App() {
 
         {/* Footer 區域 */}
         <div className="bg-white border-t border-slate-200 text-xs text-slate-500 p-2 md:p-3 shrink-0">
-          
-          {/* 手機版佈局 - 置左對齊並刪除登入按鈕 */}
-          <div className="md:hidden flex flex-col gap-2">
-              <div className="flex items-center justify-start gap-6 px-1">
+          {/* 手機版佈局 - 整合為兩行以節省空間 */}
+          <div className="md:hidden flex flex-col gap-1">
+              <div className="flex items-center justify-center gap-6">
                   <a href="https://www.youtube.com/@%E6%A8%82%E5%A4%9A%E7%B6%A0" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-red-600 transition-colors font-bold">
                       <Youtube size={14} /> YouTube
                   </a>
@@ -2492,16 +2489,40 @@ export default function App() {
                       <Facebook size={14} /> 樂多綠Facebook
                   </a>
               </div>
-              <div className="flex items-center justify-start gap-2 overflow-hidden text-[10px] sm:text-xs border-t border-slate-100 pt-2 px-1">
-                  <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold whitespace-nowrap shrink-0">
-                      <ExternalLink size={12} /> 薑餅人對戰卡牌/台灣
-                  </a>
-                  <span className="text-slate-300">|</span>
-                  <span className="truncate text-slate-400">製作者：樂多綠Gamecaster</span>
+              <div className="flex items-center justify-between border-t border-slate-100 pt-1.5 mt-0.5">
+                  <div className="flex items-center gap-2 overflow-hidden text-[10px] sm:text-xs">
+                      <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold whitespace-nowrap shrink-0">
+                          <ExternalLink size={12} /> 薑餅人對戰卡牌/台灣
+                      </a>
+                      <span className="text-slate-300">|</span>
+                      <span className="truncate text-slate-400">製作者：樂多綠Gamecaster</span>
+                  </div>
+                  {user && !user.isAnonymous ? (
+                    <>
+                    <button 
+                        onClick={() => setShowProfileModal(true)} 
+                        className="flex items-center gap-1 p-1 text-slate-500 hover:text-blue-500 transition-colors shrink-0 cursor-pointer" 
+                        title="點擊修改暱稱"
+                    >
+                        <div className="flex flex-col items-start leading-none">
+                            <span className="text-[10px] font-bold truncate max-w-[80px]">{user.displayName || '設定暱稱'}</span>
+                            <span className="text-[8px] opacity-50">已登入</span>
+                        </div>
+                        <UserCog size={14}/>
+                    </button>
+                    <button onClick={handleLogout} className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0" title="登出">
+                        <LogOut size={14}/>
+                    </button>
+                    </>
+                  ) : (
+                    <button onClick={() => setShowLoginModal(true)} className="flex items-center gap-1 p-1 text-blue-600 hover:text-blue-800 transition-colors shrink-0 font-bold" title="登入/註冊">
+                        <span className="text-[10px]">登入/註冊</span>
+                        <UserCog size={14}/>
+                    </button>
+                  )}
               </div>
           </div>
 
-          {/* 桌面版佈局 - 刪除登入按鈕 */}
           <div className="hidden md:flex flex-row justify-between items-center gap-4">
               <span className="font-bold">製作者：樂多綠Gamecaster</span>
               <div className="flex gap-4">
@@ -2515,8 +2536,32 @@ export default function App() {
                       <ExternalLink size={14} /> 薑餅人對戰卡牌/台灣
                   </a>
               </div>
+              <div className="flex justify-end">
+                {user && !user.isAnonymous ? (
+                    <>
+                    <button 
+                        onClick={() => setShowProfileModal(true)} 
+                        className="flex items-center gap-1 p-1 text-slate-500 hover:text-blue-500 transition-colors shrink-0 cursor-pointer" 
+                        title="點擊修改暱稱"
+                    >
+                        <div className="flex flex-col items-start leading-none">
+                            <span className="text-[10px] font-bold truncate max-w-[80px]">{user.displayName || '設定暱稱'}</span>
+                            <span className="text-[8px] opacity-50">已登入</span>
+                        </div>
+                        <UserCog size={14}/>
+                    </button>
+                    <button onClick={handleLogout} className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0" title="登出">
+                        <LogOut size={14}/>
+                    </button>
+                    </>
+                  ) : (
+                    <button onClick={() => setShowLoginModal(true)} className="flex items-center gap-1 p-1 text-blue-600 hover:text-blue-800 transition-colors shrink-0 font-bold" title="登入/註冊">
+                        <span className="text-[10px]">登入/註冊</span>
+                        <UserCog size={14}/>
+                    </button>
+                  )}
+              </div>
           </div>
-          
         </div>
       </div>
 
