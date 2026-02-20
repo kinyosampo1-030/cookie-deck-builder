@@ -331,7 +331,7 @@ const ProfileModal = ({ user, onClose, onUpdateProfile, onLogout }) => {
                 className="w-full border-2 border-slate-200 rounded-lg p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all" 
                 value={displayName} 
                 onChange={(e) => setDisplayName(e.target.value)} 
-                placeholder="例如：銀河餅乾" 
+                placeholder="例如：餅乾國王" 
             />
           </div>
           
@@ -823,13 +823,11 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
   const [selectedCover, setSelectedCover] = useState(""); 
   const [isSaving, setIsSaving] = useState(false);
 
-  // 取得目前牌組中所有不重複的卡片，供選擇封面
   const deckUniqueCards = useMemo(() => {
       const uniqueIds = [...new Set(currentDeck.main.map(c => c.id))];
       return uniqueIds.map(id => allCards.find(c => c.id === id)).filter(Boolean);
   }, [currentDeck.main, allCards]);
 
-  // 預設選擇第一張卡當封面
   useEffect(() => {
     if (deckUniqueCards.length > 0 && !selectedCover) {
         setSelectedCover(deckUniqueCards[0].id);
@@ -840,11 +838,10 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
     if (!userId || !db) return;
     const fetchDecks = async () => {
        try {
-         // 修正 1：移除 orderBy，改用純前端排序避免 Firestore 索引報錯
+         // 完全移除 orderBy 防止 Firebase missing index 錯誤，改用純前端排序
          const q = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'));
          const snapshot = await getDocs(q);
          const loadedDecks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-         // 前端根據更新時間降冪排序 (最新的在最上面)
          loadedDecks.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
          setDecks(loadedDecks);
        } catch (e) {
@@ -876,21 +873,13 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
         } else {
             await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'decks'), deckData);
         }
-        
-        // 修正 2：存檔後重新讀取時，一樣在前端排序避免報錯
         const q = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'));
         const snapshot = await getDocs(q);
         const loadedDecks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         loadedDecks.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
         setDecks(loadedDecks);
-        
         alert("儲存成功！");
-    } catch (e) { 
-        console.error(e); 
-        alert("儲存失敗: " + e.message); 
-    } finally { 
-        setIsSaving(false); 
-    }
+    } catch (e) { console.error(e); alert("儲存失敗: " + e.message); } finally { setIsSaving(false); }
   };
 
   const handleDelete = async (e, deckId) => {
@@ -908,19 +897,22 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
       await onPublish(deck);
   };
 
-  const handleLoadDeck = (savedDeck) => {
+  const handleLoadDeckClick = (savedDeck) => {
      if (currentDeck.main.length > 0 && !confirm("目前的牌組將被覆蓋，確定要載入嗎？")) return;
      const mainCards = [];
      const extraCards = [];
-     savedDeck.m.forEach(id => {
+     
+     // 加上 || [] 陣列防呆，避免舊版資料格式出錯
+     (savedDeck.m || []).forEach(id => {
          const c = allCards.find(card => card.id === id);
          if (c) mainCards.push(c);
      });
-     savedDeck.e.forEach(id => {
+     (savedDeck.e || []).forEach(id => {
          const c = allCards.find(card => card.id === id);
          if (c) extraCards.push(c);
      });
-     onLoadDeck({ main: mainCards, extra: extraCards }, savedDeck.name);
+     
+     onLoadDeck(mainCards, extraCards, savedDeck.name);
      onClose();
   };
 
@@ -951,7 +943,7 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
              {loading ? <div className="text-center py-8 text-slate-400">載入中...</div> : decks.length === 0 ? <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-200 rounded-lg">目前沒有牌組</div> : (
                  <div className="space-y-2">
                      {decks.map(d => (
-                         <div key={d.id} onClick={() => handleLoadDeck(d)} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md cursor-pointer transition-all flex justify-between items-center group">
+                         <div key={d.id} onClick={() => handleLoadDeckClick(d)} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md cursor-pointer transition-all flex justify-between items-center group">
                              <div>
                                  <div className="font-bold text-slate-800 text-sm md:text-base">{d.name}</div>
                                  <div className="text-[10px] md:text-xs text-slate-400 mt-1 flex gap-2"><span>{new Date(d.updatedAt).toLocaleDateString()}</span><span>·</span><span>{d.m ? d.m.length : 0} 張</span></div>
@@ -969,6 +961,22 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
     </div>
   );
 };
+
+const ExportModal = ({ deck, deckName, onClose }) => {
+  const [activeTab, setActiveTab] = useState("image");
+  const exportRef = useRef(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isCreatingLink, setIsCreatingLink] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+
+  useEffect(() => {
+    if (!window.html2canvas) {
+      const script = document.createElement("script");
+      script.src = "https://html2canvas.hertzen.com/dist/html2canvas.min.js";
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, []);
 
 const DrawTestModal = ({ deck, onClose }) => {
   const [drawCount, setDrawCount] = useState(1);
