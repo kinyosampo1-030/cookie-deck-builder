@@ -1791,11 +1791,10 @@ export default function App() {
       }
       
       // 2. 確定載入，將傳入的完整卡片資料寫入當前狀態
-      const handleLoadDeckFromStorage = (newDeck, newName) => { 
-      // 加入 || [] 避免讀取到舊版無 m 或 e 的資料時發生崩潰
-      const mainCards = (newDeck.m || []).map(id => allCards.find(c => c.id === id)).filter(Boolean);
-      const extraCards = (newDeck.e || []).map(id => allCards.find(c => c.id === id)).filter(Boolean);
-      setDeck({ main: mainCards, extra: extraCards });
+      setDeck({ 
+          main: loadedCards.main || [], 
+          extra: loadedCards.extra || [] 
+      });
       setDeckName(newName);
       setToastMsg("✨ 社群牌組載入成功！");
       
