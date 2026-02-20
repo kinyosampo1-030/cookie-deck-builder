@@ -286,6 +286,80 @@ const Toast = ({ message, onClose }) => {
   );
 };
 
+const ProfileModal = ({ user, onClose, onUpdateProfile, onLogout }) => {
+  const [displayName, setDisplayName] = useState(user?.displayName || "");
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!displayName.trim()) return alert("請輸入暱稱");
+    setIsUpdating(true);
+    try {
+      await onUpdateProfile(displayName);
+      onClose();
+    } catch (error) {
+      alert("更新失敗: " + error.message);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  return (
+    <div 
+        className="fixed inset-0 bg-black/60 z-[999] flex items-center justify-center p-4 overflow-y-auto"
+        onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 my-auto" 
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800">
+            <UserCog className="text-blue-600" /> 會員資料管理
+          </h2>
+          <button onClick={onClose} className="p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-800 rounded-full transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">顯示名稱 (暱稱)</label>
+            <input 
+                type="text" 
+                required 
+                className="w-full border-2 border-slate-200 rounded-lg p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all" 
+                value={displayName} 
+                onChange={(e) => setDisplayName(e.target.value)} 
+                placeholder="例如：餅乾國王" 
+            />
+          </div>
+          
+          <div className="flex gap-3 pt-4 border-t border-slate-100">
+            <button 
+                type="submit" 
+                disabled={isUpdating} 
+                className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm active:scale-95"
+            >
+              {isUpdating ? "更新中..." : "儲存修改"}
+            </button>
+            <button 
+              type="button" 
+              onClick={() => { 
+                  onClose(); 
+                  if (onLogout) onLogout(); 
+              }} 
+              className="flex-none bg-red-50 text-red-600 px-4 py-2.5 rounded-xl font-bold hover:bg-red-100 transition-colors flex items-center justify-center gap-1 border border-red-100 active:scale-95"
+            >
+              <LogOut size={18} /> 登出
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const AuthModal = ({ onClose, onLogin, onRegister }) => {
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState("");
@@ -337,7 +411,6 @@ const AuthModal = ({ onClose, onLogin, onRegister }) => {
           </button>
         </div>
         
-        {/* 清晰的按鈕切換區 */}
         <div className="flex bg-slate-100 p-1 rounded-lg mb-6">
           <button 
             type="button"
@@ -367,7 +440,7 @@ const AuthModal = ({ onClose, onLogin, onRegister }) => {
                 className="w-full border-2 border-slate-200 rounded-lg p-2.5 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition-all" 
                 value={displayName} 
                 onChange={(e) => setDisplayName(e.target.value)} 
-                placeholder="例如：銀河餅乾" 
+                placeholder="例如：餅乾國王" 
               />
             </div>
           )}
@@ -2231,6 +2304,7 @@ export default function App() {
             user={user} 
             onClose={() => setShowProfileModal(false)} 
             onUpdateProfile={handleUpdateProfile} 
+            onLogout={handleLogout} // ★ 關鍵：必須把登出函式傳給彈出視窗
         />
       )}
 
@@ -2269,25 +2343,25 @@ export default function App() {
                             <span className="absolute -top-2.5 -right-2 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-bounce shadow-md">HOT</span>
                         </button>
 
-                        {/* 強調功能 2：將註冊/登入按鈕移至上方最顯眼處 (加上綠色漸層與 NEW 標籤) */}
+                        {/* 註冊/登入按鈕 或是 顯示暱稱 */}
                         {user && !user.isAnonymous ? (
                             <button 
                                 onClick={() => setShowProfileModal(true)} 
-                                className="flex items-center gap-2 bg-white hover:bg-slate-50 border-2 border-emerald-200 hover:border-emerald-400 px-4 py-2 rounded-xl text-slate-700 transition-all shadow-sm" 
-                                title="點擊修改個人資料"
+                                className="flex items-center gap-2 bg-white hover:bg-slate-50 border-2 border-emerald-200 px-3 py-1.5 rounded-xl text-slate-700 transition-all shadow-sm active:scale-95" 
+                                title="點擊管理會員資料與登出"
                             >
-                                <UserCog size={20} className="text-emerald-500"/>
+                                <UserCog size={18} className="text-emerald-500"/>
                                 <div className="flex flex-col items-start leading-none">
-                                    <span className="text-sm font-bold truncate max-w-[100px]">{user.displayName || '設定暱稱'}</span>
-                                    <span className="text-[10px] text-emerald-600 font-black mt-0.5">已登入會員</span>
+                                    <span className="text-xs font-bold truncate max-w-[100px]">{user.displayName || '設定暱稱'}</span>
+                                    <span className="text-[9px] text-emerald-600 font-black mt-0.5">已登入會員</span>
                                 </div>
                             </button>
                         ) : (
                             <button 
                                 onClick={() => setShowLoginModal(true)} 
-                                className="relative bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-green-500/40 transition-all hover:-translate-y-0.5 active:scale-95 ring-2 ring-green-300 ring-offset-1"
+                                className="relative bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg transition-transform active:scale-95 ring-2 ring-green-300 ring-offset-1"
                             >
-                                <UserCog size={20} /> 
+                                <UserCog size={18} /> 
                                 <span className="tracking-wide">註冊 / 登入</span>
                                 <span className="absolute -top-2.5 -right-2 bg-yellow-400 text-yellow-900 text-[10px] px-2 py-0.5 rounded-full font-black shadow-md border border-yellow-200">NEW</span>
                             </button>
