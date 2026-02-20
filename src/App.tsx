@@ -2411,9 +2411,9 @@ export default function App() {
 
         {/* Footer 區域 */}
         <div className="bg-white border-t border-slate-200 text-xs text-slate-500 p-2 md:p-3 shrink-0">
-          {/* 手機版佈局 - 整合為兩行以節省空間 */}
+          {/* 手機版佈局 - 置左對齊並刪除登入狀態 */}
           <div className="md:hidden flex flex-col gap-1">
-              <div className="flex items-center justify-center gap-6">
+              <div className="flex items-center justify-start gap-6 px-1">
                   <a href="https://www.youtube.com/@%E6%A8%82%E5%A4%9A%E7%B6%A0" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-red-600 transition-colors font-bold">
                       <Youtube size={14} /> YouTube
                   </a>
@@ -2421,40 +2421,16 @@ export default function App() {
                       <Facebook size={14} /> 樂多綠Facebook
                   </a>
               </div>
-              <div className="flex items-center justify-between border-t border-slate-100 pt-1.5 mt-0.5">
-                  <div className="flex items-center gap-2 overflow-hidden text-[10px] sm:text-xs">
-                      <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold whitespace-nowrap shrink-0">
-                          <ExternalLink size={12} /> 薑餅人對戰卡牌/台灣
-                      </a>
-                      <span className="text-slate-300">|</span>
-                      <span className="truncate text-slate-400">製作者：樂多綠Gamecaster</span>
-                  </div>
-                  {user && !user.isAnonymous ? (
-                    <>
-                    <button 
-                        onClick={() => setShowProfileModal(true)} 
-                        className="flex items-center gap-1 p-1 text-slate-500 hover:text-blue-500 transition-colors shrink-0 cursor-pointer" 
-                        title="點擊修改暱稱"
-                    >
-                        <div className="flex flex-col items-start leading-none">
-                            <span className="text-[10px] font-bold truncate max-w-[80px]">{user.displayName || '設定暱稱'}</span>
-                            <span className="text-[8px] opacity-50">已登入</span>
-                        </div>
-                        <UserCog size={14}/>
-                    </button>
-                    <button onClick={handleLogout} className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0" title="登出">
-                        <LogOut size={14}/>
-                    </button>
-                    </>
-                  ) : (
-                    <button onClick={() => setShowLoginModal(true)} className="flex items-center gap-1 p-1 text-blue-600 hover:text-blue-800 transition-colors shrink-0 font-bold" title="登入/註冊">
-                        <span className="text-[10px]">登入/註冊</span>
-                        <UserCog size={14}/>
-                    </button>
-                  )}
+              <div className="flex items-center gap-2 overflow-hidden text-[10px] sm:text-xs border-t border-slate-100 pt-1.5 mt-0.5 px-1">
+                  <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold whitespace-nowrap shrink-0">
+                      <ExternalLink size={12} /> 薑餅人對戰卡牌/台灣
+                  </a>
+                  <span className="text-slate-300">|</span>
+                  <span className="truncate text-slate-400">製作者：樂多綠Gamecaster</span>
               </div>
           </div>
 
+          {/* 桌面版佈局 - 刪除登入狀態 */}
           <div className="hidden md:flex flex-row justify-between items-center gap-4">
               <span className="font-bold">製作者：樂多綠Gamecaster</span>
               <div className="flex gap-4">
@@ -2468,34 +2444,8 @@ export default function App() {
                       <ExternalLink size={14} /> 薑餅人對戰卡牌/台灣
                   </a>
               </div>
-              <div className="flex justify-end">
-                {user && !user.isAnonymous ? (
-                    <>
-                    <button 
-                        onClick={() => setShowProfileModal(true)} 
-                        className="flex items-center gap-1 p-1 text-slate-500 hover:text-blue-500 transition-colors shrink-0 cursor-pointer" 
-                        title="點擊修改暱稱"
-                    >
-                        <div className="flex flex-col items-start leading-none">
-                            <span className="text-[10px] font-bold truncate max-w-[80px]">{user.displayName || '設定暱稱'}</span>
-                            <span className="text-[8px] opacity-50">已登入</span>
-                        </div>
-                        <UserCog size={14}/>
-                    </button>
-                    <button onClick={handleLogout} className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0" title="登出">
-                        <LogOut size={14}/>
-                    </button>
-                    </>
-                  ) : (
-                    <button onClick={() => setShowLoginModal(true)} className="flex items-center gap-1 p-1 text-blue-600 hover:text-blue-800 transition-colors shrink-0 font-bold" title="登入/註冊">
-                        <span className="text-[10px]">登入/註冊</span>
-                        <UserCog size={14}/>
-                    </button>
-                  )}
-              </div>
           </div>
         </div>
-      </div>
 
       {/* 手機版：懸浮按鈕 (FAB) 開啟牌組清單 */}
       <button
