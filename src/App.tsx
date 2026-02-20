@@ -962,21 +962,7 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
   );
 };
 
-const ExportModal = ({ deck, deckName, onClose }) => {
-  const [activeTab, setActiveTab] = useState("image");
-  const exportRef = useRef(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isCreatingLink, setIsCreatingLink] = useState(false);
-  const [shareUrl, setShareUrl] = useState("");
 
-  useEffect(() => {
-    if (!window.html2canvas) {
-      const script = document.createElement("script");
-      script.src = "https://html2canvas.hertzen.com/dist/html2canvas.min.js";
-      script.async = true;
-      document.body.appendChild(script);
-    }
-  }, []);
 
 const DrawTestModal = ({ deck, onClose }) => {
   const [drawCount, setDrawCount] = useState(1);
