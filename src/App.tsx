@@ -528,12 +528,15 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
     const { cookies, others, flips, extras, rawM, rawE } = getDeckCards();
 
     const renderMiniCard = (group) => (
-    <div key={group.id} className="relative aspect-[3/4] rounded overflow-hidden border border-slate-200 shadow-sm bg-slate-50 group">
-        {group.imageUrl ? (<img src={group.imageUrl} alt={group.name} className="w-full h-full object-cover" />) : (<div className={`w-full h-full flex flex-col p-1 text-[8px] ${getCardColorStyles(group.color)}`}><span className="font-bold leading-tight line-clamp-2">{group.name}</span><span className="mt-0.5 font-mono opacity-70 font-bold scale-90 origin-left">{group.id}</span></div>)}
-        {/* 這裡放大了張數標籤：字體改為 text-lg、粗細改為 font-black、尺寸改為 w-10 h-10、距離邊緣改為 bottom-1.5 right-1.5 */}
-        <div className="absolute bottom-1.5 right-1.5 bg-black text-white text-lg font-black w-10 h-10 rounded-lg shadow-lg border-2 border-white/40 z-10 flex items-center justify-center leading-none pb-0.5">x{group.stackCount}</div>
-    </div>
-  );
+        <div key={group.id} className="relative aspect-[3/4] bg-slate-200 rounded border border-slate-300 overflow-hidden group">
+             {group.imageUrl ? <img src={group.imageUrl} alt={group.name} className="w-full h-full object-cover"/> : <div className={`w-full h-full p-1 text-[8px] flex flex-col ${getCardColorStyles(group.color)}`}><span className="font-bold leading-tight">{group.name}</span><span className="mt-1">{group.id}</span></div>}
+             
+             {/* 修正：使用響應式設計。手機版 w-6 h-6 text-xs，電腦版(md以上) w-8 h-8 text-sm */}
+             <div className="absolute bottom-1 right-1 bg-black text-white text-xs md:text-sm font-black w-6 h-6 md:w-8 md:h-8 rounded shadow-md border border-white/50 z-10 flex items-center justify-center leading-none pb-0.5">
+                 x{group.stackCount}
+             </div>
+        </div>
+    );
 
     return (
         <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4" onClick={onClose}>
@@ -1264,7 +1267,11 @@ const ExportModal = ({ deck, deckName, onClose }) => {
   const renderMiniCard = (group) => (
     <div key={group.id} className="relative aspect-[3/4] rounded overflow-hidden border border-slate-200 shadow-sm bg-slate-50 group">
         {group.imageUrl ? (<img src={group.imageUrl} alt={group.name} className="w-full h-full object-cover" />) : (<div className={`w-full h-full flex flex-col p-1 text-[8px] ${getCardColorStyles(group.color)}`}><span className="font-bold leading-tight line-clamp-2">{group.name}</span><span className="mt-0.5 font-mono opacity-70 font-bold scale-90 origin-left">{group.id}</span></div>)}
-        <div className="absolute bottom-1 right-1 bg-black text-white text-xs font-bold w-6 h-6 rounded shadow-md border border-white/30 z-10 flex items-center justify-center leading-none pb-0.5">x{group.stackCount}</div>
+        
+        {/* 修正：統一輸出圖片與列印時的標籤大小，保持適中且清晰 */}
+        <div className="absolute bottom-1 right-1 bg-black text-white text-sm font-black w-7 h-7 md:w-8 md:h-8 rounded shadow-md border border-white/50 z-10 flex items-center justify-center leading-none pb-0.5">
+            x{group.stackCount}
+        </div>
     </div>
   );
 
