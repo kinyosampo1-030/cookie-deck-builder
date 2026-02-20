@@ -1794,10 +1794,24 @@ export default function App() {
       }
   };
 
-  const handleLoadDeckFromStorage = (newDeck, newName) => {
-      setDeck(newDeck);
+  const handleLoadDeckFromCommunity = (loadedCards, newName) => {
+      // 1. 檢查目前是否有牌組，如果有，跳出確認提示
+      if (deck.main.length > 0 || deck.extra.length > 0) {
+          if (!confirm("確定要複製並載入這副牌組嗎？\n⚠️ 警告：目前的牌組將被清空覆蓋！")) {
+              return; // 玩家按下取消，終止載入
+          }
+      }
+      
+      // 2. 確定載入，將傳入的完整卡片資料寫入當前狀態
+      setDeck({ 
+          main: loadedCards.main || [], 
+          extra: loadedCards.extra || [] 
+      });
       setDeckName(newName);
-      setToastMsg("牌組載入成功！");
+      setToastMsg("✨ 社群牌組載入成功！");
+      
+      // 3. 自動關閉社群廣場視窗，方便玩家直接開始編輯
+      setShowCommunityModal(false);
   };
 
   const handlePublishDeck = async (deckToPublish) => {
@@ -2284,14 +2298,8 @@ export default function App() {
         <CommunityModal 
             allCards={allCards} 
             onClose={() => setShowCommunityModal(false)} 
-            onLoadDeck={(d, n) => {
-                const mainCards = d.m.map(id => allCards.find(c => c.id === id)).filter(Boolean);
-                const extraCards = d.e.map(id => allCards.find(c => c.id === id)).filter(Boolean);
-                setDeck({ main: mainCards, extra: extraCards });
-                setDeckName(n);
-                setToastMsg("社群牌組載入成功！");
-            }}
-            user={user}
+            onLoadDeck={handleLoadDeckFromCommunity} 
+            user={user} 
         />
       )}
 
