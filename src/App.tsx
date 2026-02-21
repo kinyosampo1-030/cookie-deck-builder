@@ -902,21 +902,30 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
 
   const handleLoadDeckClick = (savedDeck) => {
      if (currentDeck?.main?.length > 0 && !confirm("目前的牌組將被覆蓋，確定要載入嗎？")) return;
+     
      const mainCards = [];
      const extraCards = [];
+     let missingCount = 0; // 記錄是否有卡片因為「僅載入BS9」而找不到
      
-     // 加上 (savedDeck.m || []) 防呆：避免讀取到沒有卡片的舊資料時發生白畫面
      (savedDeck.m || []).forEach(id => {
          const c = allCards.find(card => card.id === id);
          if (c) mainCards.push(c);
+         else missingCount++;
      });
+     
      (savedDeck.e || []).forEach(id => {
          const c = allCards.find(card => card.id === id);
          if (c) extraCards.push(c);
+         else missingCount++;
      });
+
+     // 防呆提示：如果找不到舊卡片，提醒玩家先載入全部卡池
+     if (missingCount > 0) {
+         alert(`⚠️ 警告：有 ${missingCount} 張卡片無法載入！\n\n可能原因：您目前左側設定為「僅顯示 BS9」。\n請先點擊左側的「載入全部」按鈕後，再次讀取此牌組。`);
+     }
      
-     // 統一傳遞這三個參數給 App 處理
-     onLoadDeck(mainCards, extraCards, savedDeck.name);
+     // ★ 核心修復點：將 main 與 extra 重新包裝成「一個物件」傳遞給 App
+     onLoadDeck({ main: mainCards, extra: extraCards }, savedDeck.name);
      onClose();
   };
 
@@ -1785,28 +1794,29 @@ export default function App() {
       }
   };
 
-  const handleLoadDeckFromStorage = (mainCards, extraCards, newName) => { 
-      // 統一接收陣列，並加上 || [] 防呆機制，確保沒有資料時也是空陣列
-      setDeck({ main: mainCards || [], extra: extraCards || [] }); 
+  const handleLoadDeckFromStorage = (loadedDeckObj, newName) => { 
+      // 確保收到的是正確的物件格式，並提取 main 與 extra 陣列
+      setDeck({ 
+          main: loadedDeckObj?.main || [], 
+          extra: loadedDeckObj?.extra || [] 
+      }); 
       setDeckName(newName || "我的餅乾牌組"); 
       setToastMsg("牌組載入成功！"); 
   };
 
-  const handleLoadDeckFromCommunity = (mainCards, extraCards, newName) => {
-      // 1. 檢查目前是否有牌組，如果有，跳出確認提示
+  const handleLoadDeckFromCommunity = (loadedDeckObj, newName) => {
       if (deck.main.length > 0 || deck.extra.length > 0) {
           if (!confirm("確定要複製並載入這副牌組嗎？\n⚠️ 警告：目前的牌組將被清空覆蓋！")) {
               return; 
           }
       }
-      // 2. 確定載入，寫入當前狀態
+      // 統一接收物件格式
       setDeck({ 
-          main: mainCards || [], 
-          extra: extraCards || [] 
+          main: loadedDeckObj?.main || [], 
+          extra: loadedDeckObj?.extra || [] 
       });
       setDeckName(newName || "社群牌組");
       setToastMsg("✨ 社群牌組載入成功！");
-      // 3. 自動關閉社群廣場視窗
       setShowCommunityModal(false);
   };
 
