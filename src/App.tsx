@@ -428,7 +428,7 @@ const AuthModal = ({ onClose, onLogin, onRegister }) => {
                 className="w-full border-2 border-slate-200 rounded-lg p-2.5 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition-all" 
                 value={displayName} 
                 onChange={(e) => setDisplayName(e.target.value)} 
-                placeholder="例如：餅乾國王" 
+                placeholder="例如：銀河餅乾" 
               />
             </div>
           )}
@@ -1539,7 +1539,7 @@ export default function App() {
       setToastMsg("暱稱已更新！");
   };
 
-  // Data Loading Effect
+  // Data Loading Effect (移除了BS9限制)
   useEffect(() => {
     if (!db) {
         console.error("Firestore db has not been initialized.");
