@@ -900,11 +900,23 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
       await onPublish(deck);
   };
 
-  const handleLoadDeck = (savedDeck) => {
+  const handleLoadDeckClick = (savedDeck) => {
      if (currentDeck?.main?.length > 0 && !confirm("目前的牌組將被覆蓋，確定要載入嗎？")) return;
+     const mainCards = [];
+     const extraCards = [];
      
-     // ★ 核心修復點：直接把資料庫的物件傳回給 App，讓 App 處理，避免格式不合崩潰
-     onLoadDeck(savedDeck, savedDeck.name);
+     // 加上 (savedDeck.m || []) 防呆：避免讀取到沒有卡片的舊資料時發生白畫面
+     (savedDeck.m || []).forEach(id => {
+         const c = allCards.find(card => card.id === id);
+         if (c) mainCards.push(c);
+     });
+     (savedDeck.e || []).forEach(id => {
+         const c = allCards.find(card => card.id === id);
+         if (c) extraCards.push(c);
+     });
+     
+     // 統一傳遞這三個參數給 App 處理
+     onLoadDeck(mainCards, extraCards, savedDeck.name);
      onClose();
   };
 
@@ -1774,9 +1786,9 @@ export default function App() {
   };
 
   const handleLoadDeckFromStorage = (mainCards, extraCards, newName) => { 
-      // 確保即使沒有傳入資料也會預設為空陣列 []
+      // 統一接收陣列，並加上 || [] 防呆機制，確保沒有資料時也是空陣列
       setDeck({ main: mainCards || [], extra: extraCards || [] }); 
-      setDeckName(newName); 
+      setDeckName(newName || "我的餅乾牌組"); 
       setToastMsg("牌組載入成功！"); 
   };
 
