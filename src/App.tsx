@@ -728,7 +728,6 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin }) => {
         return CARD_BACK_URL;
     };
 
-    // 新增：管理員刪除社群牌組功能
     const handleDeleteDeck = async (e, deckId, deckName) => {
         e.stopPropagation();
         if (!isAdmin) return;
@@ -788,7 +787,6 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin }) => {
                                         <div className="mt-auto flex justify-between items-center text-sm text-slate-500">
                                             <span className="flex items-center gap-1"><Layers size={14}/> {d.m?.length || 0}</span>
                                             <div className="flex gap-3 items-center">
-                                                {/* 如果是管理員，顯示專屬刪除按鈕 */}
                                                 {isAdmin && (
                                                     <button onClick={(e) => handleDeleteDeck(e, d.id, d.name)} className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-full transition-colors z-10" title="管理員強制刪除">
                                                         <Trash2 size={14}/>
@@ -2319,7 +2317,7 @@ export default function App() {
                <p className="font-bold text-sm">正在從雲端載入卡片資料... (可能需要一些時間)</p>
             </div>
           ) : (
-             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 md:gap-3 pb-20">
+             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3 pb-20">
                 {displayedCards.map(card => (
                   <CardItem 
                     key={card.id} 
