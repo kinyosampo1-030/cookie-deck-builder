@@ -894,7 +894,6 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
          if (c) extraCards.push(c);
      });
      
-     // 完美打包成物件並傳遞給 App
      onLoadDeck({ main: mainCards, extra: extraCards }, savedDeck.name);
      onClose();
   };
@@ -1347,6 +1346,162 @@ const StatBadge = ({ icon: Icon, label, current, max, color = "blue", warningAtF
   return (<div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border ${colorStyle}`}><Icon size={16} /><span>{label}:</span><span className={isFull ? "font-bold" : ""}>{current} / {max}</span></div>);
 };
 
+// ==========================================
+// 🚀 遺失的 DrawTestModal 與 PackOpenerModal 已補回
+// ==========================================
+
+const DrawTestModal = ({ deck, onClose }) => {
+  const [drawCount, setDrawCount] = useState(1);
+  const [hands, setHands] = useState([]);
+  const [flippedIndices, setFlippedIndices] = useState({});
+
+  const drawCards = useCallback(() => {
+    if (deck.main.length === 0) {
+      alert("主牌組沒有卡片！");
+      return;
+    }
+    const newHands = [];
+    for (let i = 0; i < drawCount; i++) {
+      const shuffled = fisherYatesShuffle(deck.main);
+      newHands.push(shuffled.slice(0, 6));
+    }
+    setHands(newHands);
+    setFlippedIndices({});
+    let delay = 0;
+    newHands.forEach((_, handIdx) => {
+      for (let i = 0; i < 6; i++) {
+        delay += 50; 
+        setTimeout(() => {
+          setFlippedIndices(prev => ({ ...prev, [`${handIdx}-${i}`]: true }));
+        }, delay);
+      }
+    });
+  }, [deck.main, drawCount]);
+
+  useEffect(() => { drawCards(); }, [drawCards]);
+  const handleCardClick = (handIdx, cardIdx) => { setFlippedIndices(prev => ({ ...prev, [`${handIdx}-${cardIdx}`]: true })); };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-slate-50 rounded-xl shadow-2xl w-full max-w-5xl p-6 h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-4 shrink-0">
+          <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2"><Dices className="text-blue-600" /> 起始手牌測試</h2>
+          <button onClick={onClose} className="p-1 hover:bg-slate-200 rounded-full"><X size={24} /></button>
+        </div>
+        <div className="flex gap-4 mb-4 justify-center shrink-0">
+          <select className="px-4 py-2 rounded-lg border border-slate-300 font-bold text-slate-700 bg-white focus:ring-2 focus:ring-blue-500 outline-none" value={drawCount} onChange={(e) => setDrawCount(Number(e.target.value))}>
+            <option value={1}>測試 1 組</option>
+            <option value={3}>測試 3 組</option>
+            <option value={5}>測試 5 組</option>
+          </select>
+          <button onClick={drawCards} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold shadow-lg transition-transform active:scale-95"><RefreshCw size={20} /> 重新洗牌並抽牌</button>
+        </div>
+        <div className="flex-1 overflow-y-auto space-y-6 p-2 bg-slate-100 rounded-lg border border-slate-200 shadow-inner">
+          {hands.map((hand, handIdx) => (
+            <div key={handIdx} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+               <div className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest border-b border-slate-100 pb-1">Hand #{handIdx + 1}</div>
+               <div className="grid grid-cols-6 gap-2 md:gap-4">
+                  {hand.map((card, cardIdx) => (
+                    <div key={`${handIdx}-${card.id}-${cardIdx}`} onClick={() => handleCardClick(handIdx, cardIdx)} className="aspect-[3/4] cursor-pointer perspective-1000 group relative">
+                       <div className={`w-full h-full transition-transform duration-500 transform-style-3d relative ${flippedIndices[`${handIdx}-${cardIdx}`] ? 'rotate-y-180' : ''}`}>
+                            <div className="absolute inset-0 backface-hidden rounded-lg overflow-hidden border-2 border-slate-300 shadow-md"><img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" /></div>
+                            <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-lg overflow-hidden border border-slate-300 shadow-md bg-white">
+                                {card.imageUrl ? (<img src={card.imageUrl} alt={card.name} className="w-full h-full object-cover" />) : (<div className={`w-full h-full p-2 text-xs flex flex-col ${getCardColorStyles(card.color)}`}><span className="font-bold leading-tight">{card.name}</span><span className="text-[10px] mt-1">{card.id}</span></div>)}
+                                <div className="absolute top-1 left-1 bg-black/50 text-white text-[9px] px-1.5 rounded font-bold">#{cardIdx + 1}</div>
+                            </div>
+                       </div>
+                    </div>
+                  ))}
+               </div>
+            </div>
+          ))}
+        </div>
+        <p className="text-center text-slate-500 text-xs mt-3 shrink-0">每次測試皆為獨立洗牌 (Fisher-Yates Shuffle) 後抽取前 6 張卡片</p>
+      </div>
+    </div>
+  );
+};
+
+const PackOpenerModal = ({ allCards, onClose }) => {
+  const [selectedSeries, setSelectedSeries] = useState("ALL");
+  const [openedCards, setOpenedCards] = useState([]);
+  const [flippedIndices, setFlippedIndices] = useState({});
+  const [isOpening, setIsOpening] = useState(false); 
+  const availableSeries = useMemo(() => {
+    const seriesSet = new Set(allCards.filter(c => !['ST', 'P'].includes(c.series)).map(c => c.series));
+    return Array.from(seriesSet).sort();
+  }, [allCards]);
+  const getRarityProb = () => { const r = Math.random() * 100; if (r < 1) return 'EXR'; if (r < 6) return 'UR'; if (r < 16) return 'SR'; if (r < 36) return 'R'; return 'C'; };
+  const openPack = () => {
+    let pool = allCards.filter(c => !['ST', 'P'].includes(c.series));
+    if (selectedSeries !== "ALL") pool = pool.filter(c => c.series === selectedSeries);
+    const cookieCards = pool.filter(c => c.type === CARD_TYPES.COOKIE);
+    const otherCards = pool.filter(c => c.type !== CARD_TYPES.COOKIE);
+    if (otherCards.length < 1) { alert(`該系列非餅乾卡不足 1 張，無法模擬開包！`); return; }
+    if (cookieCards.length < 4) { alert(`該系列餅乾卡不足 4 張，無法模擬開包！`); return; }
+    setIsOpening(true);
+    setOpenedCards([]); 
+    setTimeout(() => {
+        const shuffledOthers = fisherYatesShuffle(otherCards);
+        const selectedOther = shuffledOthers[0]; 
+        const selectedIDs = new Set();
+        if (selectedOther) selectedIDs.add(selectedOther.id);
+        const selectedCookies = [];
+        const targetRarity = getRarityProb();
+        let targetPool = cookieCards.filter(c => (c.rarity || 'C') === targetRarity);
+        if (targetPool.length === 0) targetPool = cookieCards; 
+        const rareCard = targetPool[Math.floor(Math.random() * targetPool.length)];
+        if (rareCard) { selectedCookies.push(rareCard); selectedIDs.add(rareCard.id); }
+        let commonPool = cookieCards.filter(c => (c.rarity || 'C') === 'C' && !selectedIDs.has(c.id));
+        if (commonPool.length < 3) commonPool = cookieCards.filter(c => !selectedIDs.has(c.id));
+        const shuffledCommons = fisherYatesShuffle(commonPool);
+        const commonsToTake = shuffledCommons.slice(0, 3);
+        selectedCookies.push(...commonsToTake);
+        while (selectedCookies.length < 4) { const randomC = cookieCards[Math.floor(Math.random() * cookieCards.length)]; selectedCookies.push(randomC); }
+        const finalPack = fisherYatesShuffle([...selectedCookies, selectedOther]);
+        setOpenedCards(finalPack);
+        setFlippedIndices({});
+        setIsOpening(false); 
+    }, 1200); 
+  };
+  const handleCardClick = (index) => { setFlippedIndices(prev => ({ ...prev, [index]: true })); };
+  const renderCard = (card, index) => (
+    <div key={index} onClick={() => handleCardClick(index)} className="w-[30vw] h-[40vw] md:w-48 md:h-64 cursor-pointer perspective-1000 group relative flex-shrink-0 animate-in zoom-in duration-500">
+        <div className={`w-full h-full transition-all duration-500 transform-style-3d relative ${flippedIndices[index] ? 'rotate-y-180' : ''}`}>
+            <div className="absolute inset-0 backface-hidden rounded-lg overflow-hidden border-2 border-slate-600 shadow-xl group-hover:scale-105 transition-transform"><img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" /></div>
+            <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-lg overflow-hidden border-2 border-white/20 shadow-2xl bg-white relative">
+                {card.imageUrl ? (<img src={card.imageUrl} className="w-full h-full object-cover" alt={card.name} />) : (<div className={`w-full h-full p-2 flex flex-col justify-between ${getCardColorStyles(card.color)}`}><span className="font-bold text-sm">{card.name}</span><span className="font-mono text-xs">{card.id}</span></div>)}
+                {card.rarity && card.rarity !== 'C' && (<div className={`absolute top-1 right-1 text-[10px] font-bold px-1.5 py-0.5 rounded shadow border ${getRarityStyle(card.rarity)}`}>{card.rarity}</div>)}
+            </div>
+        </div>
+    </div>
+  );
+  return (
+    <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-slate-800 rounded-xl shadow-2xl w-full max-w-5xl p-6 min-h-[600px] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-6 text-white">
+          <h2 className="text-2xl font-black flex items-center gap-2"><PackageOpen className="text-yellow-400" /> 開卡包模擬器 (Pack Opener)</h2>
+          <button onClick={onClose} className="p-1 hover:bg-slate-700 rounded-full"><X size={24} /></button>
+        </div>
+        <div className="flex gap-4 mb-8 justify-center">
+          <select className="bg-slate-700 text-white border border-slate-600 rounded-lg px-4 py-2 outline-none font-bold" value={selectedSeries} onChange={(e) => setSelectedSeries(e.target.value)} disabled={isOpening}>
+            <option value="ALL">全部卡池</option>
+            {availableSeries.map(s => <option key={s} value={s}>{s} 系列</option>)}
+          </select>
+          <button onClick={openPack} disabled={isOpening} className="bg-yellow-500 hover:bg-yellow-400 disabled:bg-yellow-700 disabled:text-slate-500 text-slate-900 px-6 py-2 rounded-lg font-black flex items-center gap-2 shadow-lg transition-transform active:scale-95">{isOpening ? "開封中..." : <><PackageOpen size={20} /> 開啟卡包 / Open Pack</>}</button>
+        </div>
+        <div className="flex-1 flex items-center justify-center min-h-[400px]">
+          {isOpening ? (<div className="animate-bounce"><div className="w-48 h-64 bg-gradient-to-tr from-blue-600 to-purple-600 rounded-xl border-4 border-yellow-400 shadow-2xl flex items-center justify-center animate-pulse"><img src={CARD_BACK_URL} className="w-full h-full object-cover rounded-lg opacity-80" alt="Pack" /></div></div>) : openedCards.length === 0 ? (<div className="text-slate-500 flex flex-col items-center"><PackageOpen size={64} className="mb-4 opacity-20" /><p>選擇系列並點擊「開啟卡包」</p><p className="text-xs mt-2 opacity-60">配率：4 張餅乾卡 (含1張稀有位) + 1 張其他卡片</p></div>) : (<div className="flex flex-col items-center gap-4 md:gap-6 w-full"><div className="flex justify-center gap-2 md:gap-6">{openedCards.slice(0, 3).map((card, index) => renderCard(card, index))}</div><div className="flex justify-center gap-2 md:gap-6">{openedCards.slice(3, 5).map((card, index) => renderCard(card, index + 3))}</div></div>)}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// App 主程式
+// ==========================================
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [loadingError, setLoadingError] = useState(null);
@@ -1355,7 +1510,7 @@ export default function App() {
   // Deck Name State
   const [deckName, setDeckName] = useState("我的餅乾牌組");
   const [filters, setFilters] = useState({
-    search: "", type: "ALL", color: "ALL", level: "ALL", series: "BS9", rarity: "ALL", levelOrRarity: "ALL",
+    search: "", type: "ALL", color: "ALL", level: "ALL", series: "ALL", rarity: "ALL", levelOrRarity: "ALL",
     showExtra: false, showFlip: false, showAncient: false, showDragon: false, showBeast: false, showSoulJam: false, showArena: false,
   });
   const [toastMsg, setToastMsg] = useState(null);
@@ -1375,13 +1530,12 @@ export default function App() {
   const [visibleCount, setVisibleCount] = useState(30);
   const loadMoreRef = useRef(null);
   const hasShownWelcome = useRef(false);
-  const [hasLoadedAll, setHasLoadedAll] = useState(false);
   
   // New States
   const [showStorageModal, setShowStorageModal] = useState(false);
   const [showCommunityModal, setShowCommunityModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showFilters, setShowFilters] = useState(false); // 控制手機版篩選器的收合狀態
+  const [showFilters, setShowFilters] = useState(false); 
 
   const handleUpdateProfile = async (displayName) => {
       await updateProfile(user, { displayName: displayName });
@@ -1404,7 +1558,6 @@ export default function App() {
 
     let q;
     try {
-        // 直接無條件載入所有卡片
         q = query(collection(db, 'artifacts', appId, 'public', 'data', 'cards')); 
     } catch (e) {
         console.error("Query Creation Error:", e);
@@ -1462,7 +1615,6 @@ export default function App() {
     setToastMsg(null);
   }, []);
 
-  // ... (SEO & Auth Effects) ...
   useEffect(() => { document.title = "Cookierun: Braverse Deck Builder"; const setFavicon = () => { const link = document.querySelector("link[rel*='icon']") || document.createElement('link'); link.type = 'image/svg+xml'; link.rel = 'icon'; link.href = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍪</text></svg>`; document.getElementsByTagName('head')[0].appendChild(link); }; setFavicon(); }, []);
   useEffect(() => { if (!document.querySelector('script[src="https://cdn.tailwindcss.com"]')) { const script = document.createElement("script"); script.src = "https://cdn.tailwindcss.com"; document.head.appendChild(script); } }, []);
   
@@ -1509,7 +1661,6 @@ export default function App() {
   };
 
   const handleLoadDeckFromStorage = (loadedDeckObj, newName) => { 
-      // 確保收到的是正確的物件格式，並提取 main 與 extra 陣列
       setDeck({ 
           main: loadedDeckObj?.main || [], 
           extra: loadedDeckObj?.extra || [] 
@@ -1524,7 +1675,6 @@ export default function App() {
               return; 
           }
       }
-      // 統一接收物件格式
       setDeck({ 
           main: loadedDeckObj?.main || [], 
           extra: loadedDeckObj?.extra || [] 
@@ -2061,7 +2211,7 @@ export default function App() {
                     </div>
                 </div>
                                 
-                {/* --- 篩選與搜尋 (新增手機版收合功能) --- */}
+                {/* --- 篩選與搜尋 --- */}
                 <div className="w-full flex flex-col gap-2">
                     <button 
                         onClick={() => setShowFilters(!showFilters)} 
