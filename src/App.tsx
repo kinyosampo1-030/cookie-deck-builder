@@ -1515,8 +1515,81 @@ const PackOpenerModal = ({ allCards, onClose }) => {
 };
 
 // ==========================================
-// App 主程式
+// 🚀 遺失的組件補回：卡片放大檢視與批量匯入
 // ==========================================
+
+const CardDetailModal = ({ card, onClose }) => {
+  if (!card) return null;
+  return (
+    <div className="fixed inset-0 bg-black/80 z-[110] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="relative w-full max-w-sm md:max-w-md" onClick={e => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute -top-12 right-0 p-2 text-white hover:text-gray-300 transition-colors">
+          <X size={32} />
+        </button>
+        {card.imageUrl ? (
+          <img src={card.imageUrl} alt={card.name} className="w-full h-auto rounded-xl shadow-2xl object-contain max-h-[85vh]" />
+        ) : (
+          <div className={`w-full aspect-[3/4] rounded-xl shadow-2xl p-6 flex flex-col ${getCardColorStyles(card.color)}`}>
+             <h2 className="text-3xl font-black mb-2 leading-tight">{card.name}</h2>
+             <p className="font-mono text-lg opacity-80 mb-6 font-bold">{card.id}</p>
+             <div className="space-y-3 text-base font-bold flex-1">
+                <p className="flex justify-between border-b border-current/20 pb-1"><span>種類</span> <span>{card.type}</span></p>
+                <p className="flex justify-between border-b border-current/20 pb-1"><span>顏色</span> <span>{card.color}</span></p>
+                {card.level && <p className="flex justify-between border-b border-current/20 pb-1"><span>等級</span> <span>{card.level}</span></p>}
+                <p className="flex justify-between border-b border-current/20 pb-1"><span>稀有度</span> <span>{card.rarity || 'C'}</span></p>
+             </div>
+             <div className="flex flex-wrap gap-2 mt-4">
+                {card.isFlip && <span className="bg-slate-800 text-white px-2 py-1 rounded text-xs font-bold">FLIP</span>}
+                {card.isExtra && <span className="bg-purple-200 text-purple-900 px-2 py-1 rounded text-xs font-bold border border-purple-300">EXTRA</span>}
+                {card.isForbidden && <span className="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">禁止卡</span>}
+                {card.isLimitOne && <span className="bg-orange-500 text-white px-2 py-1 rounded text-xs font-bold">限制卡 (Limit 1)</span>}
+             </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
+  const [jsonText, setJsonText] = useState("");
+  const handleSubmit = () => {
+    try {
+      const data = JSON.parse(jsonText);
+      if (!Array.isArray(data)) throw new Error("JSON 必須是最外層為陣列 `[ ... ]` 的格式");
+      onImport(data);
+    } catch (err) {
+      alert("JSON 格式錯誤：" + err.message);
+    }
+  };
+  return (
+    <div className="fixed inset-0 bg-black/60 z-[90] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-xl p-6" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold flex items-center gap-2"><FileJson className="text-blue-600"/> 批量匯入卡片 (管理員)</h2>
+          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24}/></button>
+        </div>
+        <p className="text-xs text-slate-500 mb-2">請貼上包含卡片物件的 JSON 陣列。</p>
+        <textarea
+          className="w-full h-64 border border-slate-300 rounded-lg p-3 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+          placeholder='[\n  {\n    "id": "BS1-001",\n    "name": "勇氣餅乾",\n    "type": "餅乾卡",\n    "color": "紅色",\n    ...\n  }\n]'
+          value={jsonText}
+          onChange={e => setJsonText(e.target.value)}
+        />
+        <div className="flex gap-3 mt-4">
+            <button onClick={onClose} className="flex-1 bg-slate-100 text-slate-700 py-2 rounded font-bold hover:bg-slate-200">取消</button>
+            <button
+              onClick={handleSubmit}
+              disabled={isProcessing || !jsonText.trim()}
+              className="flex-1 bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isProcessing ? "處理中..." : "確認匯入並同步"}
+            </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function App() {
   const [user, setUser] = useState(null);
