@@ -2399,7 +2399,7 @@ export default function App() {
                     </div>
                 </div>
                 
-                {/* 篩選與搜尋 */}
+                {/* --- 篩選與搜尋 (新增手機版收合功能) --- */}
                 <div className="w-full flex flex-col gap-2">
                     {/* 手機版專用收合按鈕 (電腦版自動隱藏) */}
                     <button 
@@ -2433,6 +2433,7 @@ export default function App() {
                         </div>
                     </div>
                 </div>
+                {/* --------------------------- */}
                 
         {/* 左側卡片列表容器：綁定 ref 以偵測捲動 */}
         <div 
