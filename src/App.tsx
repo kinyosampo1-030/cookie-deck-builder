@@ -680,7 +680,7 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
     );
 };
 
-const CommunityModal = ({ allCards, onClose, onLoadDeck, user }) => {
+const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin }) => {
     const [decks, setDecks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filterColor, setFilterColor] = useState("ALL");
@@ -728,6 +728,22 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user }) => {
         return CARD_BACK_URL;
     };
 
+    // 新增：管理員刪除社群牌組功能
+    const handleDeleteDeck = async (e, deckId, deckName) => {
+        e.stopPropagation();
+        if (!isAdmin) return;
+        if (!confirm(`管理員操作：確定要從社群廣場永久刪除「${deckName}」嗎？此動作無法復原。`)) return;
+        
+        try {
+            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'community_decks', deckId));
+            setDecks(prev => prev.filter(d => d.id !== deckId));
+            alert("成功刪除該牌組");
+        } catch (err) {
+            console.error("刪除社群牌組失敗:", err);
+            alert("刪除失敗，請確認您具有管理員權限！");
+        }
+    };
+
     return (
         <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4" onClick={onClose}>
             <div className="bg-slate-100 rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -771,7 +787,13 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user }) => {
                                         </div>
                                         <div className="mt-auto flex justify-between items-center text-sm text-slate-500">
                                             <span className="flex items-center gap-1"><Layers size={14}/> {d.m?.length || 0}</span>
-                                            <div className="flex gap-3">
+                                            <div className="flex gap-3 items-center">
+                                                {/* 如果是管理員，顯示專屬刪除按鈕 */}
+                                                {isAdmin && (
+                                                    <button onClick={(e) => handleDeleteDeck(e, d.id, d.name)} className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-full transition-colors z-10" title="管理員強制刪除">
+                                                        <Trash2 size={14}/>
+                                                    </button>
+                                                )}
                                                 <span className="flex items-center gap-1"><Heart size={14} className="group-hover:text-pink-500"/> {d.likes || 0}</span>
                                                 <span className="flex items-center gap-1"><MessageCircle size={14} className="group-hover:text-blue-500"/> {d.commentCount || 0}</span>
                                             </div>
@@ -2122,6 +2144,7 @@ export default function App() {
             onClose={() => setShowCommunityModal(false)} 
             onLoadDeck={handleLoadDeckFromCommunity} 
             user={user} 
+            isAdmin={isAdmin}
         />
       )}
 
