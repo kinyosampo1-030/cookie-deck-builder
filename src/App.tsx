@@ -1346,10 +1346,6 @@ const StatBadge = ({ icon: Icon, label, current, max, color = "blue", warningAtF
   return (<div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border ${colorStyle}`}><Icon size={16} /><span>{label}:</span><span className={isFull ? "font-bold" : ""}>{current} / {max}</span></div>);
 };
 
-// ==========================================
-// 🚀 遺失的 DrawTestModal 與 PackOpenerModal 已補回
-// ==========================================
-
 const DrawTestModal = ({ deck, onClose }) => {
   const [drawCount, setDrawCount] = useState(1);
   const [hands, setHands] = useState([]);
@@ -2199,8 +2195,8 @@ export default function App() {
 
                         {isAdmin && (
                             <div className="flex gap-2 border-l-2 border-slate-200 pl-3">
-                                <button onClick={() => { setEditingCard(null); setShowAddModal(true); }} className="bg-slate-700 hover:bg-slate-800 text-white p-2 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors"><Plus size={18} /></button>
-                                <button onClick={() => setShowBulkModal(true)} className="bg-slate-700 hover:bg-slate-800 text-white p-2 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors"><FileJson size={18} /></button>
+                                <button onClick={() => { setEditingCard(null); setShowAddModal(true); }} className="bg-slate-700 hover:bg-slate-800 text-white p-2 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors" title="新增卡片"><Plus size={18} /></button>
+                                <button onClick={() => setShowBulkModal(true)} className="bg-slate-700 hover:bg-slate-800 text-white p-2 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors" title="匯入卡片"><FileJson size={18} /></button>
                             </div>
                         )}
                         {!isAdmin && user && user.isAnonymous && (
