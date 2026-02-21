@@ -883,23 +883,18 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
      
      const mainCards = [];
      const extraCards = [];
-     let missingCount = 0;
      
      (savedDeck.m || []).forEach(id => {
          const c = allCards.find(card => card.id === id);
          if (c) mainCards.push(c);
-         else missingCount++;
      });
+     
      (savedDeck.e || []).forEach(id => {
          const c = allCards.find(card => card.id === id);
          if (c) extraCards.push(c);
-         else missingCount++;
      });
-
-     if (missingCount > 0) {
-         alert(`⚠️ 警告：有 ${missingCount} 張卡片無法載入！\n\n可能原因：您目前左側設定為「僅顯示 BS9」。\n請先點擊左側的「載入全部」按鈕後，再次讀取此牌組。`);
-     }
      
+     // 完美打包成物件並傳遞給 App
      onLoadDeck({ main: mainCards, extra: extraCards }, savedDeck.name);
      onClose();
   };
@@ -1409,8 +1404,8 @@ export default function App() {
 
     let q;
     try {
-        if (!hasLoadedAll) { q = query(collection(db, 'artifacts', appId, 'public', 'data', 'cards'), where('series', '==', 'BS9')); } 
-        else { q = query(collection(db, 'artifacts', appId, 'public', 'data', 'cards')); }
+        // 直接無條件載入所有卡片
+        q = query(collection(db, 'artifacts', appId, 'public', 'data', 'cards')); 
     } catch (e) {
         console.error("Query Creation Error:", e);
         setToastMsg("查詢語法錯誤，請聯繫管理員");
@@ -1425,18 +1420,14 @@ export default function App() {
       setAllCards(cards);
       setIsDataLoaded(true);
       
-      if (!hasLoadedAll && !hasShownWelcome.current) { 
-          setToastMsg("🚀 預設僅載入 BS9 卡片。如需搜尋舊卡，請點擊「載入完整卡池」。"); 
+      if (!hasShownWelcome.current) { 
+          setToastMsg("🚀 卡片資料庫已完全載入！"); 
           hasShownWelcome.current = true; 
       }
     }, (error) => { 
         console.error("Firestore sync error:", error); 
         setIsDataLoaded(true);
-        
-        if (error.code === 'failed-precondition') { 
-            console.warn("Index missing, falling back to load all."); 
-            setHasLoadedAll(true); 
-        } else if (error.code === 'permission-denied') {
+        if (error.code === 'permission-denied') {
             setToastMsg("權限不足：無法讀取卡片資料");
         } else { 
             setToastMsg(`資料庫讀取失敗: ${error.message}`); 
@@ -1444,7 +1435,7 @@ export default function App() {
     });
     
     return () => unsubscribe();
-  }, [user, hasLoadedAll]);
+  }, [user]);
 
   // Scroll Header Effect
   const [showHeader, setShowHeader] = useState(true);
@@ -2069,9 +2060,7 @@ export default function App() {
                         )}
                     </div>
                 </div>
-                
-                {!hasLoadedAll && (<div className="bg-blue-50 border border-blue-200 p-2 rounded-lg flex items-center justify-between animate-in fade-in slide-in-from-top-2"><span className="text-xs text-blue-800 font-bold flex items-center gap-1"><Zap size={14} className="fill-blue-600 text-blue-600"/> 目前僅顯示 BS9</span><button onClick={() => setHasLoadedAll(true)} className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-md font-bold shadow-sm transition-all active:scale-95 flex items-center gap-1"><Database size={12}/> 載入全部</button></div>)}
-                
+                                
                 {/* --- 篩選與搜尋 (新增手機版收合功能) --- */}
                 <div className="w-full flex flex-col gap-2">
                     <button 
