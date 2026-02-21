@@ -2433,8 +2433,7 @@ export default function App() {
                         </div>
                     </div>
                 </div>
-        </div>
-        
+                
         {/* 左側卡片列表容器：綁定 ref 以偵測捲動 */}
         <div 
             ref={scrollContainerRef}
