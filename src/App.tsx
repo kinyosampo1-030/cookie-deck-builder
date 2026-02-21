@@ -38,6 +38,8 @@ import {
   AlertOctagon,
   Menu,
   ChevronRight,
+  ChevronDown, // 新增：向下箭頭
+  ChevronUp,   // 新增：向上箭頭
   ExternalLink,
   Facebook,
   UserCog,
@@ -905,7 +907,7 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
      
      const mainCards = [];
      const extraCards = [];
-     let missingCount = 0; // 記錄是否有卡片因為「僅載入BS9」而找不到
+     let missingCount = 0; // 新增：防呆紀錄找不到的舊卡
      
      (savedDeck.m || []).forEach(id => {
          const c = allCards.find(card => card.id === id);
@@ -1660,6 +1662,7 @@ export default function App() {
   const [showStorageModal, setShowStorageModal] = useState(false);
   const [showCommunityModal, setShowCommunityModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showFilters, setShowFilters] = useState(false); // 新增：控制手機版篩選器的收合狀態
   const handleUpdateProfile = async (displayName) => {
       await updateProfile(user, { displayName: displayName });
       setUser({ ...user, displayName });
@@ -2397,73 +2400,39 @@ export default function App() {
                 </div>
                 
                 {/* 篩選與搜尋 */}
-                <div className="flex flex-col gap-2">
-                    <div className="relative w-full">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
-                      <input type="text" placeholder="搜尋名稱或編號..." className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} />
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1"><Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.type} onChange={(e) => setFilters({...filters, type: e.target.value})}>{['ALL', ...Object.values(CARD_TYPES)].map(t => <option key={t} value={t}>{t === 'ALL' ? '全部種類' : t}</option>)}</select></div>
-                      <div className="relative flex-1"><Palette className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.color} onChange={(e) => setFilters({...filters, color: e.target.value})}>{['ALL', ...Object.values(CARD_COLORS)].map(c => <option key={c} value={c}>{c === 'ALL' ? '全部顏色' : c}</option>)}</select></div>
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1"><Layers className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.series} onChange={(e) => setFilters({...filters, series: e.target.value})}><option value="ALL">全部系列</option>{CARD_SERIES_OPTIONS.map((s) => (<option key={s} value={s}>{s}</option>))}</select></div>
-                      <div className="relative flex-1"><Gem className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.levelOrRarity} onChange={(e) => setFilters({...filters, levelOrRarity: e.target.value})}><option value="ALL">全部等級/稀有度</option><optgroup label="等級 (Levels)">{Object.values(CARD_LEVELS).map((l) => (<option key={l} value={l}>{l}</option>))}</optgroup><optgroup label="稀有度 (Rarities)">{Object.entries(CARD_RARITIES).map(([k, v]) => (<option key={k} value={k}>{v}</option>))}</optgroup></select></div>
-                    </div>
-                    <div className="flex flex-wrap gap-3 mt-2 pl-1 select-none items-center">
-                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                        <input type="checkbox" className="hidden peer" checked={filters.showExtra} onChange={(e) => setFilters({ ...filters, showExtra: e.target.checked })} />
-                        <span className="flex items-center gap-1.5 text-xs md:text-sm uppercase tracking-wider bg-purple-100 text-purple-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-purple-300 peer-checked:bg-purple-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-purple-400 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
-                          <Zap size={16} className="w-3 h-3 md:w-4 md:h-4" /> EXTRA
-                        </span>
-                      </label>
-
-                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                        <input type="checkbox" className="hidden peer" checked={filters.showFlip} onChange={(e) => setFilters({ ...filters, showFlip: e.target.checked })} />
-                        <span className="flex items-center gap-1.5 text-xs md:text-sm bg-slate-200 text-slate-700 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-slate-300 peer-checked:bg-slate-800 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-slate-500 opacity-70 peer-checked:opacity-100 font-bold tracking-wider shadow-sm transition-all">
-                          <RotateCw size={16} className="w-3 h-3 md:w-4 md:h-4" /> FLIP
-                        </span>
-                      </label>
-
-                      <div className="h-6 w-px bg-slate-300 mx-1 hidden md:block"></div>
-
-                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                        <input type="checkbox" className="hidden peer" checked={filters.showAncient} onChange={(e) => setFilters({ ...filters, showAncient: e.target.checked })} />
-                        <span className="flex items-center gap-1.5 text-xs md:text-sm bg-amber-100 text-amber-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-amber-300 peer-checked:bg-amber-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-amber-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
-                          <Crown size={16} className="w-3 h-3 md:w-4 md:h-4" /> 上古
-                        </span>
-                      </label>
-
-                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                        <input type="checkbox" className="hidden peer" checked={filters.showDragon} onChange={(e) => setFilters({ ...filters, showDragon: e.target.checked })} />
-                        <span className="flex items-center gap-1.5 text-xs md:text-sm bg-red-100 text-red-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-red-300 peer-checked:bg-red-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-red-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
-                          <Flame size={16} className="w-3 h-3 md:w-4 md:h-4" /> 龍族
-                        </span>
-                      </label>
-
-                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                        <input type="checkbox" className="hidden peer" checked={filters.showBeast} onChange={(e) => setFilters({ ...filters, showBeast: e.target.checked })} />
-                        <span className="flex items-center gap-1.5 text-xs md:text-sm bg-stone-200 text-stone-800 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-stone-300 peer-checked:bg-stone-700 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-stone-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
-                          <PawPrint size={16} className="w-3 h-3 md:w-4 md:h-4" /> 野獸
-                        </span>
-                      </label>
-
-                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                        <input type="checkbox" className="hidden peer" checked={filters.showSoulJam} onChange={(e) => setFilters({ ...filters, showSoulJam: e.target.checked })} />
-                        <span className="flex items-center gap-1.5 text-xs md:text-sm bg-pink-100 text-pink-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-pink-300 peer-checked:bg-pink-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-pink-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
-                          <Sparkles size={16} className="w-3 h-3 md:w-4 md:h-4" /> 靈魂果醬
-                        </span>
-                      </label>
-                      
-                      <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                        <input type="checkbox" className="hidden peer" checked={filters.showArena} onChange={(e) => setFilters({ ...filters, showArena: e.target.checked })} />
-                        <span className="flex items-center gap-1.5 text-xs md:text-sm bg-cyan-100 text-cyan-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-cyan-300 peer-checked:bg-cyan-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-cyan-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
-                          <Swords size={16} className="w-3 h-3 md:w-4 md:h-4" /> 競技場
-                        </span>
-                      </label>
+                <div className="w-full flex flex-col gap-2">
+                    {/* 手機版專用收合按鈕 (電腦版自動隱藏) */}
+                    <button 
+                        onClick={() => setShowFilters(!showFilters)} 
+                        className="w-full flex items-center justify-between bg-slate-100 p-2 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-200 transition-colors border border-slate-200 shadow-sm md:hidden"
+                    >
+                        <span className="flex items-center gap-2"><Filter size={16} className="text-blue-600" /> 搜尋與進階篩選</span>
+                        {showFilters ? <ChevronUp size={18} className="text-slate-500" /> : <ChevronDown size={18} className="text-slate-500" />}
+                    </button>
+                    
+                    {/* 篩選器內容：手機版依狀態收合，電腦版永遠顯示 */}
+                    <div className={`flex flex-col gap-2 transition-all duration-300 ease-in-out overflow-hidden origin-top ${showFilters ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0 md:max-h-none md:opacity-100'}`}>
+                        <div className="relative w-full"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><input type="text" placeholder="搜尋名稱或編號..." className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} /></div>
+                        <div className="flex gap-2">
+                          <div className="relative flex-1"><Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.type} onChange={(e) => setFilters({...filters, type: e.target.value})}>{['ALL', ...Object.values(CARD_TYPES)].map(t => <option key={t} value={t}>{t === 'ALL' ? '全部種類' : t}</option>)}</select></div>
+                          <div className="relative flex-1"><Palette className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.color} onChange={(e) => setFilters({...filters, color: e.target.value})}>{['ALL', ...Object.values(CARD_COLORS)].map(c => <option key={c} value={c}>{c === 'ALL' ? '全部顏色' : c}</option>)}</select></div>
+                        </div>
+                        <div className="flex gap-2">
+                          <div className="relative flex-1"><Layers className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.series} onChange={(e) => setFilters({...filters, series: e.target.value})}><option value="ALL">全部系列</option>{CARD_SERIES_OPTIONS.map((s) => (<option key={s} value={s}>{s}</option>))}</select></div>
+                          <div className="relative flex-1"><Gem className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.levelOrRarity} onChange={(e) => setFilters({...filters, levelOrRarity: e.target.value})}><option value="ALL">全部等級/稀有度</option><optgroup label="等級 (Levels)">{Object.values(CARD_LEVELS).map((l) => (<option key={l} value={l}>{l}</option>))}</optgroup><optgroup label="稀有度 (Rarities)">{Object.entries(CARD_RARITIES).map(([k, v]) => (<option key={k} value={k}>{v}</option>))}</optgroup></select></div>
+                        </div>
+                        <div className="flex flex-wrap gap-3 mt-2 pl-1 select-none items-center">
+                          <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95"><input type="checkbox" className="hidden peer" checked={filters.showExtra} onChange={(e) => setFilters({ ...filters, showExtra: e.target.checked })} /><span className="flex items-center gap-1.5 text-xs md:text-sm uppercase tracking-wider bg-purple-100 text-purple-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-purple-300 peer-checked:bg-purple-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-purple-400 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all"><Zap size={16} className="w-3 h-3 md:w-4 md:h-4" /> EXTRA</span></label>
+                          <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95"><input type="checkbox" className="hidden peer" checked={filters.showFlip} onChange={(e) => setFilters({ ...filters, showFlip: e.target.checked })} /><span className="flex items-center gap-1.5 text-xs md:text-sm bg-slate-200 text-slate-700 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-slate-300 peer-checked:bg-slate-800 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-slate-500 opacity-70 peer-checked:opacity-100 font-bold tracking-wider shadow-sm transition-all"><RotateCw size={16} className="w-3 h-3 md:w-4 md:h-4" /> FLIP</span></label>
+                          <div className="h-6 w-px bg-slate-300 mx-1 hidden md:block"></div>
+                          <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95"><input type="checkbox" className="hidden peer" checked={filters.showAncient} onChange={(e) => setFilters({ ...filters, showAncient: e.target.checked })} /><span className="flex items-center gap-1.5 text-xs md:text-sm bg-amber-100 text-amber-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-amber-300 peer-checked:bg-amber-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-amber-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all"><Crown size={16} className="w-3 h-3 md:w-4 md:h-4" /> 上古</span></label>
+                          <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95"><input type="checkbox" className="hidden peer" checked={filters.showDragon} onChange={(e) => setFilters({ ...filters, showDragon: e.target.checked })} /><span className="flex items-center gap-1.5 text-xs md:text-sm bg-red-100 text-red-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-red-300 peer-checked:bg-red-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-red-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all"><Flame size={16} className="w-3 h-3 md:w-4 md:h-4" /> 龍族</span></label>
+                          <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95"><input type="checkbox" className="hidden peer" checked={filters.showBeast} onChange={(e) => setFilters({ ...filters, showBeast: e.target.checked })} /><span className="flex items-center gap-1.5 text-xs md:text-sm bg-stone-200 text-stone-800 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-stone-300 peer-checked:bg-stone-700 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-stone-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all"><PawPrint size={16} className="w-3 h-3 md:w-4 md:h-4" /> 野獸</span></label>
+                          <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95"><input type="checkbox" className="hidden peer" checked={filters.showSoulJam} onChange={(e) => setFilters({ ...filters, showSoulJam: e.target.checked })} /><span className="flex items-center gap-1.5 text-xs md:text-sm bg-pink-100 text-pink-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-pink-300 peer-checked:bg-pink-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-pink-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all"><Sparkles size={16} className="w-3 h-3 md:w-4 md:h-4" /> 靈魂果醬</span></label>
+                          <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95"><input type="checkbox" className="hidden peer" checked={filters.showArena} onChange={(e) => setFilters({ ...filters, showArena: e.target.checked })} /><span className="flex items-center gap-1.5 text-xs md:text-sm bg-cyan-100 text-cyan-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-cyan-300 peer-checked:bg-cyan-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-cyan-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all"><Swords size={16} className="w-3 h-3 md:w-4 md:h-4" /> 競技場</span></label>
+                        </div>
                     </div>
                 </div>
-            </div>
         </div>
         
         {/* 左側卡片列表容器：綁定 ref 以偵測捲動 */}
