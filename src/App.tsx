@@ -428,7 +428,7 @@ const AuthModal = ({ onClose, onLogin, onRegister }) => {
                 className="w-full border-2 border-slate-200 rounded-lg p-2.5 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition-all" 
                 value={displayName} 
                 onChange={(e) => setDisplayName(e.target.value)} 
-                placeholder="例如：餅乾國王" 
+                placeholder="例如：銀河餅乾" 
               />
             </div>
           )}
@@ -1312,218 +1312,6 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
   );
 };
 
-const CardItem = React.memo(({ card, onClick, onView, onEdit, onDelete, onIncrement, onDecrement, count = 0, compact = false }) => {
-  const colorClass = getCardColorStyles(card.color);
-  const longPressTimer = useRef(null);
-  const isLongPress = useRef(false);
-  const handleTouchStart = () => { isLongPress.current = false; longPressTimer.current = setTimeout(() => { isLongPress.current = true; if (navigator.vibrate) navigator.vibrate(50); onView(card); }, 500); };
-  const handleTouchEnd = () => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } };
-  const handleTouchMove = () => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } };
-  const handleClick = (e) => { if (isLongPress.current) { e.preventDefault(); e.stopPropagation(); return; } if (compact) { onView(card); } else { onClick(card); } };
-  return (
-    <div onClick={handleClick} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} onTouchMove={handleTouchMove} className={`relative cursor-pointer transition-all duration-200 border-2 rounded-lg shadow-sm hover:shadow-md hover:scale-[1.02] select-none overflow-hidden group ${colorClass} ${compact ? "p-2 pr-1 flex items-center justify-between text-sm min-h-[4rem]" : "p-3 flex flex-col gap-1"}`}>
-      {card.imageUrl && !compact && (<div className="absolute inset-0 opacity-30 pointer-events-none group-hover:opacity-40 transition-opacity"><img src={card.imageUrl} alt="" className="w-full h-full object-cover" loading="lazy" /></div>)}
-      {!compact && card.isForbidden && (<div className="absolute inset-0 bg-red-900/10 pointer-events-none z-0"></div>)}
-      <div className={`relative z-10 w-full ${compact ? "flex items-center gap-3" : ""}`}>
-        {compact && card.imageUrl && (<div className="shrink-0 w-10 h-14 rounded border border-slate-300 overflow-hidden bg-white shadow-sm"><img src={card.imageUrl} className="w-full h-full object-cover" alt="" loading="lazy" /></div>)}
-        <div className={`flex-1 min-w-0 ${compact ? "" : ""}`}>
-          <div className={`flex justify-between items-start ${compact ? "flex-col justify-center" : "mb-1"}`}>
-            <h3 className={`font-bold leading-tight ${compact ? `truncate w-full text-slate-800 text-sm ${card.isForbidden || card.isLimitOne ? 'text-red-700' : ''}` : "text-lg md:text-xl line-clamp-1 leading-snug"}`}>{card.name}</h3>
-            <div className={`flex items-center gap-1 ${compact ? "w-full mt-0.5" : ""}`}>
-              {!compact && (<button onClick={(e) => { e.stopPropagation(); onView(card); }} className="p-1 text-current opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white/50 rounded-full transition-all" title="檢視詳細大圖"><Eye size={16} /></button>)}
-              <span className={`font-mono font-black ${compact ? "text-xs text-slate-500" : "text-xs md:text-xl bg-white/80 px-2 rounded border border-current/20 shadow-sm"}`}>{card.id}</span>
-            </div>
-          </div>
-          {!compact && (
-            <div className="flex flex-wrap items-center gap-1.5 text-xs md:text-sm opacity-90 font-semibold">
-              <span className="text-[10px] md:text-xs font-bold border border-current px-1 rounded opacity-80 uppercase bg-white/30">{card.color}</span>
-              <span className="bg-white/50 px-2 py-0.5 rounded text-current border border-current/20">{card.type}</span>
-              {card.level && (<span className="text-[10px] md:text-xs font-bold bg-yellow-400 text-yellow-900 px-1 rounded shadow-sm">{card.level}</span>)}
-              {card.rarity && card.rarity !== 'C' && (<span className={`text-[10px] md:text-xs font-bold px-1.5 rounded shadow-sm border ${getRarityStyle(card.rarity)}`}>{card.rarity}</span>)}
-              {card.isFlip && (<span className="flex items-center gap-0.5 text-[10px] md:text-xs bg-slate-800 text-white px-1.5 rounded font-bold tracking-wider">FLIP</span>)}
-              {card.isExtra && (<span className="text-[10px] md:text-xs uppercase tracking-wider bg-purple-200 text-purple-900 px-1 rounded border border-purple-300">EXTRA</span>)}
-              {card.isAncient && <span className="text-[10px] md:text-xs font-bold bg-amber-100 text-amber-800 px-1 rounded border border-amber-300">上古</span>}
-              {card.isDragon && <span className="text-[10px] md:text-xs font-bold bg-red-100 text-red-800 px-1 rounded border border-red-300">龍族</span>}
-              {card.isBeast && <span className="text-[10px] md:text-xs font-bold bg-stone-800 text-stone-100 px-1 rounded border border-stone-600">野獸</span>}
-              {card.isSoulJam && <span className="text-[10px] md:text-xs font-bold bg-pink-100 text-pink-800 px-1 rounded border border-pink-300">靈魂果醬</span>}
-              {card.isArena && <span className="text-[10px] md:text-xs font-bold bg-cyan-100 text-cyan-800 px-1 rounded border border-cyan-300">競技場</span>}
-              {card.isForbidden && <span className="flex items-center gap-0.5 text-[10px] bg-red-600 text-white px-1.5 rounded font-bold"><Ban size={10}/> 禁止</span>}
-              {card.isLimitOne && <span className="flex items-center gap-0.5 text-[10px] bg-orange-500 text-white px-1.5 rounded font-bold"><AlertOctagon size={10}/> Limit 1</span>}
-            </div>
-          )}
-        </div>
-        {compact && (
-            <div className="flex items-center gap-1 bg-white/50 rounded-lg p-1 border border-black/5 shadow-sm" onClick={e => e.stopPropagation()}>
-                <button onClick={() => onDecrement && onDecrement(card)} className="w-8 h-8 flex items-center justify-center bg-red-100 text-red-700 rounded hover:bg-red-200 active:scale-95 transition-all"><Minus size={16} strokeWidth={3} /></button>
-                <div className="w-8 text-center font-black text-lg text-slate-800 leading-none">{count}</div>
-                <button onClick={() => onIncrement && onIncrement(card)} className="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-700 rounded hover:bg-blue-200 active:scale-95 transition-all"><Plus size={16} strokeWidth={3} /></button>
-            </div>
-        )}
-      </div>
-      {!compact && onEdit && onDelete && (<div className="absolute top-2 right-2 flex gap-1 z-20 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={(e) => { e.stopPropagation(); onEdit(card); }} className="p-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 shadow-sm" title="編輯卡片"><Pencil size={14} /></button><button onClick={(e) => { e.stopPropagation(); onDelete(card); }} className="p-1.5 bg-red-500 text-white rounded hover:bg-red-600 shadow-sm" title="刪除卡片"><Trash2 size={14} /></button></div>)}
-      {!compact && count > 0 && (<div className="absolute -top-2 -right-2 bg-slate-800 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-md border-2 border-white z-10">{count}</div>)}
-    </div>
-  );
-});
-
-const StatBadge = ({ icon: Icon, label, current, max, color = "blue", warningAtFull = true }) => {
-  const isFull = current >= max;
-  const colorStyle = isFull && warningAtFull ? "bg-red-50 text-red-600 border-red-200" : `bg-${color}-50 text-${color}-700 border-${color}-200`;
-  return (<div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border ${colorStyle}`}><Icon size={16} /><span>{label}:</span><span className={isFull ? "font-bold" : ""}>{current} / {max}</span></div>);
-};
-
-const DrawTestModal = ({ deck, onClose }) => {
-  const [drawCount, setDrawCount] = useState(1);
-  const [hands, setHands] = useState([]);
-  const [flippedIndices, setFlippedIndices] = useState({});
-
-  const drawCards = useCallback(() => {
-    if (deck.main.length === 0) {
-      alert("主牌組沒有卡片！");
-      return;
-    }
-    const newHands = [];
-    for (let i = 0; i < drawCount; i++) {
-      const shuffled = fisherYatesShuffle(deck.main);
-      newHands.push(shuffled.slice(0, 6));
-    }
-    setHands(newHands);
-    setFlippedIndices({});
-    let delay = 0;
-    newHands.forEach((_, handIdx) => {
-      for (let i = 0; i < 6; i++) {
-        delay += 50; 
-        setTimeout(() => {
-          setFlippedIndices(prev => ({ ...prev, [`${handIdx}-${i}`]: true }));
-        }, delay);
-      }
-    });
-  }, [deck.main, drawCount]);
-
-  useEffect(() => { drawCards(); }, [drawCards]);
-  const handleCardClick = (handIdx, cardIdx) => { setFlippedIndices(prev => ({ ...prev, [`${handIdx}-${cardIdx}`]: true })); };
-
-  return (
-    <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-slate-50 rounded-xl shadow-2xl w-full max-w-5xl p-6 h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center mb-4 shrink-0">
-          <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2"><Dices className="text-blue-600" /> 起始手牌測試</h2>
-          <button onClick={onClose} className="p-1 hover:bg-slate-200 rounded-full"><X size={24} /></button>
-        </div>
-        <div className="flex gap-4 mb-4 justify-center shrink-0">
-          <select className="px-4 py-2 rounded-lg border border-slate-300 font-bold text-slate-700 bg-white focus:ring-2 focus:ring-blue-500 outline-none" value={drawCount} onChange={(e) => setDrawCount(Number(e.target.value))}>
-            <option value={1}>測試 1 組</option>
-            <option value={3}>測試 3 組</option>
-            <option value={5}>測試 5 組</option>
-          </select>
-          <button onClick={drawCards} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold shadow-lg transition-transform active:scale-95"><RefreshCw size={20} /> 重新洗牌並抽牌</button>
-        </div>
-        <div className="flex-1 overflow-y-auto space-y-6 p-2 bg-slate-100 rounded-lg border border-slate-200 shadow-inner">
-          {hands.map((hand, handIdx) => (
-            <div key={handIdx} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
-               <div className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest border-b border-slate-100 pb-1">Hand #{handIdx + 1}</div>
-               <div className="grid grid-cols-6 gap-2 md:gap-4">
-                  {hand.map((card, cardIdx) => (
-                    <div key={`${handIdx}-${card.id}-${cardIdx}`} onClick={() => handleCardClick(handIdx, cardIdx)} className="aspect-[3/4] cursor-pointer perspective-1000 group relative">
-                       <div className={`w-full h-full transition-transform duration-500 transform-style-3d relative ${flippedIndices[`${handIdx}-${cardIdx}`] ? 'rotate-y-180' : ''}`}>
-                            <div className="absolute inset-0 backface-hidden rounded-lg overflow-hidden border-2 border-slate-300 shadow-md"><img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" /></div>
-                            <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-lg overflow-hidden border border-slate-300 shadow-md bg-white">
-                                {card.imageUrl ? (<img src={card.imageUrl} alt={card.name} className="w-full h-full object-cover" />) : (<div className={`w-full h-full p-2 text-xs flex flex-col ${getCardColorStyles(card.color)}`}><span className="font-bold leading-tight">{card.name}</span><span className="text-[10px] mt-1">{card.id}</span></div>)}
-                                <div className="absolute top-1 left-1 bg-black/50 text-white text-[9px] px-1.5 rounded font-bold">#{cardIdx + 1}</div>
-                            </div>
-                       </div>
-                    </div>
-                  ))}
-               </div>
-            </div>
-          ))}
-        </div>
-        <p className="text-center text-slate-500 text-xs mt-3 shrink-0">每次測試皆為獨立洗牌 (Fisher-Yates Shuffle) 後抽取前 6 張卡片</p>
-      </div>
-    </div>
-  );
-};
-
-const PackOpenerModal = ({ allCards, onClose }) => {
-  const [selectedSeries, setSelectedSeries] = useState("ALL");
-  const [openedCards, setOpenedCards] = useState([]);
-  const [flippedIndices, setFlippedIndices] = useState({});
-  const [isOpening, setIsOpening] = useState(false); 
-  const availableSeries = useMemo(() => {
-    const seriesSet = new Set(allCards.filter(c => !['ST', 'P'].includes(c.series)).map(c => c.series));
-    return Array.from(seriesSet).sort();
-  }, [allCards]);
-  const getRarityProb = () => { const r = Math.random() * 100; if (r < 1) return 'EXR'; if (r < 6) return 'UR'; if (r < 16) return 'SR'; if (r < 36) return 'R'; return 'C'; };
-  const openPack = () => {
-    let pool = allCards.filter(c => !['ST', 'P'].includes(c.series));
-    if (selectedSeries !== "ALL") pool = pool.filter(c => c.series === selectedSeries);
-    const cookieCards = pool.filter(c => c.type === CARD_TYPES.COOKIE);
-    const otherCards = pool.filter(c => c.type !== CARD_TYPES.COOKIE);
-    if (otherCards.length < 1) { alert(`該系列非餅乾卡不足 1 張，無法模擬開包！`); return; }
-    if (cookieCards.length < 4) { alert(`該系列餅乾卡不足 4 張，無法模擬開包！`); return; }
-    setIsOpening(true);
-    setOpenedCards([]); 
-    setTimeout(() => {
-        const shuffledOthers = fisherYatesShuffle(otherCards);
-        const selectedOther = shuffledOthers[0]; 
-        const selectedIDs = new Set();
-        if (selectedOther) selectedIDs.add(selectedOther.id);
-        const selectedCookies = [];
-        const targetRarity = getRarityProb();
-        let targetPool = cookieCards.filter(c => (c.rarity || 'C') === targetRarity);
-        if (targetPool.length === 0) targetPool = cookieCards; 
-        const rareCard = targetPool[Math.floor(Math.random() * targetPool.length)];
-        if (rareCard) { selectedCookies.push(rareCard); selectedIDs.add(rareCard.id); }
-        let commonPool = cookieCards.filter(c => (c.rarity || 'C') === 'C' && !selectedIDs.has(c.id));
-        if (commonPool.length < 3) commonPool = cookieCards.filter(c => !selectedIDs.has(c.id));
-        const shuffledCommons = fisherYatesShuffle(commonPool);
-        const commonsToTake = shuffledCommons.slice(0, 3);
-        selectedCookies.push(...commonsToTake);
-        while (selectedCookies.length < 4) { const randomC = cookieCards[Math.floor(Math.random() * cookieCards.length)]; selectedCookies.push(randomC); }
-        const finalPack = fisherYatesShuffle([...selectedCookies, selectedOther]);
-        setOpenedCards(finalPack);
-        setFlippedIndices({});
-        setIsOpening(false); 
-    }, 1200); 
-  };
-  const handleCardClick = (index) => { setFlippedIndices(prev => ({ ...prev, [index]: true })); };
-  const renderCard = (card, index) => (
-    <div key={index} onClick={() => handleCardClick(index)} className="w-[30vw] h-[40vw] md:w-48 md:h-64 cursor-pointer perspective-1000 group relative flex-shrink-0 animate-in zoom-in duration-500">
-        <div className={`w-full h-full transition-all duration-500 transform-style-3d relative ${flippedIndices[index] ? 'rotate-y-180' : ''}`}>
-            <div className="absolute inset-0 backface-hidden rounded-lg overflow-hidden border-2 border-slate-600 shadow-xl group-hover:scale-105 transition-transform"><img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" /></div>
-            <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-lg overflow-hidden border-2 border-white/20 shadow-2xl bg-white relative">
-                {card.imageUrl ? (<img src={card.imageUrl} className="w-full h-full object-cover" alt={card.name} />) : (<div className={`w-full h-full p-2 flex flex-col justify-between ${getCardColorStyles(card.color)}`}><span className="font-bold text-sm">{card.name}</span><span className="font-mono text-xs">{card.id}</span></div>)}
-                {card.rarity && card.rarity !== 'C' && (<div className={`absolute top-1 right-1 text-[10px] font-bold px-1.5 py-0.5 rounded shadow border ${getRarityStyle(card.rarity)}`}>{card.rarity}</div>)}
-            </div>
-        </div>
-    </div>
-  );
-  return (
-    <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-slate-800 rounded-xl shadow-2xl w-full max-w-5xl p-6 min-h-[600px] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center mb-6 text-white">
-          <h2 className="text-2xl font-black flex items-center gap-2"><PackageOpen className="text-yellow-400" /> 開卡包模擬器 (Pack Opener)</h2>
-          <button onClick={onClose} className="p-1 hover:bg-slate-700 rounded-full"><X size={24} /></button>
-        </div>
-        <div className="flex gap-4 mb-8 justify-center">
-          <select className="bg-slate-700 text-white border border-slate-600 rounded-lg px-4 py-2 outline-none font-bold" value={selectedSeries} onChange={(e) => setSelectedSeries(e.target.value)} disabled={isOpening}>
-            <option value="ALL">全部卡池</option>
-            {availableSeries.map(s => <option key={s} value={s}>{s} 系列</option>)}
-          </select>
-          <button onClick={openPack} disabled={isOpening} className="bg-yellow-500 hover:bg-yellow-400 disabled:bg-yellow-700 disabled:text-slate-500 text-slate-900 px-6 py-2 rounded-lg font-black flex items-center gap-2 shadow-lg transition-transform active:scale-95">{isOpening ? "開封中..." : <><PackageOpen size={20} /> 開啟卡包 / Open Pack</>}</button>
-        </div>
-        <div className="flex-1 flex items-center justify-center min-h-[400px]">
-          {isOpening ? (<div className="animate-bounce"><div className="w-48 h-64 bg-gradient-to-tr from-blue-600 to-purple-600 rounded-xl border-4 border-yellow-400 shadow-2xl flex items-center justify-center animate-pulse"><img src={CARD_BACK_URL} className="w-full h-full object-cover rounded-lg opacity-80" alt="Pack" /></div></div>) : openedCards.length === 0 ? (<div className="text-slate-500 flex flex-col items-center"><PackageOpen size={64} className="mb-4 opacity-20" /><p>選擇系列並點擊「開啟卡包」</p><p className="text-xs mt-2 opacity-60">配率：4 張餅乾卡 (含1張稀有位) + 1 張其他卡片</p></div>) : (<div className="flex flex-col items-center gap-4 md:gap-6 w-full"><div className="flex justify-center gap-2 md:gap-6">{openedCards.slice(0, 3).map((card, index) => renderCard(card, index))}</div><div className="flex justify-center gap-2 md:gap-6">{openedCards.slice(3, 5).map((card, index) => renderCard(card, index + 3))}</div></div>)}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ==========================================
-// 🚀 卡片放大檢視與批量匯入 (已補回)
-// ==========================================
-
 const CardDetailModal = ({ card, onClose }) => {
   if (!card) return null;
   return (
@@ -1651,6 +1439,79 @@ const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
 };
 
 // ==========================================
+// 🌟 核心組件：單張卡片 (新增 onHover 綁定)
+// ==========================================
+const CardItem = React.memo(({ card, onClick, onView, onEdit, onDelete, onIncrement, onDecrement, count = 0, compact = false, onHoverStart, onHoverMove, onHoverEnd }) => {
+  const colorClass = getCardColorStyles(card.color);
+  const longPressTimer = useRef(null);
+  const isLongPress = useRef(false);
+  const handleTouchStart = () => { isLongPress.current = false; longPressTimer.current = setTimeout(() => { isLongPress.current = true; if (navigator.vibrate) navigator.vibrate(50); onView(card); }, 500); };
+  const handleTouchEnd = () => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } };
+  const handleTouchMove = () => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } };
+  const handleClick = (e) => { if (isLongPress.current) { e.preventDefault(); e.stopPropagation(); return; } if (compact) { onView(card); } else { onClick(card); } };
+  
+  return (
+    <div 
+        onClick={handleClick} 
+        onTouchStart={handleTouchStart} 
+        onTouchEnd={handleTouchEnd} 
+        onTouchMove={handleTouchMove} 
+        onMouseEnter={(e) => onHoverStart && onHoverStart(card, e)}
+        onMouseMove={(e) => onHoverMove && onHoverMove(e)}
+        onMouseLeave={() => onHoverEnd && onHoverEnd()}
+        className={`relative cursor-pointer transition-all duration-200 border-2 rounded-lg shadow-sm hover:shadow-md hover:scale-[1.02] select-none overflow-hidden group ${colorClass} ${compact ? "p-2 pr-1 flex items-center justify-between text-sm min-h-[4rem]" : "p-3 flex flex-col gap-1"}`}
+    >
+      {card.imageUrl && !compact && (<div className="absolute inset-0 opacity-30 pointer-events-none group-hover:opacity-40 transition-opacity"><img src={card.imageUrl} alt="" className="w-full h-full object-cover" loading="lazy" /></div>)}
+      {!compact && card.isForbidden && (<div className="absolute inset-0 bg-red-900/10 pointer-events-none z-0"></div>)}
+      <div className={`relative z-10 w-full ${compact ? "flex items-center gap-3" : ""}`}>
+        {compact && card.imageUrl && (<div className="shrink-0 w-10 h-14 rounded border border-slate-300 overflow-hidden bg-white shadow-sm"><img src={card.imageUrl} className="w-full h-full object-cover" alt="" loading="lazy" /></div>)}
+        <div className={`flex-1 min-w-0 ${compact ? "" : ""}`}>
+          <div className={`flex justify-between items-start ${compact ? "flex-col justify-center" : "mb-1"}`}>
+            <h3 className={`font-bold leading-tight ${compact ? `truncate w-full text-slate-800 text-sm ${card.isForbidden || card.isLimitOne ? 'text-red-700' : ''}` : "text-lg md:text-xl line-clamp-1 leading-snug"}`}>{card.name}</h3>
+            <div className={`flex items-center gap-1 ${compact ? "w-full mt-0.5" : ""}`}>
+              {!compact && (<button onClick={(e) => { e.stopPropagation(); onView(card); }} className="p-1 text-current opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white/50 rounded-full transition-all" title="檢視詳細大圖"><Eye size={16} /></button>)}
+              <span className={`font-mono font-black ${compact ? "text-xs text-slate-500" : "text-xs md:text-xl bg-white/80 px-2 rounded border border-current/20 shadow-sm"}`}>{card.id}</span>
+            </div>
+          </div>
+          {!compact && (
+            <div className="flex flex-wrap items-center gap-1.5 text-xs md:text-sm opacity-90 font-semibold">
+              <span className="text-[10px] md:text-xs font-bold border border-current px-1 rounded opacity-80 uppercase bg-white/30">{card.color}</span>
+              <span className="bg-white/50 px-2 py-0.5 rounded text-current border border-current/20">{card.type}</span>
+              {card.level && (<span className="text-[10px] md:text-xs font-bold bg-yellow-400 text-yellow-900 px-1 rounded shadow-sm">{card.level}</span>)}
+              {card.rarity && card.rarity !== 'C' && (<span className={`text-[10px] md:text-xs font-bold px-1.5 rounded shadow-sm border ${getRarityStyle(card.rarity)}`}>{card.rarity}</span>)}
+              {card.isFlip && (<span className="flex items-center gap-0.5 text-[10px] md:text-xs bg-slate-800 text-white px-1.5 rounded font-bold tracking-wider">FLIP</span>)}
+              {card.isExtra && (<span className="text-[10px] md:text-xs uppercase tracking-wider bg-purple-200 text-purple-900 px-1 rounded border border-purple-300">EXTRA</span>)}
+              {card.isAncient && <span className="text-[10px] md:text-xs font-bold bg-amber-100 text-amber-800 px-1 rounded border border-amber-300">上古</span>}
+              {card.isDragon && <span className="text-[10px] md:text-xs font-bold bg-red-100 text-red-800 px-1 rounded border border-red-300">龍族</span>}
+              {card.isBeast && <span className="text-[10px] md:text-xs font-bold bg-stone-800 text-stone-100 px-1 rounded border border-stone-600">野獸</span>}
+              {card.isSoulJam && <span className="text-[10px] md:text-xs font-bold bg-pink-100 text-pink-800 px-1 rounded border border-pink-300">靈魂果醬</span>}
+              {card.isArena && <span className="text-[10px] md:text-xs font-bold bg-cyan-100 text-cyan-800 px-1 rounded border border-cyan-300">競技場</span>}
+              {card.isForbidden && <span className="flex items-center gap-0.5 text-[10px] bg-red-600 text-white px-1.5 rounded font-bold"><Ban size={10}/> 禁止</span>}
+              {card.isLimitOne && <span className="flex items-center gap-0.5 text-[10px] bg-orange-500 text-white px-1.5 rounded font-bold"><AlertOctagon size={10}/> Limit 1</span>}
+            </div>
+          )}
+        </div>
+        {compact && (
+            <div className="flex items-center gap-1 bg-white/50 rounded-lg p-1 border border-black/5 shadow-sm" onClick={e => e.stopPropagation()}>
+                <button onClick={() => onDecrement && onDecrement(card)} className="w-8 h-8 flex items-center justify-center bg-red-100 text-red-700 rounded hover:bg-red-200 active:scale-95 transition-all"><Minus size={16} strokeWidth={3} /></button>
+                <div className="w-8 text-center font-black text-lg text-slate-800 leading-none">{count}</div>
+                <button onClick={() => onIncrement && onIncrement(card)} className="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-700 rounded hover:bg-blue-200 active:scale-95 transition-all"><Plus size={16} strokeWidth={3} /></button>
+            </div>
+        )}
+      </div>
+      {!compact && onEdit && onDelete && (<div className="absolute top-2 right-2 flex gap-1 z-20 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={(e) => { e.stopPropagation(); onEdit(card); }} className="p-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 shadow-sm" title="編輯卡片"><Pencil size={14} /></button><button onClick={(e) => { e.stopPropagation(); onDelete(card); }} className="p-1.5 bg-red-500 text-white rounded hover:bg-red-600 shadow-sm" title="刪除卡片"><Trash2 size={14} /></button></div>)}
+      {!compact && count > 0 && (<div className="absolute -top-2 -right-2 bg-slate-800 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-md border-2 border-white z-10">{count}</div>)}
+    </div>
+  );
+});
+
+const StatBadge = ({ icon: Icon, label, current, max, color = "blue", warningAtFull = true }) => {
+  const isFull = current >= max;
+  const colorStyle = isFull && warningAtFull ? "bg-red-50 text-red-600 border-red-200" : `bg-${color}-50 text-${color}-700 border-${color}-200`;
+  return (<div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border ${colorStyle}`}><Icon size={16} /><span>{label}:</span><span className={isFull ? "font-bold" : ""}>{current} / {max}</span></div>);
+};
+
+// ==========================================
 // App 主程式
 // ==========================================
 
@@ -1688,6 +1549,40 @@ export default function App() {
   const [showCommunityModal, setShowCommunityModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false); 
+
+  // 🌟 懸停預覽專用 State 與 Ref
+  const hoverPreviewRef = useRef(null);
+  const [hoveredCard, setHoveredCard] = useState(null);
+
+  // 🌟 懸停預覽位置計算邏輯 (避免 React 重複渲染)
+  const updateHoverPosition = useCallback((x, y) => {
+    if (hoverPreviewRef.current) {
+        let left = x + 20;
+        let top = y + 20;
+        // 避免右側超出螢幕 (預覽寬度設為 260px)
+        if (left + 280 > window.innerWidth) left = x - 280;
+        // 避免底部超出螢幕 (高度大約抓 400px 預留)
+        if (top + 400 > window.innerHeight) top = window.innerHeight - 420;
+        
+        hoverPreviewRef.current.style.transform = `translate(${Math.max(0, left)}px, ${Math.max(0, top)}px)`;
+    }
+  }, []);
+
+  const handleHoverStart = useCallback((card, e) => {
+    if (window.innerWidth >= 768) { // 僅在電腦版寬度觸發
+        setHoveredCard(card);
+        requestAnimationFrame(() => updateHoverPosition(e.clientX, e.clientY));
+    }
+  }, [updateHoverPosition]);
+
+  const handleHoverMove = useCallback((e) => {
+    updateHoverPosition(e.clientX, e.clientY);
+  }, [updateHoverPosition]);
+
+  const handleHoverEnd = useCallback(() => {
+    setHoveredCard(null);
+  }, []);
+
 
   const handleUpdateProfile = async (displayName) => {
       await updateProfile(user, { displayName: displayName });
@@ -2249,6 +2144,44 @@ export default function App() {
 
   return (
     <div className="flex w-full fixed inset-0 flex-col md:flex-row bg-slate-50 overflow-hidden font-sans text-slate-900 overscroll-contain h-[100dvh]">
+      {/* 🌟 電腦版懸停預覽 (Hover Preview) */}
+      {hoveredCard && (
+        <div
+            ref={hoverPreviewRef}
+            className="hidden md:block fixed top-0 left-0 z-[120] pointer-events-none will-change-transform"
+            style={{ width: '260px' }}
+        >
+            <div className="bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-100">
+                {hoveredCard.imageUrl ? (
+                    <img src={hoveredCard.imageUrl} alt={hoveredCard.name} className="w-full h-auto object-contain" />
+                ) : (
+                    <div className={`w-full aspect-[3/4] p-5 flex flex-col ${getCardColorStyles(hoveredCard.color)}`}>
+                        <h3 className="font-black text-2xl leading-tight mb-1">{hoveredCard.name}</h3>
+                        <p className="font-mono text-sm opacity-80 mb-4 font-bold">{hoveredCard.id}</p>
+                        <div className="space-y-2 text-sm font-bold flex-1">
+                            <p className="flex justify-between border-b border-current/20 pb-1"><span>種類</span> <span>{hoveredCard.type}</span></p>
+                            <p className="flex justify-between border-b border-current/20 pb-1"><span>顏色</span> <span>{hoveredCard.color}</span></p>
+                            {hoveredCard.level && <p className="flex justify-between border-b border-current/20 pb-1"><span>等級</span> <span>{hoveredCard.level}</span></p>}
+                            <p className="flex justify-between border-b border-current/20 pb-1"><span>稀有度</span> <span>{hoveredCard.rarity || 'C'}</span></p>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-3">
+                            {hoveredCard.isFlip && <span className="bg-slate-800 text-white px-2 py-0.5 rounded text-[10px] font-bold">FLIP</span>}
+                            {hoveredCard.isExtra && <span className="bg-purple-200 text-purple-900 px-2 py-0.5 rounded text-[10px] font-bold border border-purple-300">EXTRA</span>}
+                            {hoveredCard.isForbidden && <span className="bg-red-600 text-white px-2 py-0.5 rounded text-[10px] font-bold">禁止卡</span>}
+                            {hoveredCard.isLimitOne && <span className="bg-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">限制卡 (Limit 1)</span>}
+                        </div>
+                    </div>
+                )}
+                {hoveredCard.showEffect && hoveredCard.effectText && (
+                    <div className="bg-slate-50 border-t border-slate-200 p-3 text-xs text-slate-700 leading-relaxed font-sans max-h-32 overflow-y-auto">
+                        <div className="font-bold text-blue-700 mb-1 flex items-center gap-1"><Languages size={12}/> Effect:</div>
+                        {hoveredCard.effectText}
+                    </div>
+                )}
+            </div>
+        </div>
+      )}
+
       {viewingCard && (
         <CardDetailModal card={viewingCard} onClose={() => setViewingCard(null)} />
       )}
@@ -2480,6 +2413,9 @@ export default function App() {
                     count={getCardCount(card.id)}
                     onEdit={isAdmin ? openEditModal : null}
                     onDelete={isAdmin ? handleDeleteCard : null}
+                    onHoverStart={handleHoverStart}
+                    onHoverMove={handleHoverMove}
+                    onHoverEnd={handleHoverEnd}
                   />
                 ))}
                 <div ref={loadMoreRef} className="col-span-full h-10 flex items-center justify-center text-slate-400 text-sm">
@@ -2684,6 +2620,9 @@ export default function App() {
                     onIncrement={() => addToDeck(group)}
                     onDecrement={() => removeFromDeck(group, false)}
                     onView={setViewingCard} 
+                    onHoverStart={handleHoverStart}
+                    onHoverMove={handleHoverMove}
+                    onHoverEnd={handleHoverEnd}
                   />
                 ))
               }
@@ -2706,6 +2645,9 @@ export default function App() {
                        onIncrement={() => addToDeck(group)}
                        onDecrement={() => removeFromDeck(group, false)} 
                        onView={setViewingCard} 
+                       onHoverStart={handleHoverStart}
+                       onHoverMove={handleHoverMove}
+                       onHoverEnd={handleHoverEnd}
                      />
                    ))
                  }
@@ -2728,6 +2670,9 @@ export default function App() {
                        onIncrement={() => addToDeck(group)}
                        onDecrement={() => removeFromDeck(group, true)} 
                        onView={setViewingCard} 
+                       onHoverStart={handleHoverStart}
+                       onHoverMove={handleHoverMove}
+                       onHoverEnd={handleHoverEnd}
                      />
                    ))
                  }
