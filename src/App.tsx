@@ -428,7 +428,7 @@ const AuthModal = ({ onClose, onLogin, onRegister }) => {
                 className="w-full border-2 border-slate-200 rounded-lg p-2.5 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition-all" 
                 value={displayName} 
                 onChange={(e) => setDisplayName(e.target.value)} 
-                placeholder="例如：銀河餅乾" 
+                placeholder="例如：餅乾國王" 
               />
             </div>
           )}
@@ -554,7 +554,10 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
                 if (lvl === CARD_LEVELS.LV3) return 3;
                 return 99;
             }
-            return getLevelVal(a.level) - getLevelVal(b.level) || a.id.localeCompare(b.id);
+            const wa = getLevelVal(a.level);
+            const wb = getLevelVal(b.level);
+            if (wa !== wb) return wa - wb;
+            return a.id.localeCompare(b.id);
         });
 
         const others = groupCards(cardList.filter(c => c.type !== CARD_TYPES.COOKIE && !c.isFlip));
@@ -565,7 +568,10 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
                   if (t === CARD_TYPES.SCENE) return 3;
                   return 4;
               }
-              return getTypeVal(a.type) - getTypeVal(b.type) || a.id.localeCompare(b.id);
+              const wa = getTypeVal(a.type);
+              const wb = getTypeVal(b.type);
+              if (wa !== wb) return wa - wb;
+              return a.id.localeCompare(b.id);
         });
 
         const flips = groupCards(cardList.filter(c => c.isFlip));
@@ -1515,14 +1521,14 @@ const PackOpenerModal = ({ allCards, onClose }) => {
 };
 
 // ==========================================
-// 🚀 遺失的組件補回：卡片放大檢視與批量匯入
+// 🚀 卡片放大檢視與批量匯入 (已補回)
 // ==========================================
 
 const CardDetailModal = ({ card, onClose }) => {
   if (!card) return null;
   return (
     <div className="fixed inset-0 bg-black/80 z-[110] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="relative w-full max-w-sm md:max-w-md" onClick={e => e.stopPropagation()}>
+      <div className="relative w-full max-w-sm md:max-w-md flex flex-col gap-3" onClick={e => e.stopPropagation()}>
         <button onClick={onClose} className="absolute -top-12 right-0 p-2 text-white hover:text-gray-300 transition-colors">
           <X size={32} />
         </button>
@@ -1546,6 +1552,18 @@ const CardDetailModal = ({ card, onClose }) => {
              </div>
           </div>
         )}
+        
+        {card.showEffect && card.effectText && (
+           <div className="bg-white/95 backdrop-blur rounded-xl p-4 shadow-xl border-l-4 border-blue-500 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-bottom-4">
+               <h4 className="text-blue-800 font-bold text-sm mb-1.5 flex items-center gap-1.5">
+                   <Languages size={16}/> English Translation
+               </h4>
+               <p className="text-slate-700 text-sm whitespace-pre-wrap leading-relaxed">
+                   {card.effectText}
+               </p>
+           </div>
+        )}
+
       </div>
     </div>
   );
@@ -1553,6 +1571,8 @@ const CardDetailModal = ({ card, onClose }) => {
 
 const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
   const [jsonText, setJsonText] = useState("");
+  const [showHint, setShowHint] = useState(false); 
+
   const handleSubmit = () => {
     try {
       const data = JSON.parse(jsonText);
@@ -1562,26 +1582,65 @@ const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
       alert("JSON 格式錯誤：" + err.message);
     }
   };
+
+  const exampleJson = `[
+  {
+    "id": "BS1-001",
+    "series": "BS1",
+    "number": "001",
+    "name": "勇氣餅乾",
+    "type": "餅乾卡",
+    "color": "紅色",
+    "level": "LV.1",
+    "rarity": "C",
+    "isFlip": true,
+    "isExtra": false,
+    "isAncient": false,
+    "isDragon": false,
+    "isBeast": false,
+    "isSoulJam": false,
+    "isArena": false,
+    "isForbidden": false,
+    "isLimitOne": false,
+    "effectText": "English effect translation...",
+    "showEffect": false,
+    "imageUrl": ""
+  }
+]`;
+
   return (
     <div className="fixed inset-0 bg-black/60 z-[90] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-xl p-6" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center mb-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-4 shrink-0">
           <h2 className="text-xl font-bold flex items-center gap-2"><FileJson className="text-blue-600"/> 批量匯入卡片 (管理員)</h2>
           <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24}/></button>
         </div>
-        <p className="text-xs text-slate-500 mb-2">請貼上包含卡片物件的 JSON 陣列。</p>
+        
+        <div className="flex justify-between items-center mb-2 shrink-0">
+            <p className="text-xs md:text-sm text-slate-600 font-bold">請貼上包含卡片物件的 JSON 陣列。</p>
+            <button onClick={() => setShowHint(!showHint)} className="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 bg-blue-50 px-2 py-1 rounded-md transition-colors">
+               {showHint ? "隱藏格式範例" : "查看 JSON 格式範例"}
+            </button>
+        </div>
+
+        {showHint && (
+            <div className="bg-slate-800 text-green-400 p-3 rounded-lg text-xs font-mono mb-3 overflow-y-auto max-h-48 shrink-0 shadow-inner">
+                <pre>{exampleJson}</pre>
+            </div>
+        )}
+
         <textarea
-          className="w-full h-64 border border-slate-300 rounded-lg p-3 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-          placeholder='[\n  {\n    "id": "BS1-001",\n    "name": "勇氣餅乾",\n    "type": "餅乾卡",\n    "color": "紅色",\n    ...\n  }\n]'
+          className="w-full flex-1 min-h-[200px] border border-slate-300 rounded-lg p-3 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none resize-none shadow-inner"
+          placeholder={exampleJson}
           value={jsonText}
           onChange={e => setJsonText(e.target.value)}
         />
-        <div className="flex gap-3 mt-4">
-            <button onClick={onClose} className="flex-1 bg-slate-100 text-slate-700 py-2 rounded font-bold hover:bg-slate-200">取消</button>
+        <div className="flex gap-3 mt-4 shrink-0">
+            <button onClick={onClose} className="flex-1 bg-slate-100 text-slate-700 py-2.5 rounded-lg font-bold hover:bg-slate-200 transition-colors">取消</button>
             <button
               onClick={handleSubmit}
               disabled={isProcessing || !jsonText.trim()}
-              className="flex-1 bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700 disabled:opacity-50"
+              className="flex-1 bg-blue-600 text-white py-2.5 rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
             >
               {isProcessing ? "處理中..." : "確認匯入並同步"}
             </button>
@@ -1590,6 +1649,10 @@ const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
     </div>
   );
 };
+
+// ==========================================
+// App 主程式
+// ==========================================
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -1704,7 +1767,24 @@ export default function App() {
     setToastMsg(null);
   }, []);
 
-  useEffect(() => { document.title = "Cookierun: Braverse Deck Builder"; const setFavicon = () => { const link = document.querySelector("link[rel*='icon']") || document.createElement('link'); link.type = 'image/svg+xml'; link.rel = 'icon'; link.href = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍪</text></svg>`; document.getElementsByTagName('head')[0].appendChild(link); }; setFavicon(); }, []);
+  useEffect(() => { 
+    document.title = "Cookierun: Braverse Deck Builder"; 
+    const link = document.querySelector("link[rel*='icon']") || document.createElement('link'); 
+    link.type = 'image/svg+xml'; 
+    link.rel = 'icon'; 
+    link.href = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍪</text></svg>`; 
+    document.getElementsByTagName('head')[0].appendChild(link); 
+    
+    // 強制寫入 Viewport，確保手機版不會縮放成桌面版！
+    let viewportMeta = document.querySelector('meta[name="viewport"]');
+    if (!viewportMeta) {
+        viewportMeta = document.createElement('meta');
+        viewportMeta.name = "viewport";
+        document.head.appendChild(viewportMeta);
+    }
+    viewportMeta.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no";
+  }, []);
+
   useEffect(() => { if (!document.querySelector('script[src="https://cdn.tailwindcss.com"]')) { const script = document.createElement("script"); script.src = "https://cdn.tailwindcss.com"; document.head.appendChild(script); } }, []);
   
   useEffect(() => {
@@ -2168,7 +2248,7 @@ export default function App() {
     );
 
   return (
-    <div className="flex fixed inset-0 flex-col md:flex-row bg-slate-50 overflow-hidden font-sans text-slate-900 overscroll-contain h-[100dvh]">
+    <div className="flex w-full fixed inset-0 flex-col md:flex-row bg-slate-50 overflow-hidden font-sans text-slate-900 overscroll-contain h-[100dvh]">
       {viewingCard && (
         <CardDetailModal card={viewingCard} onClose={() => setViewingCard(null)} />
       )}
