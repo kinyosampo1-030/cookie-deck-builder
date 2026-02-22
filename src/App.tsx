@@ -478,9 +478,15 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
 
     useEffect(() => {
         if (!db) return;
-        const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'community_comments'), where('deckId', '==', deckData.id), orderBy('createdAt', 'desc'));
+        
+        // 修正：移除 orderBy 避免複合索引報錯，改用前端記憶體排序
+        const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'community_comments'), where('deckId', '==', deckData.id));
         const unsubscribe = onSnapshot(q, (snap) => {
-            setComments(snap.docs.map(d => ({id: d.id, ...d.data()})));
+            let loadedComments = snap.docs.map(d => ({id: d.id, ...d.data()}));
+            loadedComments.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            setComments(loadedComments);
+        }, (error) => {
+            console.error("載入留言失敗:", error);
         });
 
         if (user && !user.isAnonymous) {
@@ -512,8 +518,8 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
             await updateDoc(deckRef, { commentCount: increment(1) });
             setNewComment("");
         } catch (err) {
-            console.error(err);
-            alert("留言失敗");
+            console.error("留言失敗:", err);
+            alert("留言失敗：" + err.message);
         } finally {
             setIsSending(false);
         }
@@ -659,15 +665,21 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
                     <div className="flex flex-col h-full bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden min-h-[400px]">
                         <div className="p-3 border-b bg-slate-50 font-bold text-slate-700">留言板</div>
                         <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                            {comments.length === 0 ? <div className="text-center text-slate-400 text-sm py-4">還沒有留言，搶頭香！</div> : comments.map(c => (
-                                <div key={c.id} className="text-sm border-b border-slate-100 pb-2 last:border-0">
+                            {comments.length === 0 ? <div className="text-center text-slate-400 text-sm py-4">還沒有留言，搶頭香！</div> : comments.map(c => {
+                                const isAuthor = c.userId === deckData.authorId;
+                                return (
+                                <div key={c.id} className={`text-sm border-b border-slate-100 pb-2 last:border-0 ${isAuthor ? 'bg-blue-50 p-2 rounded-lg border border-blue-100' : ''}`}>
                                     <div className="flex justify-between items-baseline mb-1">
-                                        <span className="font-bold text-slate-800">{c.userName}</span>
-                                        <span className="text-[10px] text-slate-400">{new Date(c.createdAt).toLocaleDateString()}</span>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className={`font-bold ${isAuthor ? 'text-blue-700' : 'text-slate-800'}`}>{c.userName}</span>
+                                            {isAuthor && <span className="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full font-bold tracking-wider">作者</span>}
+                                        </div>
+                                        {/* 修正：使用 toLocaleString 顯示完整日期與時間 */}
+                                        <span className="text-[10px] text-slate-400">{new Date(c.createdAt).toLocaleString()}</span>
                                     </div>
-                                    <p className="text-slate-600 break-words">{c.content}</p>
+                                    <p className={`break-words ${isAuthor ? 'text-blue-900' : 'text-slate-600'}`}>{c.content}</p>
                                 </div>
-                            ))}
+                            )})}
                         </div>
                         <form onSubmit={handleAddComment} className="p-3 border-t bg-slate-50 flex gap-2">
                             <input 
