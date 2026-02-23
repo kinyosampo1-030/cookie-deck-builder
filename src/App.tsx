@@ -2693,7 +2693,7 @@ export default function App() {
             <StatBadge icon={RotateCw} label="Flip" current={flipCount} max={LIMITS.FLIP} color="orange" />
           </div>
         </div>
-        {/* ★ 修正：將 Cookie Levels 移進來深色 Header 的內部，並稍微增加上邊距 mt-4 ★ */}
+          {/* ★ 修正：將 Cookie Levels 移進來深色 Header 的內部，並稍微增加上邊距 mt-4 ★ */}
           <div className="mt-4 w-full bg-slate-900/50 p-2.5 rounded-lg border border-slate-600/50 shadow-inner">
              <div className="flex justify-between items-center text-[10px] text-slate-300 mb-2 font-bold tracking-wider uppercase">
                 <span className="flex items-center gap-1.5 text-white">
@@ -2728,7 +2728,7 @@ export default function App() {
                 </div>
              </div>
           </div>
-        </div>
+        </div> {/* <-- 注意：Header 深色背景的結束標籤移到這裡了 */}
         
         <div className="p-2 bg-slate-700 border-b border-slate-600">
             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-2 flex items-center gap-1">
