@@ -58,9 +58,7 @@ import {
   Globe, 
   MessageCircle, 
   Heart, 
-  Send,
-  Moon, // 新增：月亮圖示 (深色模式)
-  Sun   // 新增：太陽圖示 (淺色模式)
+  Send, 
 } from "lucide-react";
 
 import { initializeApp } from "firebase/app";
@@ -180,13 +178,13 @@ const isExtraDeckCard = (card) => card.isExtra === true;
 
 const getCardColorStyles = (color) => {
   switch (color) {
-    case CARD_COLORS.RED: return "bg-red-50 dark:bg-red-950/40 border-red-500 text-red-900 dark:text-red-100";
-    case CARD_COLORS.YELLOW: return "bg-yellow-50 dark:bg-yellow-950/40 border-yellow-500 text-yellow-900 dark:text-yellow-100";
-    case CARD_COLORS.GREEN: return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-900 dark:text-emerald-100";
-    case CARD_COLORS.BLUE: return "bg-blue-50 dark:bg-blue-950/40 border-blue-500 text-blue-900 dark:text-blue-100";
-    case CARD_COLORS.PURPLE: return "bg-purple-50 dark:bg-purple-950/40 border-purple-500 text-purple-900 dark:text-purple-100";
-    case CARD_COLORS.COLORLESS: return "bg-slate-100 dark:bg-slate-800 border-slate-400 text-slate-800 dark:text-slate-200";
-    default: return "bg-gray-100 dark:bg-gray-800 border-gray-400 text-gray-800 dark:text-gray-200";
+    case CARD_COLORS.RED: return "bg-red-50 border-red-500 text-red-900";
+    case CARD_COLORS.YELLOW: return "bg-yellow-50 border-yellow-500 text-yellow-900";
+    case CARD_COLORS.GREEN: return "bg-emerald-50 border-emerald-500 text-emerald-900";
+    case CARD_COLORS.BLUE: return "bg-blue-50 border-blue-500 text-blue-900";
+    case CARD_COLORS.PURPLE: return "bg-purple-50 border-purple-500 text-purple-900";
+    case CARD_COLORS.COLORLESS: return "bg-slate-100 border-slate-400 text-slate-800";
+    default: return "bg-gray-100 border-gray-400 text-gray-800";
   }
 };
 
@@ -194,9 +192,9 @@ const getRarityStyle = (rarity) => {
     switch (rarity) {
         case 'EXR': return "bg-gradient-to-r from-rose-400 to-red-500 text-white border-rose-600 shadow-rose-200"; 
         case 'UR': return "bg-gradient-to-r from-yellow-400 to-amber-500 text-white border-amber-600 shadow-amber-200";
-        case 'SR': return "bg-slate-700 text-white border-slate-800 dark:border-slate-600";
-        case 'R': return "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 border-blue-300 dark:border-blue-700";
-        default: return "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600";
+        case 'SR': return "bg-slate-700 text-white border-slate-800";
+        case 'R': return "bg-blue-100 text-blue-800 border-blue-300";
+        default: return "bg-slate-100 text-slate-600 border-slate-300";
     }
 };
 
@@ -268,8 +266,8 @@ const Toast = ({ message, onClose }) => {
 
   return (
     <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] animate-bounce pointer-events-none">
-      <div className="bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 px-6 py-3 rounded-lg shadow-xl flex items-center gap-2 font-bold border border-slate-600 dark:border-slate-300 pointer-events-auto cursor-pointer" onClick={onClose}>
-        <AlertCircle size={20} className="text-blue-400 dark:text-blue-600" />
+      <div className="bg-slate-800 text-white px-6 py-3 rounded-lg shadow-xl flex items-center gap-2 font-bold border border-slate-600 pointer-events-auto cursor-pointer" onClick={onClose}>
+        <AlertCircle size={20} className="text-blue-400" />
         {message}
       </div>
     </div>
@@ -295,31 +293,37 @@ const ProfileModal = ({ user, onClose, onUpdateProfile, onLogout }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 dark:bg-black/80 z-[999] flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 my-auto" onClick={(e) => e.stopPropagation()}>
+    <div 
+        className="fixed inset-0 bg-black/60 z-[999] flex items-center justify-center p-4 overflow-y-auto"
+        onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 my-auto" 
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800 dark:text-white">
-            <UserCog className="text-blue-600 dark:text-blue-400" /> 會員資料管理
+          <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800">
+            <UserCog className="text-blue-600" /> 會員資料管理
           </h2>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white rounded-full transition-colors">
+          <button onClick={onClose} className="p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-800 rounded-full transition-colors">
             <X size={24} />
           </button>
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">顯示名稱 (暱稱)</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">顯示名稱 (暱稱)</label>
             <input 
                 type="text" 
                 required 
-                className="w-full border-2 border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg p-2.5 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900 outline-none transition-all" 
+                className="w-full border-2 border-slate-200 rounded-lg p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all" 
                 value={displayName} 
                 onChange={(e) => setDisplayName(e.target.value)} 
                 placeholder="例如：銀河餅乾" 
             />
           </div>
           
-          <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-700">
+          <div className="flex gap-3 pt-4 border-t border-slate-100">
             <button 
                 type="submit" 
                 disabled={isUpdating} 
@@ -329,8 +333,11 @@ const ProfileModal = ({ user, onClose, onUpdateProfile, onLogout }) => {
             </button>
             <button 
               type="button" 
-              onClick={() => { onClose(); if (onLogout) onLogout(); }} 
-              className="flex-none bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-4 py-2.5 rounded-xl font-bold hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors flex items-center justify-center gap-1 border border-red-100 dark:border-red-800 active:scale-95"
+              onClick={() => { 
+                  onClose(); 
+                  if (onLogout) onLogout(); 
+              }} 
+              className="flex-none bg-red-50 text-red-600 px-4 py-2.5 rounded-xl font-bold hover:bg-red-100 transition-colors flex items-center justify-center gap-1 border border-red-100 active:scale-95"
             >
               <LogOut size={18} /> 登出
             </button>
@@ -374,45 +381,51 @@ const AuthModal = ({ onClose, onLogin, onRegister }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 dark:bg-black/80 z-[999] flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 my-auto" onClick={(e) => e.stopPropagation()}>
+    <div 
+        className="fixed inset-0 bg-black/60 z-[999] flex items-center justify-center p-4 overflow-y-auto"
+        onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 my-auto" 
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800 dark:text-white">
-            <UserCog className={isRegister ? "text-green-600 dark:text-green-400" : "text-blue-600 dark:text-blue-400"} /> 
+          <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800">
+            <UserCog className={isRegister ? "text-green-600" : "text-blue-600"} /> 
             {isRegister ? "註冊新帳號" : "會員登入"}
           </h2>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white rounded-full transition-colors">
+          <button onClick={onClose} className="p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-800 rounded-full transition-colors">
             <X size={24} />
           </button>
         </div>
         
-        <div className="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-lg mb-6">
+        <div className="flex bg-slate-100 p-1 rounded-lg mb-6">
           <button 
             type="button"
             onClick={() => { setIsRegister(false); setError(null); }}
-            className={`flex-1 py-2 text-sm font-black rounded-md transition-all ${!isRegister ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+            className={`flex-1 py-2 text-sm font-black rounded-md transition-all ${!isRegister ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
           >
             登入
           </button>
           <button 
             type="button"
             onClick={() => { setIsRegister(true); setError(null); }}
-            className={`flex-1 py-2 text-sm font-black rounded-md transition-all ${isRegister ? 'bg-white dark:bg-slate-600 text-green-600 dark:text-green-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+            className={`flex-1 py-2 text-sm font-black rounded-md transition-all ${isRegister ? 'bg-white text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
           >
             註冊
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && <div className="text-red-600 dark:text-red-400 text-xs font-bold bg-red-50 dark:bg-red-900/30 p-3 rounded-lg border border-red-200 dark:border-red-800">{error}</div>}
+          {error && <div className="text-red-600 text-xs font-bold bg-red-50 p-3 rounded-lg border border-red-200">{error}</div>}
           
           {isRegister && (
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">玩家暱稱 (Display Name)</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">玩家暱稱 (Display Name)</label>
               <input 
                 type="text" 
                 required={isRegister} 
-                className="w-full border-2 border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg p-2.5 focus:border-green-500 dark:focus:border-green-400 focus:ring-2 focus:ring-green-200 dark:focus:ring-green-900 outline-none transition-all" 
+                className="w-full border-2 border-slate-200 rounded-lg p-2.5 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition-all" 
                 value={displayName} 
                 onChange={(e) => setDisplayName(e.target.value)} 
                 placeholder="例如：銀河餅乾" 
@@ -421,22 +434,22 @@ const AuthModal = ({ onClose, onLogin, onRegister }) => {
           )}
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">電子信箱 (Email)</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">電子信箱 (Email)</label>
             <input 
                 type="email" 
                 required 
-                className={`w-full border-2 border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg p-2.5 outline-none transition-all ${isRegister ? 'focus:border-green-500 focus:ring-2 focus:ring-green-200 dark:focus:ring-green-900' : 'focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900'}`} 
+                className={`w-full border-2 border-slate-200 rounded-lg p-2.5 outline-none transition-all ${isRegister ? 'focus:border-green-500 focus:ring-2 focus:ring-green-200' : 'focus:border-blue-500 focus:ring-2 focus:ring-blue-200'}`} 
                 value={email} 
                 onChange={(e) => setEmail(e.target.value)} 
                 placeholder="請輸入 Email"
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">密碼 (Password)</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">密碼 (Password)</label>
             <input 
                 type="password" 
                 required 
-                className={`w-full border-2 border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg p-2.5 outline-none transition-all ${isRegister ? 'focus:border-green-500 focus:ring-2 focus:ring-green-200 dark:focus:ring-green-900' : 'focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900'}`} 
+                className={`w-full border-2 border-slate-200 rounded-lg p-2.5 outline-none transition-all ${isRegister ? 'focus:border-green-500 focus:ring-2 focus:ring-green-200' : 'focus:border-blue-500 focus:ring-2 focus:ring-blue-200'}`} 
                 value={password} 
                 onChange={(e) => setPassword(e.target.value)} 
                 placeholder={isRegister ? "請設定 6 位以上密碼" : "請輸入密碼"} 
@@ -465,6 +478,8 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
 
     useEffect(() => {
         if (!db) return;
+        
+        // 修正：移除 orderBy 避免複合索引報錯，改用前端記憶體排序
         const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'community_comments'), where('deckId', '==', deckData.id));
         const unsubscribe = onSnapshot(q, (snap) => {
             let loadedComments = snap.docs.map(d => ({id: d.id, ...d.data()}));
@@ -545,7 +560,10 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
                 if (lvl === CARD_LEVELS.LV3) return 3;
                 return 99;
             }
-            return getLevelVal(a.level) - getLevelVal(b.level) || a.id.localeCompare(b.id);
+            const wa = getLevelVal(a.level);
+            const wb = getLevelVal(b.level);
+            if (wa !== wb) return wa - wb;
+            return a.id.localeCompare(b.id);
         });
 
         const others = groupCards(cardList.filter(c => c.type !== CARD_TYPES.COOKIE && !c.isFlip));
@@ -556,7 +574,10 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
                   if (t === CARD_TYPES.SCENE) return 3;
                   return 4;
               }
-              return getTypeVal(a.type) - getTypeVal(b.type) || a.id.localeCompare(b.id);
+              const wa = getTypeVal(a.type);
+              const wb = getTypeVal(b.type);
+              if (wa !== wb) return wa - wb;
+              return a.id.localeCompare(b.id);
         });
 
         const flips = groupCards(cardList.filter(c => c.isFlip));
@@ -576,7 +597,7 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
     const { cookies, others, flips, extras, rawM, rawE } = getDeckCards();
 
     const renderMiniCard = (group) => (
-        <div key={group.id} className="relative aspect-[3/4] bg-slate-200 dark:bg-slate-700 rounded border border-slate-300 dark:border-slate-600 overflow-hidden group">
+        <div key={group.id} className="relative aspect-[3/4] bg-slate-200 rounded border border-slate-300 overflow-hidden group">
              {group.imageUrl ? <img src={group.imageUrl} alt={group.name} className="w-full h-full object-cover"/> : <div className={`w-full h-full p-1 text-[8px] flex flex-col ${getCardColorStyles(group.color)}`}><span className="font-bold leading-tight">{group.name}</span><span className="mt-1">{group.id}</span></div>}
              <div className="absolute bottom-1 right-1 bg-black text-white text-xs md:text-sm font-black w-6 h-6 md:w-8 md:h-8 rounded shadow-md border border-white/50 z-10 flex items-center justify-center leading-none pb-0.5">
                  x{group.stackCount}
@@ -586,28 +607,28 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
 
     return (
         <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-slate-50 dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-                <div className="bg-white dark:bg-slate-800 p-4 border-b dark:border-slate-700 flex justify-between items-center shrink-0">
+            <div className="bg-slate-50 rounded-xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="bg-white p-4 border-b flex justify-between items-center shrink-0">
                     <div>
-                        <h2 className="text-xl font-bold text-slate-800 dark:text-white">{deckData.name}</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">作者: {deckData.authorName} · {new Date(deckData.createdAt).toLocaleDateString()}</p>
+                        <h2 className="text-xl font-bold text-slate-800">{deckData.name}</h2>
+                        <p className="text-xs text-slate-500">作者: {deckData.authorName} · {new Date(deckData.createdAt).toLocaleDateString()}</p>
                     </div>
-                    <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-500 dark:text-slate-400"><X size={24}/></button>
+                    <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24}/></button>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 space-y-4">
-                        <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
+                        <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
                              <div className="flex justify-between items-center mb-4">
                                 <div className="flex gap-2">
-                                    <button onClick={handleToggleLike} className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-bold transition-colors ${hasLiked ? 'bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}>
-                                        <Heart size={16} className={hasLiked ? "fill-pink-600 dark:fill-pink-400" : ""} /> {likesCount}
+                                    <button onClick={handleToggleLike} className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-bold transition-colors ${hasLiked ? 'bg-pink-100 text-pink-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                                        <Heart size={16} className={hasLiked ? "fill-pink-600" : ""} /> {likesCount}
                                     </button>
-                                    <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-sm font-bold">
+                                    <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-blue-50 text-blue-600 text-sm font-bold">
                                         <MessageCircle size={16} /> {comments.length}
                                     </div>
                                 </div>
-                                <button onClick={() => { onLoadDeck({main: rawM, extra: rawE}, deckData.name); onClose(); }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold shadow-sm flex items-center gap-2">
+                                <button onClick={() => { onLoadDeck({main: rawM, extra: rawE}, deckData.name); onClose(); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 shadow-sm flex items-center gap-2">
                                     <Copy size={16}/> 複製並編輯
                                 </button>
                              </div>
@@ -615,25 +636,25 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
                              <div className="space-y-6">
                                 {cookies.length > 0 && (
                                     <div>
-                                        <h4 className="font-bold text-slate-700 dark:text-slate-300 text-sm mb-2 border-l-4 border-yellow-400 pl-2">餅乾卡 (Cookies)</h4>
+                                        <h4 className="font-bold text-slate-700 text-sm mb-2 border-l-4 border-yellow-400 pl-2">餅乾卡 (Cookies)</h4>
                                         <div className="grid grid-cols-6 sm:grid-cols-8 gap-1">{cookies.map(renderMiniCard)}</div>
                                     </div>
                                 )}
                                 {others.length > 0 && (
                                     <div>
-                                        <h4 className="font-bold text-slate-700 dark:text-slate-300 text-sm mb-2 border-l-4 border-blue-400 pl-2">道具 / 陷阱 / 場景</h4>
+                                        <h4 className="font-bold text-slate-700 text-sm mb-2 border-l-4 border-blue-400 pl-2">道具 / 陷阱 / 場景</h4>
                                         <div className="grid grid-cols-6 sm:grid-cols-8 gap-1">{others.map(renderMiniCard)}</div>
                                     </div>
                                 )}
                                 {flips.length > 0 && (
                                     <div>
-                                        <h4 className="font-bold text-slate-700 dark:text-slate-300 text-sm mb-2 border-l-4 border-slate-600 dark:border-slate-400 pl-2">FLIP 區</h4>
+                                        <h4 className="font-bold text-slate-700 text-sm mb-2 border-l-4 border-slate-600 pl-2">FLIP 區</h4>
                                         <div className="grid grid-cols-6 sm:grid-cols-8 gap-1">{flips.map(renderMiniCard)}</div>
                                     </div>
                                 )}
                                 {extras.length > 0 && (
                                     <div>
-                                        <h4 className="font-bold text-slate-700 dark:text-slate-300 text-sm mb-2 border-l-4 border-purple-500 pl-2">額外牌組 (Extra)</h4>
+                                        <h4 className="font-bold text-slate-700 text-sm mb-2 border-l-4 border-purple-500 pl-2">額外牌組 (Extra)</h4>
                                         <div className="grid grid-cols-6 sm:grid-cols-8 gap-1">{extras.map(renderMiniCard)}</div>
                                     </div>
                                 )}
@@ -641,27 +662,28 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
                         </div>
                     </div>
 
-                    <div className="flex flex-col h-full bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden min-h-[400px]">
-                        <div className="p-3 border-b dark:border-slate-700 bg-slate-50 dark:bg-slate-900 font-bold text-slate-700 dark:text-slate-300">留言板</div>
+                    <div className="flex flex-col h-full bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden min-h-[400px]">
+                        <div className="p-3 border-b bg-slate-50 font-bold text-slate-700">留言板</div>
                         <div className="flex-1 overflow-y-auto p-3 space-y-3">
                             {comments.length === 0 ? <div className="text-center text-slate-400 text-sm py-4">還沒有留言，搶頭香！</div> : comments.map(c => {
                                 const isAuthor = c.userId === deckData.authorId;
                                 return (
-                                <div key={c.id} className={`text-sm border-b border-slate-100 dark:border-slate-700 pb-2 last:border-0 ${isAuthor ? 'bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg border border-blue-100 dark:border-blue-800' : ''}`}>
+                                <div key={c.id} className={`text-sm border-b border-slate-100 pb-2 last:border-0 ${isAuthor ? 'bg-blue-50 p-2 rounded-lg border border-blue-100' : ''}`}>
                                     <div className="flex justify-between items-baseline mb-1">
                                         <div className="flex items-center gap-1.5">
-                                            <span className={`font-bold ${isAuthor ? 'text-blue-700 dark:text-blue-400' : 'text-slate-800 dark:text-slate-200'}`}>{c.userName}</span>
+                                            <span className={`font-bold ${isAuthor ? 'text-blue-700' : 'text-slate-800'}`}>{c.userName}</span>
                                             {isAuthor && <span className="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full font-bold tracking-wider">作者</span>}
                                         </div>
+                                        {/* 修正：使用 toLocaleString 顯示完整日期與時間 */}
                                         <span className="text-[10px] text-slate-400">{new Date(c.createdAt).toLocaleString()}</span>
                                     </div>
-                                    <p className={`break-words ${isAuthor ? 'text-blue-900 dark:text-blue-200' : 'text-slate-600 dark:text-slate-300'}`}>{c.content}</p>
+                                    <p className={`break-words ${isAuthor ? 'text-blue-900' : 'text-slate-600'}`}>{c.content}</p>
                                 </div>
                             )})}
                         </div>
-                        <form onSubmit={handleAddComment} className="p-3 border-t dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex gap-2">
+                        <form onSubmit={handleAddComment} className="p-3 border-t bg-slate-50 flex gap-2">
                             <input 
-                                className="flex-1 border dark:border-slate-600 rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white" 
+                                className="flex-1 border rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-blue-500" 
                                 placeholder={user && !user.isAnonymous ? "輸入留言..." : "請先登入..."}
                                 value={newComment}
                                 onChange={e => setNewComment(e.target.value)}
@@ -741,15 +763,15 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin }) => {
 
     return (
         <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-slate-100 dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-                <div className="bg-white dark:bg-slate-800 p-4 border-b dark:border-slate-700 flex justify-between items-center shrink-0">
-                    <h2 className="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-2"><Globe className="text-blue-500" /> 牌組社群廣場</h2>
-                    <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full"><X size={24}/></button>
+            <div className="bg-slate-100 rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="bg-white p-4 border-b flex justify-between items-center shrink-0">
+                    <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2"><Globe className="text-blue-500" /> 牌組社群廣場</h2>
+                    <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24}/></button>
                 </div>
-                <div className="bg-white dark:bg-slate-800 p-3 border-b dark:border-slate-700 flex gap-2 overflow-x-auto shrink-0">
-                    <button onClick={() => setFilterColor("ALL")} className={`px-4 py-1 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filterColor === "ALL" ? "bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900" : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"}`}>全部</button>
+                <div className="bg-white p-3 border-b flex gap-2 overflow-x-auto shrink-0">
+                    <button onClick={() => setFilterColor("ALL")} className={`px-4 py-1 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filterColor === "ALL" ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>全部</button>
                     {Object.values(CARD_COLORS).map(c => (
-                         <button key={c} onClick={() => setFilterColor(c)} className={`px-4 py-1 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filterColor === c ? "ring-2 ring-offset-1 ring-slate-400 dark:ring-slate-300 dark:ring-offset-slate-800" : "opacity-60 hover:opacity-100"}`} style={{backgroundColor: c === '紅色' ? '#fee2e2' : c === '黃色' ? '#fef9c3' : c === '綠色' ? '#d1fae5' : c === '藍色' ? '#dbeafe' : c === '紫色' ? '#f3e8ff' : '#f1f5f9', color: '#334155'}}>{c}</button>
+                         <button key={c} onClick={() => setFilterColor(c)} className={`px-4 py-1 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filterColor === c ? "ring-2 ring-offset-1 ring-slate-400" : "opacity-60 hover:opacity-100"}`} style={{backgroundColor: c === '紅色' ? '#fee2e2' : c === '黃色' ? '#fef9c3' : c === '綠色' ? '#d1fae5' : c === '藍色' ? '#dbeafe' : c === '紫色' ? '#f3e8ff' : '#f1f5f9', color: '#334155'}}>{c}</button>
                     ))}
                 </div>
                 <div className="flex-1 overflow-y-auto p-4">
@@ -763,8 +785,8 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin }) => {
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {decks.map(d => (
-                                <div key={d.id} onClick={() => setSelectedDeck(d)} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer overflow-hidden flex flex-col group h-full">
-                                    <div className="h-32 bg-slate-200 dark:bg-slate-700 overflow-hidden relative">
+                                <div key={d.id} onClick={() => setSelectedDeck(d)} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer overflow-hidden flex flex-col group h-full">
+                                    <div className="h-32 bg-slate-200 overflow-hidden relative">
                                         <img src={getCoverImage(d)} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt="Deck Cover" />
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                                         <div className="absolute bottom-2 left-2 flex gap-1">
@@ -774,17 +796,17 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin }) => {
                                         </div>
                                     </div>
                                     <div className="p-4 flex-1 flex flex-col">
-                                        <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 line-clamp-1 mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400">{d.name}</h3>
-                                        <div className="text-xs text-slate-400 dark:text-slate-500 mb-4 flex items-center gap-2">
+                                        <h3 className="font-bold text-lg text-slate-800 line-clamp-1 mb-1 group-hover:text-blue-600">{d.name}</h3>
+                                        <div className="text-xs text-slate-400 mb-4 flex items-center gap-2">
                                             <span>{d.authorName}</span>
                                             <span>•</span>
                                             <span>{new Date(d.createdAt).toLocaleDateString()}</span>
                                         </div>
-                                        <div className="mt-auto flex justify-between items-center text-sm text-slate-500 dark:text-slate-400">
+                                        <div className="mt-auto flex justify-between items-center text-sm text-slate-500">
                                             <span className="flex items-center gap-1"><Layers size={14}/> {d.m?.length || 0}</span>
                                             <div className="flex gap-3 items-center">
                                                 {isAdmin && (
-                                                    <button onClick={(e) => handleDeleteDeck(e, d.id, d.name)} className="text-red-500 hover:text-red-700 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 p-1.5 rounded-full transition-colors z-10" title="管理員強制刪除">
+                                                    <button onClick={(e) => handleDeleteDeck(e, d.id, d.name)} className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-full transition-colors z-10" title="管理員強制刪除">
                                                         <Trash2 size={14}/>
                                                     </button>
                                                 )}
@@ -834,18 +856,13 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
     if (!userId || !db) return;
     const fetchDecks = async () => {
        try {
-         const q = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'), orderBy('updatedAt', 'desc'));
+         const q = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'));
          const snapshot = await getDocs(q);
-         setDecks(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+         const loadedDecks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+         loadedDecks.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+         setDecks(loadedDecks);
        } catch (e) {
          console.error("Error fetching decks", e);
-         if (e.code === 'failed-precondition') {
-             const q2 = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'));
-             const snapshot = await getDocs(q2);
-             const loadedDecks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-             loadedDecks.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
-             setDecks(loadedDecks);
-         }
        } finally {
          setLoading(false);
        }
@@ -875,7 +892,7 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
             await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'decks'), deckData);
         }
         
-        const q = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'), orderBy('updatedAt', 'desc'));
+        const q = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'));
         const snapshot = await getDocs(q);
         const loadedDecks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         loadedDecks.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
@@ -921,25 +938,25 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
 
   return (
     <div className="fixed inset-0 bg-black/80 z-[90] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-slate-50 dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
-         <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-white dark:bg-slate-800 rounded-t-xl">
-            <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><Save className="text-blue-600 dark:text-blue-400"/> 我的雲端牌組</h2>
-            <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full"><X size={24}/></button>
+      <div className="bg-slate-50 rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+         <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white rounded-t-xl">
+            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Save className="text-blue-600"/> 我的雲端牌組</h2>
+            <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24}/></button>
          </div>
          
-         <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border-b border-blue-100 dark:border-blue-900/50 shrink-0 space-y-3">
+         <div className="p-4 bg-blue-50 border-b border-blue-100 shrink-0 space-y-3">
              <div className="flex flex-col gap-1">
-                 <label className="text-xs font-bold text-blue-800 dark:text-blue-300">1. 輸入牌組名稱</label>
-                 <input type="text" value={saveName} onChange={e => setSaveName(e.target.value)} className="border border-blue-200 dark:border-blue-800 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="例如：紅藍快攻..." />
+                 <label className="text-xs font-bold text-blue-800">1. 輸入牌組名稱</label>
+                 <input type="text" value={saveName} onChange={e => setSaveName(e.target.value)} className="border border-blue-200 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="例如：紅藍快攻..." />
              </div>
              
              {deckUniqueCards.length > 0 && (
                 <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-blue-800 dark:text-blue-300">2. 選擇封面卡片 (Cover Card)</label>
+                    <label className="text-xs font-bold text-blue-800">2. 選擇封面卡片 (Cover Card)</label>
                     <select 
                         value={selectedCover} 
                         onChange={e => setSelectedCover(e.target.value)}
-                        className="border border-blue-200 dark:border-blue-800 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="border border-blue-200 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                     >
                         {deckUniqueCards.map(c => (
                             <option key={c.id} value={c.id}>{c.name} ({c.id})</option>
@@ -953,19 +970,19 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
              </button>
          </div>
 
-         <div className="flex-1 overflow-y-auto p-4 bg-slate-100 dark:bg-slate-900">
-             <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-3 flex items-center gap-2">已儲存的牌組 ({decks.length})</h3>
-             {loading ? <div className="text-center py-8 text-slate-400">載入中...</div> : decks.length === 0 ? <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg">目前沒有牌組</div> : (
+         <div className="flex-1 overflow-y-auto p-4 bg-slate-100">
+             <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">已儲存的牌組 ({decks.length})</h3>
+             {loading ? <div className="text-center py-8 text-slate-400">載入中...</div> : decks.length === 0 ? <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-200 rounded-lg">目前沒有牌組</div> : (
                  <div className="space-y-2">
                      {decks.map(d => (
-                         <div key={d.id} onClick={() => handleLoadDeckClick(d)} className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md cursor-pointer transition-all flex justify-between items-center group">
+                         <div key={d.id} onClick={() => handleLoadDeckClick(d)} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md cursor-pointer transition-all flex justify-between items-center group">
                              <div>
-                                 <div className="font-bold text-slate-800 dark:text-white text-sm md:text-base">{d.name}</div>
+                                 <div className="font-bold text-slate-800 text-sm md:text-base">{d.name}</div>
                                  <div className="text-[10px] md:text-xs text-slate-400 mt-1 flex gap-2"><span>{d.updatedAt ? new Date(d.updatedAt).toLocaleDateString() : '未知時間'}</span><span>·</span><span>{d.m ? d.m.length : 0} 張</span></div>
                              </div>
                              <div className="flex gap-1">
-                                <button onClick={(e) => handlePublish(e, d)} className="p-2 text-slate-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded transition-all" title="發布到社群"><Globe size={16}/></button>
-                                <button onClick={(e) => handleDelete(e, d.id)} className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded opacity-0 group-hover:opacity-100 transition-all" title="刪除"><Trash2 size={16}/></button>
+                                <button onClick={(e) => handlePublish(e, d)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded transition-all" title="發布到社群"><Globe size={16}/></button>
+                                <button onClick={(e) => handleDelete(e, d.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all" title="刪除"><Trash2 size={16}/></button>
                              </div>
                          </div>
                      ))}
@@ -1021,7 +1038,6 @@ const ExportModal = ({ deck, deckName, onClose }) => {
     if (!window.html2canvas) { alert("組件載入中，請稍後再試..."); return; }
     setIsGenerating(true);
     try {
-      // 匯出圖片時強制使用白色背景
       const canvas = await window.html2canvas(exportRef.current, { scale: 2, backgroundColor: "#ffffff", useCORS: true, windowWidth: 1200 });
       const link = document.createElement("a");
       link.download = `${deckName || "deck"}-${new Date().toISOString().slice(0, 10)}.png`;
@@ -1096,7 +1112,7 @@ const ExportModal = ({ deck, deckName, onClose }) => {
              <h3 className="font-bold text-sm text-slate-800">{title} <span className="text-[10px] font-normal text-slate-500 scale-90 origin-left inline-block">({engTitle})</span></h3>
              <span className="font-bold text-xs bg-white px-2 rounded border border-slate-200">Total: {getSectionCount(groups)}</span>
           </div>
-          <table className="w-full text-xs border-collapse text-slate-900">
+          <table className="w-full text-xs border-collapse">
               <thead><tr className="border-b border-slate-300 text-left text-[10px] text-slate-500"><th className="py-0.5 w-10 text-center">張數</th><th className="py-0.5 w-20">編號 (ID)</th><th className="py-0.5">卡片名稱 (Card Name)</th></tr></thead>
               <tbody>{groups.length === 0 ? (<tr><td colSpan="3" className="py-2 text-center text-slate-300 italic text-[10px]">- 無卡片 -</td></tr>) : (groups.map(card => (<tr key={card.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50"><td className="py-1 text-center font-bold text-slate-700">{card.stackCount}</td><td className="py-1 font-mono text-slate-600">{card.id}</td><td className="py-1 text-slate-800 font-medium">{card.name}</td></tr>)))}</tbody>
           </table>
@@ -1105,21 +1121,21 @@ const ExportModal = ({ deck, deckName, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/80 z-[70] flex items-center justify-center p-4 print:p-0 print:bg-white print:static" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col print:shadow-none print:w-full print:max-h-none print:h-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-between items-start md:items-center p-4 border-b dark:border-slate-700 print:hidden">
-          <h2 className="text-xl font-bold flex items-center gap-2 text-slate-900 dark:text-white"><Share2 className="text-blue-600 dark:text-blue-400" /> 輸出與分享</h2>
-          <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full"><X size={24} /></button>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col print:shadow-none print:w-full print:max-h-none print:h-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-start md:items-center p-4 border-b print:hidden">
+          <h2 className="text-xl font-bold flex items-center gap-2"><Share2 className="text-blue-600" /> 輸出與分享</h2>
+          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24} /></button>
         </div>
-        <div className="flex border-b dark:border-slate-700 print:hidden">
-          <button onClick={() => setActiveTab("image")} className={`flex-1 py-3 font-bold text-sm ${activeTab === "image" ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"}`}>圖片輸出</button>
-          <button onClick={() => setActiveTab("link")} className={`flex-1 py-3 font-bold text-sm ${activeTab === "link" ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"}`}>連結分享</button>
-          <button onClick={() => setActiveTab("list")} className={`flex-1 py-3 font-bold text-sm ${activeTab === "list" ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"}`}>列印牌組清單</button>
+        <div className="flex border-b print:hidden">
+          <button onClick={() => setActiveTab("image")} className={`flex-1 py-3 font-bold text-sm ${activeTab === "image" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-500 hover:bg-slate-50"}`}>圖片輸出</button>
+          <button onClick={() => setActiveTab("link")} className={`flex-1 py-3 font-bold text-sm ${activeTab === "link" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-500 hover:bg-slate-50"}`}>連結分享</button>
+          <button onClick={() => setActiveTab("list")} className={`flex-1 py-3 font-bold text-sm ${activeTab === "list" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-500 hover:bg-slate-50"}`}>列印牌組清單</button>
         </div>
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-100 dark:bg-slate-900 print:bg-white print:p-0 print:overflow-visible">
+        <div className="flex-1 overflow-y-auto p-6 bg-slate-100 print:bg-white print:p-0 print:overflow-visible">
           {activeTab === "image" && (
             <div className="flex flex-col items-center gap-4">
-              <div className="bg-white dark:bg-slate-800 p-4 rounded shadow w-full flex flex-col md:flex-row justify-between items-center gap-4 border dark:border-slate-700">
-                <span className="text-slate-600 dark:text-slate-300 text-sm">將牌組匯出為高解析度 PNG 圖片 (適合社群分享)</span>
+              <div className="bg-white p-4 rounded shadow w-full flex flex-col md:flex-row justify-between items-center gap-4">
+                <span className="text-slate-600 text-sm">將牌組匯出為高解析度 PNG 圖片 (適合社群分享)</span>
                 <button onClick={handleDownloadImage} disabled={isGenerating} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 disabled:opacity-50 shrink-0">{isGenerating ? "生成中..." : <><Download size={18} /> 下載圖片</>}</button>
               </div>
               <div className="w-full overflow-x-auto pb-4">
@@ -1135,7 +1151,7 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                             {deck.extra.length > 0 && (<span className="flex items-center gap-1 text-purple-600"><Zap size={16} /> Extra: {deck.extra.length}</span>)}
                         </div>
                     </div>
-                    <div className="space-y-6 text-slate-900">
+                    <div className="space-y-6">
                         {imageExportData.cookies.length > 0 && (
                             <div>
                                 <h3 className="font-bold text-slate-700 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-yellow-400 pl-2">Cookies <span className="text-xs opacity-50 ml-1">(Lv.1 &rarr; Lv.3)</span></h3>
@@ -1173,23 +1189,23 @@ const ExportModal = ({ deck, deckName, onClose }) => {
           )}
           {activeTab === "link" && (
             <div className="flex flex-col gap-6 max-w-lg mx-auto mt-8">
-              <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 p-4 rounded-lg flex gap-3 items-start">
-                <AlertTriangle className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" size={20} />
-                <div className="text-sm text-blue-800 dark:text-blue-200"><p className="font-bold mb-1">關於分享連結</p><p>產生短連結會將您的牌組資訊儲存至雲端，讓網址更簡短美觀！</p></div>
+              <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg flex gap-3 items-start">
+                <AlertTriangle className="text-blue-600 shrink-0 mt-0.5" size={20} />
+                <div className="text-sm text-blue-800"><p className="font-bold mb-1">關於分享連結</p><p>產生短連結會將您的牌組資訊儲存至雲端，讓網址更簡短美觀！</p></div>
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">牌組分享連結</label>
+                <label className="block text-sm font-bold text-slate-700 mb-2">牌組分享連結</label>
                 <div className="flex gap-2">
-                  {shareUrl ? (<><input type="text" readOnly value={shareUrl} className="flex-1 border dark:border-slate-600 rounded-lg px-3 py-2 text-slate-600 dark:text-white bg-white dark:bg-slate-700 select-all font-mono text-sm" /><button onClick={handleCopyLink} className="bg-slate-800 hover:bg-slate-900 dark:bg-slate-600 dark:hover:bg-slate-500 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-colors"><Copy size={18} /> 複製</button></>) : (<button onClick={handleGenerateShortLink} disabled={isCreatingLink} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50">{isCreatingLink ? (<><div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>產生中...</>) : (<><LinkIcon size={18} /> 產生短連結</>)}</button>)}
+                  {shareUrl ? (<><input type="text" readOnly value={shareUrl} className="flex-1 border rounded-lg px-3 py-2 text-slate-600 bg-white select-all font-mono text-sm" /><button onClick={handleCopyLink} className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2"><Copy size={18} /> 複製</button></>) : (<button onClick={handleGenerateShortLink} disabled={isCreatingLink} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50">{isCreatingLink ? (<><div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>產生中...</>) : (<><LinkIcon size={18} /> 產生短連結</>)}</button>)}
                 </div>
               </div>
             </div>
           )}
           {activeTab === "list" && (
             <div className="p-4 print:p-0">
-                <div className="print:hidden bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 p-4 rounded-lg mb-6 flex justify-between items-center">
-                    <div className="text-yellow-800 dark:text-yellow-200 text-sm"><p className="font-bold">比賽用牌組清單</p><p>此頁面設計為 A4 列印格式，可直接列印繳交。請使用瀏覽器列印功能 (Ctrl+P)。</p></div>
-                    <button onClick={handlePrint} className="bg-slate-800 dark:bg-slate-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors"><Printer size={18} /> 列印此清單</button>
+                <div className="print:hidden bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-6 flex justify-between items-center">
+                    <div className="text-yellow-800 text-sm"><p className="font-bold">比賽用牌組清單</p><p>此頁面設計為 A4 列印格式，可直接列印繳交。請使用瀏覽器列印功能 (Ctrl+P)。</p></div>
+                    <button onClick={handlePrint} className="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-slate-700"><Printer size={18} /> 列印此清單</button>
                 </div>
                 <div className="bg-white p-8 max-w-[210mm] mx-auto border border-slate-200 print:border-none print:p-0 font-sans text-slate-900 relative min-h-[297mm]">
                     <div className="text-center mb-6 border-b-2 border-slate-800 pb-4">
@@ -1247,60 +1263,60 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
   const handleFileChange = async (e) => { const file = e.target.files[0]; if (file) { if (file.size > 1024 * 1024) { alert("圖片過大！請使用 1MB 以下的圖片，系統將嘗試自動壓縮。"); } try { const compressedBase64 = await compressImage(file); setPreviewUrl(compressedBase64); setFormData({ ...formData, imageUrl: compressedBase64 }); } catch (err) { console.error("圖片處理失敗", err); alert("圖片處理失敗，請換一張試試"); } } };
   const handleSubmit = (e) => { e.preventDefault(); if (!formData.name) { alert("請填寫卡片名稱"); return; } if (formData.imageUrl && formData.imageUrl.length > 1048400) { alert("圖片壓縮後依然過大！請更換一張解析度較低的圖片。"); return; } let fullId; if (initialData && initialData.id) { fullId = initialData.id; } else { if (!formData.number) { alert("請填寫編號"); return; } const finalSeries = formData.series.toUpperCase(); fullId = `${finalSeries}-${formData.number}`; } const submitData = { ...formData, id: fullId, series: formData.series.toUpperCase(), level: formData.type === CARD_TYPES.COOKIE ? formData.level : null }; onAdd(submitData); };
   return (
-    <div className="fixed inset-0 bg-black/50 dark:bg-black/80 z-[60] flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center p-4 border-b dark:border-slate-700">
-          <h2 className="text-xl font-bold flex items-center gap-2 text-slate-900 dark:text-white">{initialData ? (<><Pencil className="text-blue-600 dark:text-blue-400" /> 編輯卡片</>) : (<><Plus className="text-blue-600 dark:text-blue-400" /> 新增自定義卡片</>)}</h2>
-          <button onClick={onClose} className="p-1 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full"><X size={24} /></button>
+    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center p-4 border-b">
+          <h2 className="text-xl font-bold flex items-center gap-2">{initialData ? (<><Pencil className="text-blue-600" /> 編輯卡片</>) : (<><Plus className="text-blue-600" /> 新增自定義卡片</>)}</h2>
+          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-slate-900 dark:text-slate-100">
+        <form onSubmit={handleSubmit} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
-            <div className={`bg-slate-50 dark:bg-slate-700/50 p-3 rounded border dark:border-slate-600 ${initialData ? "opacity-70 pointer-events-none" : ""}`}>
-              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">卡片編號 (ID) {initialData && (<span className="text-xs text-red-500 font-normal ml-2">編輯模式下無法修改</span>)}</label>
+            <div className={`bg-slate-50 p-3 rounded border ${initialData ? "opacity-70 pointer-events-none" : ""}`}>
+              <label className="block text-sm font-bold text-slate-700 mb-2">卡片編號 (ID) {initialData && (<span className="text-xs text-red-500 font-normal ml-2">編輯模式下無法修改</span>)}</label>
               <div className="flex gap-2 items-center">
-                <input list="series-options" type="text" className="border dark:border-slate-600 rounded p-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white flex-1 font-bold uppercase outline-none focus:ring-1 focus:ring-blue-500" value={formData.series} onChange={(e) => setFormData({ ...formData, series: e.target.value })} placeholder="選擇或輸入系列" />
+                <input list="series-options" type="text" className="border rounded p-2 bg-white flex-1 font-bold uppercase" value={formData.series} onChange={(e) => setFormData({ ...formData, series: e.target.value })} placeholder="選擇或輸入系列" />
                 <datalist id="series-options">{editorSeriesOptions.map((opt) => (<option key={opt} value={opt} />))}</datalist>
                 <span className="font-bold text-slate-400">-</span>
-                <input type="text" placeholder="001" required={!initialData} className="border dark:border-slate-600 rounded p-2 flex-1 font-mono bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-blue-500" value={formData.number} onChange={(e) => setFormData({ ...formData, number: e.target.value })} />
+                <input type="text" placeholder="001" required={!initialData} className="border rounded p-2 flex-1 font-mono" value={formData.number} onChange={(e) => setFormData({ ...formData, number: e.target.value })} />
               </div>
             </div>
-            <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">卡片名稱</label><input type="text" required className="w-full border dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded p-2 outline-none focus:ring-1 focus:ring-blue-500" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} /></div>
+            <div><label className="block text-sm font-medium text-slate-700 mb-1">卡片名稱</label><input type="text" required className="w-full border rounded p-2" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-4">
-              <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">種類</label><select className="w-full border dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded p-2 outline-none focus:ring-1 focus:ring-blue-500" value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })}>{Object.values(CARD_TYPES).map((t) => (<option key={t} value={t}>{t}</option>))}</select></div>
-              <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">顏色</label><select className="w-full border dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded p-2 outline-none focus:ring-1 focus:ring-blue-500" value={formData.color} onChange={(e) => setFormData({ ...formData, color: e.target.value })}>{Object.values(CARD_COLORS).map((c) => (<option key={c} value={c}>{c}</option>))}</select></div>
+              <div><label className="block text-sm font-medium text-slate-700 mb-1">種類</label><select className="w-full border rounded p-2" value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })}>{Object.values(CARD_TYPES).map((t) => (<option key={t} value={t}>{t}</option>))}</select></div>
+              <div><label className="block text-sm font-medium text-slate-700 mb-1">顏色</label><select className="w-full border rounded p-2" value={formData.color} onChange={(e) => setFormData({ ...formData, color: e.target.value })}>{Object.values(CARD_COLORS).map((c) => (<option key={c} value={c}>{c}</option>))}</select></div>
             </div>
-            {formData.type === CARD_TYPES.COOKIE && (<div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">等級 (Level)</label><select className="w-full border dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded p-2 outline-none focus:ring-1 focus:ring-blue-500" value={formData.level} onChange={(e) => setFormData({ ...formData, level: e.target.value })}>{Object.values(CARD_LEVELS).map((lvl) => (<option key={lvl} value={lvl}>{lvl}</option>))}</select></div>)}
-            <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1">稀有度 <Gem size={14} className="text-purple-500"/></label><select className="w-full border dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded p-2 outline-none focus:ring-1 focus:ring-blue-500" value={formData.rarity} onChange={(e) => setFormData({ ...formData, rarity: e.target.value })}>{Object.entries(CARD_RARITIES).map(([key, label]) => (<option key={key} value={key}>{label}</option>))}</select></div>
+            {formData.type === CARD_TYPES.COOKIE && (<div><label className="block text-sm font-medium text-slate-700 mb-1">等級 (Level)</label><select className="w-full border rounded p-2" value={formData.level} onChange={(e) => setFormData({ ...formData, level: e.target.value })}>{Object.values(CARD_LEVELS).map((lvl) => (<option key={lvl} value={lvl}>{lvl}</option>))}</select></div>)}
+            <div><label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">稀有度 <Gem size={14} className="text-purple-500"/></label><select className="w-full border rounded p-2" value={formData.rarity} onChange={(e) => setFormData({ ...formData, rarity: e.target.value })}>{Object.entries(CARD_RARITIES).map(([key, label]) => (<option key={key} value={key}>{label}</option>))}</select></div>
             <div className="col-span-1 md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1"><Languages size={16} /> 英文效果文本 (English Effect)</label>
-                <textarea className="w-full border dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded p-2 h-24 text-sm font-sans outline-none focus:ring-1 focus:ring-blue-500" placeholder="Enter English effect text here..." value={formData.effectText} onChange={(e) => setFormData({...formData, effectText: e.target.value})} />
-                <div className="flex items-center gap-2 mt-2"><input type="checkbox" id="showEffect" checked={formData.showEffect} onChange={(e) => setFormData({...formData, showEffect: e.target.checked})} className="w-4 h-4 text-blue-600 bg-white dark:bg-slate-800 border-gray-300 rounded focus:ring-blue-500" /><label htmlFor="showEffect" className="text-sm font-bold text-slate-700 dark:text-slate-300 cursor-pointer select-none">啟用效果文本顯示 (Enable Effect Display)</label></div>
+                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1"><Languages size={16} /> 英文效果文本 (English Effect)</label>
+                <textarea className="w-full border rounded p-2 h-24 text-sm font-sans" placeholder="Enter English effect text here..." value={formData.effectText} onChange={(e) => setFormData({...formData, effectText: e.target.value})} />
+                <div className="flex items-center gap-2 mt-2"><input type="checkbox" id="showEffect" checked={formData.showEffect} onChange={(e) => setFormData({...formData, showEffect: e.target.checked})} className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" /><label htmlFor="showEffect" className="text-sm font-bold text-slate-700 cursor-pointer select-none">啟用效果文本顯示 (Enable Effect Display)</label></div>
             </div>
-            <div className="bg-slate-50 dark:bg-slate-700/30 p-4 rounded-lg border dark:border-slate-700 col-span-1 md:col-span-2">
+            <div className="bg-slate-50 p-4 rounded-lg border col-span-1 md:col-span-2">
                 <div className="grid grid-cols-2 gap-y-3 gap-x-4">
-                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5 accent-blue-600" checked={formData.isFlip} onChange={(e) => setFormData({ ...formData, isFlip: e.target.checked })} /><span>FLIP</span></label>
-                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5 accent-blue-600" checked={formData.isExtra} onChange={(e) => setFormData({ ...formData, isExtra: e.target.checked })} /><span>Extra Deck</span></label>
-                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5 accent-blue-600" checked={formData.isAncient} onChange={(e) => setFormData({ ...formData, isAncient: e.target.checked })} /><span>上古餅乾</span></label>
-                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5 accent-blue-600" checked={formData.isDragon} onChange={(e) => setFormData({ ...formData, isDragon: e.target.checked })} /><span>龍族</span></label>
-                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5 accent-blue-600" checked={formData.isBeast} onChange={(e) => setFormData({ ...formData, isBeast: e.target.checked })} /><span>野獸餅乾</span></label>
-                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5 accent-blue-600" checked={formData.isSoulJam} onChange={(e) => setFormData({ ...formData, isSoulJam: e.target.checked })} /><span>靈魂果醬</span></label>
-                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5 accent-blue-600" checked={formData.isArena} onChange={(e) => setFormData({ ...formData, isArena: e.target.checked })} /><span>競技場 (Arena)</span></label>
+                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5" checked={formData.isFlip} onChange={(e) => setFormData({ ...formData, isFlip: e.target.checked })} /><span>FLIP</span></label>
+                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5" checked={formData.isExtra} onChange={(e) => setFormData({ ...formData, isExtra: e.target.checked })} /><span>Extra Deck</span></label>
+                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5" checked={formData.isAncient} onChange={(e) => setFormData({ ...formData, isAncient: e.target.checked })} /><span>上古餅乾</span></label>
+                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5" checked={formData.isDragon} onChange={(e) => setFormData({ ...formData, isDragon: e.target.checked })} /><span>龍族</span></label>
+                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5" checked={formData.isBeast} onChange={(e) => setFormData({ ...formData, isBeast: e.target.checked })} /><span>野獸餅乾</span></label>
+                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5" checked={formData.isSoulJam} onChange={(e) => setFormData({ ...formData, isSoulJam: e.target.checked })} /><span>靈魂果醬</span></label>
+                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5" checked={formData.isArena} onChange={(e) => setFormData({ ...formData, isArena: e.target.checked })} /><span>競技場 (Arena)</span></label>
                 </div>
-                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-600 grid grid-cols-2 gap-y-3 gap-x-4">
-                    <label className="flex items-center gap-2 cursor-pointer text-red-600 dark:text-red-400 font-bold"><input type="checkbox" className="w-5 h-5 accent-red-600" checked={formData.isForbidden} onChange={(e) => setFormData({ ...formData, isForbidden: e.target.checked })} /><span>🚫 禁止卡</span></label>
-                    <label className="flex items-center gap-2 cursor-pointer text-orange-600 dark:text-orange-400 font-bold"><input type="checkbox" className="w-5 h-5 accent-orange-600" checked={formData.isLimitOne} onChange={(e) => setFormData({ ...formData, isLimitOne: e.target.checked })} /><span>⚠️ 限制卡 (Limit 1)</span></label>
+                <div className="mt-4 pt-4 border-t border-slate-200 grid grid-cols-2 gap-y-3 gap-x-4">
+                    <label className="flex items-center gap-2 cursor-pointer text-red-600 font-bold"><input type="checkbox" className="w-5 h-5 accent-red-600" checked={formData.isForbidden} onChange={(e) => setFormData({ ...formData, isForbidden: e.target.checked })} /><span>🚫 禁止卡</span></label>
+                    <label className="flex items-center gap-2 cursor-pointer text-orange-600 font-bold"><input type="checkbox" className="w-5 h-5 accent-orange-600" checked={formData.isLimitOne} onChange={(e) => setFormData({ ...formData, isLimitOne: e.target.checked })} /><span>⚠️ 限制卡 (Limit 1)</span></label>
                 </div>
             </div>
           </div>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">圖片 {initialData && (<span className="text-xs text-gray-500 dark:text-slate-400">(不更換則維持原圖)</span>)}</label>
-              <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-4 relative h-64 flex items-center justify-center bg-slate-100 dark:bg-slate-700/50">
+              <label className="block text-sm font-medium text-slate-700 mb-1">圖片 {initialData && (<span className="text-xs text-gray-500">(不更換則維持原圖)</span>)}</label>
+              <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 relative h-64 flex items-center justify-center bg-slate-100">
                 {previewUrl ? (<img src={previewUrl} className="absolute inset-0 w-full h-full object-contain" />) : (<div className="text-slate-400 flex flex-col items-center"><ImageIcon size={48} /><span className="text-sm mt-2">上傳圖片</span></div>)}
                 <input type="file" accept="image/*" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
               </div>
             </div>
-            <button type="submit" disabled={isProcessing} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold disabled:opacity-50 transition-colors shadow-sm">{isProcessing ? "處理中..." : initialData ? "更新卡片資訊" : "確認上傳並同步"}</button>
+            <button type="submit" disabled={isProcessing} className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold disabled:opacity-50">{isProcessing ? "處理中..." : initialData ? "更新卡片資訊" : "確認上傳並同步"}</button>
           </div>
         </form>
       </div>
@@ -1329,20 +1345,20 @@ const CardDetailModal = ({ card, onClose }) => {
                 <p className="flex justify-between border-b border-current/20 pb-1"><span>稀有度</span> <span>{card.rarity || 'C'}</span></p>
              </div>
              <div className="flex flex-wrap gap-2 mt-4">
-                {card.isFlip && <span className="bg-slate-800 dark:bg-slate-900 text-white px-2 py-1 rounded text-xs font-bold border border-slate-700">FLIP</span>}
-                {card.isExtra && <span className="bg-purple-200 dark:bg-purple-900/50 text-purple-900 dark:text-purple-200 px-2 py-1 rounded text-xs font-bold border border-purple-300 dark:border-purple-700">EXTRA</span>}
-                {card.isForbidden && <span className="bg-red-600 dark:bg-red-800 text-white px-2 py-1 rounded text-xs font-bold">禁止卡</span>}
-                {card.isLimitOne && <span className="bg-orange-500 dark:bg-orange-700 text-white px-2 py-1 rounded text-xs font-bold">限制卡 (Limit 1)</span>}
+                {card.isFlip && <span className="bg-slate-800 text-white px-2 py-1 rounded text-xs font-bold">FLIP</span>}
+                {card.isExtra && <span className="bg-purple-200 text-purple-900 px-2 py-1 rounded text-xs font-bold border border-purple-300">EXTRA</span>}
+                {card.isForbidden && <span className="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">禁止卡</span>}
+                {card.isLimitOne && <span className="bg-orange-500 text-white px-2 py-1 rounded text-xs font-bold">限制卡 (Limit 1)</span>}
              </div>
           </div>
         )}
         
         {card.showEffect && card.effectText && (
-           <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur rounded-xl p-4 shadow-xl border-l-4 border-blue-500 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-bottom-4">
-               <h4 className="text-blue-800 dark:text-blue-300 font-bold text-sm mb-1.5 flex items-center gap-1.5">
+           <div className="bg-white/95 backdrop-blur rounded-xl p-4 shadow-xl border-l-4 border-blue-500 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-bottom-4">
+               <h4 className="text-blue-800 font-bold text-sm mb-1.5 flex items-center gap-1.5">
                    <Languages size={16}/> English Translation
                </h4>
-               <p className="text-slate-700 dark:text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">
+               <p className="text-slate-700 text-sm whitespace-pre-wrap leading-relaxed">
                    {card.effectText}
                </p>
            </div>
@@ -1393,38 +1409,38 @@ const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
 ]`;
 
   return (
-    <div className="fixed inset-0 bg-black/60 dark:bg-black/80 z-[90] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl p-6 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/60 z-[90] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4 shrink-0">
-          <h2 className="text-xl font-bold flex items-center gap-2 text-slate-900 dark:text-white"><FileJson className="text-blue-600 dark:text-blue-400"/> 批量匯入卡片 (管理員)</h2>
-          <button onClick={onClose} className="p-1 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full"><X size={24}/></button>
+          <h2 className="text-xl font-bold flex items-center gap-2"><FileJson className="text-blue-600"/> 批量匯入卡片 (管理員)</h2>
+          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24}/></button>
         </div>
         
         <div className="flex justify-between items-center mb-2 shrink-0">
-            <p className="text-xs md:text-sm text-slate-600 dark:text-slate-400 font-bold">請貼上包含卡片物件的 JSON 陣列。</p>
-            <button onClick={() => setShowHint(!showHint)} className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-bold flex items-center gap-1 bg-blue-50 dark:bg-slate-700 px-2 py-1 rounded-md transition-colors">
+            <p className="text-xs md:text-sm text-slate-600 font-bold">請貼上包含卡片物件的 JSON 陣列。</p>
+            <button onClick={() => setShowHint(!showHint)} className="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 bg-blue-50 px-2 py-1 rounded-md transition-colors">
                {showHint ? "隱藏格式範例" : "查看 JSON 格式範例"}
             </button>
         </div>
 
         {showHint && (
-            <div className="bg-slate-800 dark:bg-slate-900 text-green-400 p-3 rounded-lg text-xs font-mono mb-3 overflow-y-auto max-h-48 shrink-0 shadow-inner">
+            <div className="bg-slate-800 text-green-400 p-3 rounded-lg text-xs font-mono mb-3 overflow-y-auto max-h-48 shrink-0 shadow-inner">
                 <pre>{exampleJson}</pre>
             </div>
         )}
 
         <textarea
-          className="w-full flex-1 min-h-[200px] border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-lg p-3 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none resize-none shadow-inner"
+          className="w-full flex-1 min-h-[200px] border border-slate-300 rounded-lg p-3 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none resize-none shadow-inner"
           placeholder={exampleJson}
           value={jsonText}
           onChange={e => setJsonText(e.target.value)}
         />
         <div className="flex gap-3 mt-4 shrink-0">
-            <button onClick={onClose} className="flex-1 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 py-2.5 rounded-lg font-bold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">取消</button>
+            <button onClick={onClose} className="flex-1 bg-slate-100 text-slate-700 py-2.5 rounded-lg font-bold hover:bg-slate-200 transition-colors">取消</button>
             <button
               onClick={handleSubmit}
               disabled={isProcessing || !jsonText.trim()}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg font-bold disabled:opacity-50 transition-colors shadow-sm"
+              className="flex-1 bg-blue-600 text-white py-2.5 rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
             >
               {isProcessing ? "處理中..." : "確認匯入並同步"}
             </button>
@@ -1467,29 +1483,29 @@ const DrawTestModal = ({ deck, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-slate-50 dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-5xl p-6 h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+      <div className="bg-slate-50 rounded-xl shadow-2xl w-full max-w-5xl p-6 h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4 shrink-0">
-          <h2 className="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-2"><Dices className="text-blue-600 dark:text-blue-400" /> 起始手牌測試</h2>
-          <button onClick={onClose} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-full"><X size={24} /></button>
+          <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2"><Dices className="text-blue-600" /> 起始手牌測試</h2>
+          <button onClick={onClose} className="p-1 hover:bg-slate-200 rounded-full"><X size={24} /></button>
         </div>
         <div className="flex gap-4 mb-4 justify-center shrink-0">
-          <select className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 outline-none" value={drawCount} onChange={(e) => setDrawCount(Number(e.target.value))}>
+          <select className="px-4 py-2 rounded-lg border border-slate-300 font-bold text-slate-700 bg-white focus:ring-2 focus:ring-blue-500 outline-none" value={drawCount} onChange={(e) => setDrawCount(Number(e.target.value))}>
             <option value={1}>測試 1 組</option>
             <option value={3}>測試 3 組</option>
             <option value={5}>測試 5 組</option>
           </select>
           <button onClick={drawCards} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold shadow-lg transition-transform active:scale-95"><RefreshCw size={20} /> 重新洗牌並抽牌</button>
         </div>
-        <div className="flex-1 overflow-y-auto space-y-6 p-2 bg-slate-100 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800 shadow-inner">
+        <div className="flex-1 overflow-y-auto space-y-6 p-2 bg-slate-100 rounded-lg border border-slate-200 shadow-inner">
           {hands.map((hand, handIdx) => (
-            <div key={handIdx} className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-               <div className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest border-b border-slate-100 dark:border-slate-700 pb-1">Hand #{handIdx + 1}</div>
+            <div key={handIdx} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+               <div className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest border-b border-slate-100 pb-1">Hand #{handIdx + 1}</div>
                <div className="grid grid-cols-6 gap-2 md:gap-4">
                   {hand.map((card, cardIdx) => (
                     <div key={`${handIdx}-${card.id}-${cardIdx}`} onClick={() => handleCardClick(handIdx, cardIdx)} className="aspect-[3/4] cursor-pointer perspective-1000 group relative">
                        <div className={`w-full h-full transition-transform duration-500 transform-style-3d relative ${flippedIndices[`${handIdx}-${cardIdx}`] ? 'rotate-y-180' : ''}`}>
-                            <div className="absolute inset-0 backface-hidden rounded-lg overflow-hidden border-2 border-slate-300 dark:border-slate-600 shadow-md"><img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" /></div>
-                            <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-600 shadow-md bg-white dark:bg-slate-800">
+                            <div className="absolute inset-0 backface-hidden rounded-lg overflow-hidden border-2 border-slate-300 shadow-md"><img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" /></div>
+                            <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-lg overflow-hidden border border-slate-300 shadow-md bg-white">
                                 {card.imageUrl ? (<img src={card.imageUrl} alt={card.name} className="w-full h-full object-cover" />) : (<div className={`w-full h-full p-2 text-xs flex flex-col ${getCardColorStyles(card.color)}`}><span className="font-bold leading-tight">{card.name}</span><span className="text-[10px] mt-1">{card.id}</span></div>)}
                                 <div className="absolute top-1 left-1 bg-black/50 text-white text-[9px] px-1.5 rounded font-bold">#{cardIdx + 1}</div>
                             </div>
@@ -1553,7 +1569,7 @@ const PackOpenerModal = ({ allCards, onClose }) => {
     <div key={index} onClick={() => handleCardClick(index)} className="w-[30vw] h-[40vw] md:w-48 md:h-64 cursor-pointer perspective-1000 group relative flex-shrink-0 animate-in zoom-in duration-500">
         <div className={`w-full h-full transition-all duration-500 transform-style-3d relative ${flippedIndices[index] ? 'rotate-y-180' : ''}`}>
             <div className="absolute inset-0 backface-hidden rounded-lg overflow-hidden border-2 border-slate-600 shadow-xl group-hover:scale-105 transition-transform"><img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" /></div>
-            <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-lg overflow-hidden border-2 border-white/20 shadow-2xl bg-white dark:bg-slate-800 relative">
+            <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-lg overflow-hidden border-2 border-white/20 shadow-2xl bg-white relative">
                 {card.imageUrl ? (<img src={card.imageUrl} className="w-full h-full object-cover" alt={card.name} />) : (<div className={`w-full h-full p-2 flex flex-col justify-between ${getCardColorStyles(card.color)}`}><span className="font-bold text-sm">{card.name}</span><span className="font-mono text-xs">{card.id}</span></div>)}
                 {card.rarity && card.rarity !== 'C' && (<div className={`absolute top-1 right-1 text-[10px] font-bold px-1.5 py-0.5 rounded shadow border ${getRarityStyle(card.rarity)}`}>{card.rarity}</div>)}
             </div>
@@ -1606,52 +1622,52 @@ const CardItem = React.memo(({ card, onClick, onView, onEdit, onDelete, onIncrem
         className={`relative cursor-pointer transition-all duration-200 border-2 rounded-lg shadow-sm hover:shadow-md hover:scale-[1.02] select-none overflow-hidden group ${colorClass} ${compact ? "p-2 pr-1 flex items-center justify-between text-sm min-h-[4rem]" : "p-3 flex flex-col gap-1"}`}
     >
       {card.imageUrl && !compact && (<div className="absolute inset-0 opacity-30 pointer-events-none group-hover:opacity-40 transition-opacity"><img src={card.imageUrl} alt="" className="w-full h-full object-cover" loading="lazy" /></div>)}
-      {!compact && card.isForbidden && (<div className="absolute inset-0 bg-red-900/10 dark:bg-red-900/20 pointer-events-none z-0"></div>)}
+      {!compact && card.isForbidden && (<div className="absolute inset-0 bg-red-900/10 pointer-events-none z-0"></div>)}
       <div className={`relative z-10 w-full ${compact ? "flex items-center gap-3" : ""}`}>
-        {compact && card.imageUrl && (<div className="shrink-0 w-10 h-14 rounded border border-slate-300 dark:border-slate-600 overflow-hidden bg-white dark:bg-slate-800 shadow-sm"><img src={card.imageUrl} className="w-full h-full object-cover" alt="" loading="lazy" /></div>)}
+        {compact && card.imageUrl && (<div className="shrink-0 w-10 h-14 rounded border border-slate-300 overflow-hidden bg-white shadow-sm"><img src={card.imageUrl} className="w-full h-full object-cover" alt="" loading="lazy" /></div>)}
         <div className={`flex-1 min-w-0 ${compact ? "" : ""}`}>
           <div className={`flex justify-between items-start ${compact ? "flex-col justify-center" : "mb-1"}`}>
-            <h3 className={`font-bold leading-tight ${compact ? `truncate w-full text-slate-800 dark:text-slate-200 text-sm ${card.isForbidden || card.isLimitOne ? 'text-red-700 dark:text-red-400' : ''}` : "text-lg md:text-xl line-clamp-1 leading-snug"}`}>{card.name}</h3>
+            <h3 className={`font-bold leading-tight ${compact ? `truncate w-full text-slate-800 text-sm ${card.isForbidden || card.isLimitOne ? 'text-red-700' : ''}` : "text-lg md:text-xl line-clamp-1 leading-snug"}`}>{card.name}</h3>
             <div className={`flex items-center gap-1 ${compact ? "w-full mt-0.5" : ""}`}>
               {!compact && (<button onClick={(e) => { e.stopPropagation(); onView(card); }} className="p-1 text-current opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white/50 rounded-full transition-all" title="檢視詳細大圖"><Eye size={16} /></button>)}
-              <span className={`font-mono font-black ${compact ? "text-xs text-slate-500 dark:text-slate-400" : "text-xs md:text-xl bg-white/80 dark:bg-slate-900/80 px-2 rounded border border-current/20 shadow-sm"}`}>{card.id}</span>
+              <span className={`font-mono font-black ${compact ? "text-xs text-slate-500" : "text-xs md:text-xl bg-white/80 px-2 rounded border border-current/20 shadow-sm"}`}>{card.id}</span>
             </div>
           </div>
           {!compact && (
             <div className="flex flex-wrap items-center gap-1.5 text-xs md:text-sm opacity-90 font-semibold">
-              <span className="text-[10px] md:text-xs font-bold border border-current px-1 rounded opacity-80 uppercase bg-white/30 dark:bg-black/30">{card.color}</span>
-              <span className="bg-white/50 dark:bg-black/30 px-2 py-0.5 rounded text-current border border-current/20">{card.type}</span>
+              <span className="text-[10px] md:text-xs font-bold border border-current px-1 rounded opacity-80 uppercase bg-white/30">{card.color}</span>
+              <span className="bg-white/50 px-2 py-0.5 rounded text-current border border-current/20">{card.type}</span>
               {card.level && (<span className="text-[10px] md:text-xs font-bold bg-yellow-400 text-yellow-900 px-1 rounded shadow-sm">{card.level}</span>)}
               {card.rarity && card.rarity !== 'C' && (<span className={`text-[10px] md:text-xs font-bold px-1.5 rounded shadow-sm border ${getRarityStyle(card.rarity)}`}>{card.rarity}</span>)}
-              {card.isFlip && (<span className="flex items-center gap-0.5 text-[10px] md:text-xs bg-slate-800 text-white px-1.5 rounded font-bold tracking-wider border border-slate-700">FLIP</span>)}
-              {card.isExtra && (<span className="text-[10px] md:text-xs uppercase tracking-wider bg-purple-200 dark:bg-purple-900 text-purple-900 dark:text-purple-200 px-1 rounded border border-purple-300 dark:border-purple-700">EXTRA</span>)}
-              {card.isAncient && <span className="text-[10px] md:text-xs font-bold bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 px-1 rounded border border-amber-300 dark:border-amber-700">上古</span>}
-              {card.isDragon && <span className="text-[10px] md:text-xs font-bold bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 px-1 rounded border border-red-300 dark:border-red-700">龍族</span>}
-              {card.isBeast && <span className="text-[10px] md:text-xs font-bold bg-stone-800 dark:bg-stone-700 text-stone-100 px-1 rounded border border-stone-600">野獸</span>}
-              {card.isSoulJam && <span className="text-[10px] md:text-xs font-bold bg-pink-100 dark:bg-pink-900 text-pink-800 dark:text-pink-200 px-1 rounded border border-pink-300 dark:border-pink-700">靈魂果醬</span>}
-              {card.isArena && <span className="text-[10px] md:text-xs font-bold bg-cyan-100 dark:bg-cyan-900 text-cyan-800 dark:text-cyan-200 px-1 rounded border border-cyan-300 dark:border-cyan-700">競技場</span>}
+              {card.isFlip && (<span className="flex items-center gap-0.5 text-[10px] md:text-xs bg-slate-800 text-white px-1.5 rounded font-bold tracking-wider">FLIP</span>)}
+              {card.isExtra && (<span className="text-[10px] md:text-xs uppercase tracking-wider bg-purple-200 text-purple-900 px-1 rounded border border-purple-300">EXTRA</span>)}
+              {card.isAncient && <span className="text-[10px] md:text-xs font-bold bg-amber-100 text-amber-800 px-1 rounded border border-amber-300">上古</span>}
+              {card.isDragon && <span className="text-[10px] md:text-xs font-bold bg-red-100 text-red-800 px-1 rounded border border-red-300">龍族</span>}
+              {card.isBeast && <span className="text-[10px] md:text-xs font-bold bg-stone-800 text-stone-100 px-1 rounded border border-stone-600">野獸</span>}
+              {card.isSoulJam && <span className="text-[10px] md:text-xs font-bold bg-pink-100 text-pink-800 px-1 rounded border border-pink-300">靈魂果醬</span>}
+              {card.isArena && <span className="text-[10px] md:text-xs font-bold bg-cyan-100 text-cyan-800 px-1 rounded border border-cyan-300">競技場</span>}
               {card.isForbidden && <span className="flex items-center gap-0.5 text-[10px] bg-red-600 text-white px-1.5 rounded font-bold"><Ban size={10}/> 禁止</span>}
               {card.isLimitOne && <span className="flex items-center gap-0.5 text-[10px] bg-orange-500 text-white px-1.5 rounded font-bold"><AlertOctagon size={10}/> Limit 1</span>}
             </div>
           )}
         </div>
         {compact && (
-            <div className="flex items-center gap-1 bg-white/50 dark:bg-slate-800/80 rounded-lg p-1 border border-black/5 dark:border-white/10 shadow-sm" onClick={e => e.stopPropagation()}>
-                <button onClick={() => onDecrement && onDecrement(card)} className="w-8 h-8 flex items-center justify-center bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-800 active:scale-95 transition-all"><Minus size={16} strokeWidth={3} /></button>
-                <div className="w-8 text-center font-black text-lg text-slate-800 dark:text-slate-200 leading-none">{count}</div>
-                <button onClick={() => onIncrement && onIncrement(card)} className="w-8 h-8 flex items-center justify-center bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-800 active:scale-95 transition-all"><Plus size={16} strokeWidth={3} /></button>
+            <div className="flex items-center gap-1 bg-white/50 rounded-lg p-1 border border-black/5 shadow-sm" onClick={e => e.stopPropagation()}>
+                <button onClick={() => onDecrement && onDecrement(card)} className="w-8 h-8 flex items-center justify-center bg-red-100 text-red-700 rounded hover:bg-red-200 active:scale-95 transition-all"><Minus size={16} strokeWidth={3} /></button>
+                <div className="w-8 text-center font-black text-lg text-slate-800 leading-none">{count}</div>
+                <button onClick={() => onIncrement && onIncrement(card)} className="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-700 rounded hover:bg-blue-200 active:scale-95 transition-all"><Plus size={16} strokeWidth={3} /></button>
             </div>
         )}
       </div>
       {!compact && onEdit && onDelete && (<div className="absolute top-2 right-2 flex gap-1 z-20 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={(e) => { e.stopPropagation(); onEdit(card); }} className="p-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 shadow-sm" title="編輯卡片"><Pencil size={14} /></button><button onClick={(e) => { e.stopPropagation(); onDelete(card); }} className="p-1.5 bg-red-500 text-white rounded hover:bg-red-600 shadow-sm" title="刪除卡片"><Trash2 size={14} /></button></div>)}
-      {!compact && count > 0 && (<div className="absolute -top-2 -right-2 bg-slate-800 dark:bg-slate-900 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-md border-2 border-white dark:border-slate-700 z-10">{count}</div>)}
+      {!compact && count > 0 && (<div className="absolute -top-2 -right-2 bg-slate-800 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-md border-2 border-white z-10">{count}</div>)}
     </div>
   );
 });
 
 const StatBadge = ({ icon: Icon, label, current, max, color = "blue", warningAtFull = true }) => {
   const isFull = current >= max;
-  const colorStyle = isFull && warningAtFull ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800" : `bg-${color}-50 dark:bg-${color}-900/30 text-${color}-700 dark:text-${color}-400 border-${color}-200 dark:border-${color}-800`;
+  const colorStyle = isFull && warningAtFull ? "bg-red-50 text-red-600 border-red-200" : `bg-${color}-50 text-${color}-700 border-${color}-200`;
   return (<div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border ${colorStyle}`}><Icon size={16} /><span>{label}:</span><span className={isFull ? "font-bold" : ""}>{current} / {max}</span></div>);
 };
 
@@ -1694,16 +1710,6 @@ export default function App() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false); 
 
-  // 🌟 深色模式 State
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem('deck_builder_theme');
-        if (saved) return saved === 'dark';
-        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    return false;
-  });
-
   // 🌟 懸停預覽專用 State 與 Ref
   const hoverPreviewRef = useRef(null);
   const [hoveredCard, setHoveredCard] = useState(null);
@@ -1744,7 +1750,7 @@ export default function App() {
       setToastMsg("暱稱已更新！");
   };
 
-  // Data Loading Effect
+  // Data Loading Effect (移除了BS9限制)
   useEffect(() => {
     if (!db) {
         console.error("Firestore db has not been initialized.");
@@ -1834,34 +1840,7 @@ export default function App() {
     viewportMeta.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no";
   }, []);
 
-  useEffect(() => { 
-      if (!document.querySelector('script[src="https://cdn.tailwindcss.com"]')) { 
-          const script = document.createElement("script"); 
-          script.src = "https://cdn.tailwindcss.com"; 
-          document.head.appendChild(script); 
-          
-          // 確保 tailwind config 使用 class 策略支援深色模式
-          const configScript = document.createElement("script"); 
-          configScript.innerHTML = `
-            tailwind.config = { 
-              darkMode: 'class', 
-              theme: { extend: {} } 
-            }
-          `; 
-          document.head.appendChild(configScript);
-      } 
-  }, []);
-
-  // 🌟 監聽深色模式切換，並修改 HTML 標籤
-  useEffect(() => {
-      if (isDarkMode) {
-          document.documentElement.classList.add('dark');
-          localStorage.setItem('deck_builder_theme', 'dark');
-      } else {
-          document.documentElement.classList.remove('dark');
-          localStorage.setItem('deck_builder_theme', 'light');
-      }
-  }, [isDarkMode]);
+  useEffect(() => { if (!document.querySelector('script[src="https://cdn.tailwindcss.com"]')) { const script = document.createElement("script"); script.src = "https://cdn.tailwindcss.com"; document.head.appendChild(script); } }, []);
   
   useEffect(() => {
     if (!auth) { setLoadingError("Firebase 設定錯誤"); return; }
@@ -2302,11 +2281,11 @@ export default function App() {
 
   if (loadingError && !isOffline) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 p-4 text-center">
-        <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-xl max-w-md w-full border border-red-100 dark:border-red-900/30">
+      <div className="flex h-screen flex-col items-center justify-center bg-slate-50 p-4 text-center">
+        <div className="bg-white p-8 rounded-xl shadow-xl max-w-md w-full border border-red-100">
           <AlertCircle size={48} className="mx-auto text-red-500 mb-4" />
-          <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-2">無法連線至資料庫</h2>
-          <p className="text-slate-600 dark:text-slate-400 mb-6 bg-red-50 dark:bg-red-900/20 p-3 rounded text-sm">{loadingError}</p>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">無法連線至資料庫</h2>
+          <p className="text-slate-600 mb-6 bg-red-50 p-3 rounded text-sm">{loadingError}</p>
           <div className="flex flex-col gap-3">
             <button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold w-full transition-colors flex items-center justify-center gap-2"><RefreshCw size={18} /> 重新整理頁面</button>
             <button onClick={() => { setIsOffline(true); setLoadingError(null); setUser({ uid: 'offline-user', isAnonymous: true }); setIsAdmin(true); }} className="bg-slate-600 hover:bg-slate-700 text-white px-6 py-2 rounded-lg font-bold w-full transition-colors flex items-center justify-center gap-2"><WifiOff size={18} /> 進入離線模擬模式</button>
@@ -2318,13 +2297,13 @@ export default function App() {
 
   if (!user && !isOffline)
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400"></div>
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
 
   return (
-    <div className="flex w-full fixed inset-0 flex-col md:flex-row bg-slate-50 dark:bg-slate-900 overflow-hidden font-sans text-slate-900 dark:text-slate-100 overscroll-contain h-[100dvh]">
+    <div className="flex w-full fixed inset-0 flex-col md:flex-row bg-slate-50 overflow-hidden font-sans text-slate-900 overscroll-contain h-[100dvh]">
       {/* 🌟 電腦版懸停預覽 (Hover Preview) */}
       {hoveredCard && (
         <div
@@ -2332,7 +2311,7 @@ export default function App() {
             className="hidden md:block fixed top-0 left-0 z-[120] pointer-events-none will-change-transform"
             style={{ width: '260px' }}
         >
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-700 animate-in fade-in zoom-in-95 duration-100">
+            <div className="bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-100">
                 {hoveredCard.imageUrl ? (
                     <img src={hoveredCard.imageUrl} alt={hoveredCard.name} className="w-full h-auto object-contain" />
                 ) : (
@@ -2346,16 +2325,16 @@ export default function App() {
                             <p className="flex justify-between border-b border-current/20 pb-1"><span>稀有度</span> <span>{hoveredCard.rarity || 'C'}</span></p>
                         </div>
                         <div className="flex flex-wrap gap-2 mt-3">
-                            {hoveredCard.isFlip && <span className="bg-slate-800 dark:bg-slate-900 text-white px-2 py-0.5 rounded text-[10px] font-bold border dark:border-slate-700">FLIP</span>}
-                            {hoveredCard.isExtra && <span className="bg-purple-200 dark:bg-purple-900/50 text-purple-900 dark:text-purple-200 px-2 py-0.5 rounded text-[10px] font-bold border border-purple-300 dark:border-purple-700">EXTRA</span>}
-                            {hoveredCard.isForbidden && <span className="bg-red-600 dark:bg-red-800 text-white px-2 py-0.5 rounded text-[10px] font-bold">禁止卡</span>}
-                            {hoveredCard.isLimitOne && <span className="bg-orange-500 dark:bg-orange-700 text-white px-2 py-0.5 rounded text-[10px] font-bold">限制卡 (Limit 1)</span>}
+                            {hoveredCard.isFlip && <span className="bg-slate-800 text-white px-2 py-0.5 rounded text-[10px] font-bold">FLIP</span>}
+                            {hoveredCard.isExtra && <span className="bg-purple-200 text-purple-900 px-2 py-0.5 rounded text-[10px] font-bold border border-purple-300">EXTRA</span>}
+                            {hoveredCard.isForbidden && <span className="bg-red-600 text-white px-2 py-0.5 rounded text-[10px] font-bold">禁止卡</span>}
+                            {hoveredCard.isLimitOne && <span className="bg-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">限制卡 (Limit 1)</span>}
                         </div>
                     </div>
                 )}
                 {hoveredCard.showEffect && hoveredCard.effectText && (
-                    <div className="bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 p-3 text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-sans max-h-32 overflow-y-auto">
-                        <div className="font-bold text-blue-700 dark:text-blue-400 mb-1 flex items-center gap-1"><Languages size={12}/> Effect:</div>
+                    <div className="bg-slate-50 border-t border-slate-200 p-3 text-xs text-slate-700 leading-relaxed font-sans max-h-32 overflow-y-auto">
+                        <div className="font-bold text-blue-700 mb-1 flex items-center gap-1"><Languages size={12}/> Effect:</div>
                         {hoveredCard.effectText}
                     </div>
                 )}
@@ -2426,11 +2405,11 @@ export default function App() {
         />
       )}
 
-      {/* 左側：卡片清單 (手機上為滿版，桌面版在左側) */}
-      <div className="flex-1 flex flex-col min-w-0 border-r border-slate-200 dark:border-slate-700 min-h-0 relative">
+      {/* 左側：卡片清單 */}
+      <div className="flex-1 flex flex-col min-w-0 border-r border-slate-200 min-h-0 relative">
         <div 
             className={`
-              bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm z-10 shrink-0 
+              bg-white border-b border-slate-200 shadow-sm z-10 shrink-0 
               transition-all duration-300 ease-in-out overflow-hidden
               ${showHeader ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}
               md:max-h-none md:opacity-100 md:static md:overflow-visible
@@ -2439,51 +2418,41 @@ export default function App() {
              <div className="p-3 md:p-4 space-y-2 md:space-y-3">
                 <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
                     <div className="flex flex-col">
-                        <h1 className="text-lg md:text-2xl font-black flex items-center gap-2 text-slate-800 dark:text-white">
-                            <Cloud className={isOffline ? "text-slate-400" : "text-blue-600 dark:text-blue-400"} size={24} />
+                        <h1 className="text-lg md:text-2xl font-black flex items-center gap-2 text-slate-800">
+                            <Cloud className={isOffline ? "text-slate-400" : "text-blue-600"} size={24} />
                             Cookierun: Braverse Deck Builder
                         </h1>
-                        <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 font-bold ml-1 mt-1">
-                            新功能：<span className="text-blue-600 dark:text-blue-400 font-black">社群廣場</span> 與 <span className="text-emerald-600 dark:text-emerald-400 font-black">雲端儲存</span> 上線！
+                        <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">
+                            新功能：<span className="text-blue-600 font-black">社群廣場</span> 與 <span className="text-emerald-600 font-black">雲端儲存</span> 上線！
                         </p>
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-2 md:gap-4">
                         <button 
                             onClick={() => setShowCommunityModal(true)} 
-                            className="relative bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-500/40 dark:shadow-none transition-all hover:-translate-y-0.5 active:scale-95 border border-blue-400 dark:border-blue-700"
+                            className="relative bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-500/40 transition-all hover:-translate-y-0.5 active:scale-95 border border-blue-400"
                         >
                             <Globe size={20} className="animate-pulse" /> 
                             <span className="tracking-wide">社群廣場</span>
                             <span className="absolute -top-2.5 -right-2 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-bounce shadow-md">HOT</span>
                         </button>
 
-                        {/* 深色模式切換按鈕 */}
-                        <button
-                            onClick={() => setIsDarkMode(!isDarkMode)}
-                            className="p-2 md:px-3 md:py-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors shadow-sm active:scale-95 flex items-center justify-center gap-2 font-bold text-sm"
-                            title="切換深色/淺色模式"
-                        >
-                            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-                            <span className="hidden md:inline">{isDarkMode ? '淺色模式' : '深色模式'}</span>
-                        </button>
-
                         {user && !user.isAnonymous ? (
                             <button 
                                 onClick={() => setShowProfileModal(true)} 
-                                className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-emerald-200 dark:border-emerald-800 px-3 py-1.5 rounded-xl text-slate-700 dark:text-slate-300 transition-all shadow-sm active:scale-95" 
+                                className="flex items-center gap-2 bg-white hover:bg-slate-50 border-2 border-emerald-200 px-3 py-1.5 rounded-xl text-slate-700 transition-all shadow-sm active:scale-95" 
                                 title="點擊管理會員資料與登出"
                             >
-                                <UserCog size={18} className="text-emerald-500 dark:text-emerald-400"/>
+                                <UserCog size={18} className="text-emerald-500"/>
                                 <div className="flex flex-col items-start leading-none">
                                     <span className="text-xs font-bold truncate max-w-[100px]">{user.displayName || '設定暱稱'}</span>
-                                    <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-black mt-0.5">已登入會員</span>
+                                    <span className="text-[9px] text-emerald-600 font-black mt-0.5">已登入會員</span>
                                 </div>
                             </button>
                         ) : (
                             <button 
                                 onClick={() => setShowLoginModal(true)} 
-                                className="relative bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg transition-transform active:scale-95 ring-2 ring-green-300 dark:ring-green-800 ring-offset-1 dark:ring-offset-slate-800"
+                                className="relative bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg transition-transform active:scale-95 ring-2 ring-green-300 ring-offset-1"
                             >
                                 <UserCog size={18} /> 
                                 <span className="tracking-wide">註冊 / 登入</span>
@@ -2492,13 +2461,13 @@ export default function App() {
                         )}
 
                         {isAdmin && (
-                            <div className="flex gap-2 border-l-2 border-slate-200 dark:border-slate-600 pl-3">
-                                <button onClick={() => { setEditingCard(null); setShowAddModal(true); }} className="bg-slate-700 dark:bg-slate-600 hover:bg-slate-800 dark:hover:bg-slate-500 text-white p-2 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors" title="新增卡片"><Plus size={18} /></button>
-                                <button onClick={() => setShowBulkModal(true)} className="bg-slate-700 dark:bg-slate-600 hover:bg-slate-800 dark:hover:bg-slate-500 text-white p-2 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors" title="匯入卡片"><FileJson size={18} /></button>
+                            <div className="flex gap-2 border-l-2 border-slate-200 pl-3">
+                                <button onClick={() => { setEditingCard(null); setShowAddModal(true); }} className="bg-slate-700 hover:bg-slate-800 text-white p-2 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors" title="新增卡片"><Plus size={18} /></button>
+                                <button onClick={() => setShowBulkModal(true)} className="bg-slate-700 hover:bg-slate-800 text-white p-2 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors" title="匯入卡片"><FileJson size={18} /></button>
                             </div>
                         )}
                         {!isAdmin && user && user.isAnonymous && (
-                            <div className="hidden sm:flex items-center gap-1 text-slate-400 dark:text-slate-500 text-xs bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded ml-1 border border-slate-200 dark:border-slate-700">
+                            <div className="hidden sm:flex items-center gap-1 text-slate-400 text-xs bg-slate-100 px-2 py-1 rounded ml-1 border border-slate-200">
                                 <Lock size={12} /> 訪客模式
                             </div>
                         )}
@@ -2509,10 +2478,10 @@ export default function App() {
                 <div className="w-full flex flex-col gap-2">
                     <button 
                         onClick={() => setShowFilters(!showFilters)} 
-                        className="w-full flex items-center justify-between bg-slate-100 dark:bg-slate-700 p-2 rounded-lg text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors border border-slate-200 dark:border-slate-600 shadow-sm md:hidden"
+                        className="w-full flex items-center justify-between bg-slate-100 p-2 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-200 transition-colors border border-slate-200 shadow-sm md:hidden"
                     >
-                        <span className="flex items-center gap-2"><Filter size={16} className="text-blue-600 dark:text-blue-400" /> 搜尋與進階篩選</span>
-                        {showFilters ? <ChevronUp size={18} className="text-slate-500 dark:text-slate-400" /> : <ChevronDown size={18} className="text-slate-500 dark:text-slate-400" />}
+                        <span className="flex items-center gap-2"><Filter size={16} className="text-blue-600" /> 搜尋與進階篩選</span>
+                        {showFilters ? <ChevronUp size={18} className="text-slate-500" /> : <ChevronDown size={18} className="text-slate-500" />}
                     </button>
                     
                     <div className={`flex flex-col gap-2 transition-all duration-300 ease-in-out overflow-hidden origin-top ${showFilters ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0 md:max-h-none md:opacity-100'}`}>
