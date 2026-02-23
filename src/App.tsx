@@ -2693,11 +2693,9 @@ export default function App() {
             <StatBadge icon={RotateCw} label="Flip" current={flipCount} max={LIMITS.FLIP} color="orange" />
           </div>
         </div>
-          {/* ★ 修正：將 Cookie Levels 移進來深色 Header 的內部，並稍微增加上邊距 mt-4 ★ */}
-          <div className="mt-4 w-full bg-slate-900/50 p-2.5 rounded-lg border border-slate-600/50 shadow-inner">
+        <div className="mt-2 w-full bg-slate-900/50 p-2.5 rounded-lg border border-slate-600/50">
              <div className="flex justify-between items-center text-[10px] text-slate-300 mb-2 font-bold tracking-wider uppercase">
                 <span className="flex items-center gap-1.5 text-white">
-                  {/* 使用 Cookie icon 增加識別度，若無引入可移除 */}
                   <Cookie size={12}/> Cookie Levels
                 </span>
                 <span className="opacity-60 bg-slate-800 px-1.5 py-0.5 rounded text-[9px]">
@@ -2705,14 +2703,12 @@ export default function App() {
                 </span>
              </div>
              
-             {/* 長條圖本體 */}
              <div className="flex h-2 w-full rounded-full overflow-hidden bg-slate-800 shadow-inner ring-1 ring-white/10">
                 <div style={{ width: `${levelStats.p1}%` }} className="bg-yellow-400 h-full"></div>
                 <div style={{ width: `${levelStats.p2}%` }} className="bg-orange-500 h-full"></div>
                 <div style={{ width: `${levelStats.p3}%` }} className="bg-red-600 h-full"></div>
              </div>
 
-             {/* 數字標籤 - 對齊修正 */}
              <div className="flex justify-between text-[10px] mt-1.5 font-mono font-bold leading-none text-slate-400">
                 <div className="flex items-center gap-1.5">
                    <div className="w-1.5 h-1.5 rounded-full bg-yellow-400"></div> 
@@ -2728,7 +2724,6 @@ export default function App() {
                 </div>
              </div>
           </div>
-        </div> {/* <-- 注意：Header 深色背景的結束標籤移到這裡了 */}
         
         <div className="p-2 bg-slate-700 border-b border-slate-600">
             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-2 flex items-center gap-1">
