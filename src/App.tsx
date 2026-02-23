@@ -1329,7 +1329,7 @@ const CardDetailModal = ({ card, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black/80 z-[110] flex items-center justify-center p-4" onClick={onClose}>
       <div className="relative w-full max-w-sm md:max-w-md flex flex-col gap-3" onClick={e => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute -top-12 right-0 p-2 text-white hover:text-gray-300 transition-colors">
+        <button onClick={onClose} className="fixed top-4 right-4 md:top-6 md:right-6 p-2 text-white bg-black/40 hover:bg-black/80 rounded-full transition-colors z-[120]">
           <X size={32} />
         </button>
         {card.imageUrl ? (
