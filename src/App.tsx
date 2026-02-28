@@ -1390,11 +1390,167 @@ const CardDetailModal = ({ card, onClose }) => {
                <h4 className="text-blue-800 font-bold text-sm mb-1.5 flex items-center gap-1.5">
                    <Languages size={16}/> English Translation
                </h4>
-// (這裡應該是 BulkImportModal 或 CardItem 結束的地方)
+               <p className="text-slate-700 text-sm whitespace-pre-wrap leading-relaxed">
+                   {card.effectText}
+               </p>
+           </div>
+        )}
 
-// ==========================================
-// 🚀 測試工具箱：手牌測試 與 開卡包模擬器
-// ==========================================
+      </div>
+    </div>
+  );
+};
+
+const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
+  const [jsonText, setJsonText] = useState("");
+  const [showHint, setShowHint] = useState(false); 
+
+  const handleSubmit = () => {
+    try {
+      const data = JSON.parse(jsonText);
+      if (!Array.isArray(data)) throw new Error("JSON 必須是最外層為陣列 `[ ... ]` 的格式");
+      onImport(data);
+    } catch (err) {
+      alert("JSON 格式錯誤：" + err.message);
+    }
+  };
+
+  const exampleJson = `[
+  {
+    "id": "BS1-001",
+    "series": "BS1",
+    "number": "001",
+    "name": "勇氣餅乾",
+    "type": "餅乾卡",
+    "color": "紅色",
+    "level": "LV.1",
+    "rarity": "C",
+    "isFlip": true,
+    "isExtra": false,
+    "isAncient": false,
+    "isDragon": false,
+    "isBeast": false,
+    "isSoulJam": false,
+    "isArena": false,
+    "isForbidden": false,
+    "isLimitOne": false,
+    "effectText": "English effect translation...",
+    "showEffect": false,
+    "imageUrl": ""
+  }
+]`;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-[90] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-4 shrink-0">
+          <h2 className="text-xl font-bold flex items-center gap-2"><FileJson className="text-blue-600"/> 批量匯入卡片 (管理員)</h2>
+          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24}/></button>
+        </div>
+        
+        <div className="flex justify-between items-center mb-2 shrink-0">
+            <p className="text-xs md:text-sm text-slate-600 font-bold">請貼上包含卡片物件的 JSON 陣列。</p>
+            <button onClick={() => setShowHint(!showHint)} className="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 bg-blue-50 px-2 py-1 rounded-md transition-colors">
+               {showHint ? "隱藏格式範例" : "查看 JSON 格式範例"}
+            </button>
+        </div>
+
+        {showHint && (
+            <div className="bg-slate-800 text-green-400 p-3 rounded-lg text-xs font-mono mb-3 overflow-y-auto max-h-48 shrink-0 shadow-inner">
+                <pre>{exampleJson}</pre>
+            </div>
+        )}
+
+        <textarea
+          className="w-full flex-1 min-h-[200px] border border-slate-300 rounded-lg p-3 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none resize-none shadow-inner"
+          placeholder={exampleJson}
+          value={jsonText}
+          onChange={e => setJsonText(e.target.value)}
+        />
+        <div className="flex gap-3 mt-4 shrink-0">
+            <button onClick={onClose} className="flex-1 bg-slate-100 text-slate-700 py-2.5 rounded-lg font-bold hover:bg-slate-200 transition-colors">取消</button>
+            <button
+              onClick={handleSubmit}
+              disabled={isProcessing || !jsonText.trim()}
+              className="flex-1 bg-blue-600 text-white py-2.5 rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
+            >
+              {isProcessing ? "處理中..." : "確認匯入並同步"}
+            </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CardItem = React.memo(({ card, onClick, onView, onEdit, onDelete, onIncrement, onDecrement, count = 0, compact = false, onHoverStart, onHoverMove, onHoverEnd }) => {
+  const colorClass = getCardColorStyles(card.color);
+  const longPressTimer = useRef(null);
+  const isLongPress = useRef(false);
+  const handleTouchStart = () => { isLongPress.current = false; longPressTimer.current = setTimeout(() => { isLongPress.current = true; if (navigator.vibrate) navigator.vibrate(50); onView(card); }, 500); };
+  const handleTouchEnd = () => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } };
+  const handleTouchMove = () => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } };
+  const handleClick = (e) => { if (isLongPress.current) { e.preventDefault(); e.stopPropagation(); return; } if (compact) { onView(card); } else { onClick(card); } };
+  
+  return (
+    <div 
+        onClick={handleClick} 
+        onTouchStart={handleTouchStart} 
+        onTouchEnd={handleTouchEnd} 
+        onTouchMove={handleTouchMove} 
+        onMouseEnter={(e) => onHoverStart && onHoverStart(card, e)}
+        onMouseMove={(e) => onHoverMove && onHoverMove(e)}
+        onMouseLeave={() => onHoverEnd && onHoverEnd()}
+        className={`relative cursor-pointer transition-all duration-200 border-2 rounded-lg shadow-sm hover:shadow-md hover:scale-[1.02] select-none overflow-hidden group ${colorClass} ${compact ? "p-2 pr-1 flex items-center justify-between text-sm min-h-[4rem]" : "p-3 flex flex-col gap-1"}`}
+    >
+      {card.imageUrl && !compact && (<div className="absolute inset-0 opacity-30 pointer-events-none group-hover:opacity-40 transition-opacity"><img src={card.imageUrl} alt="" className="w-full h-full object-cover" loading="lazy" /></div>)}
+      {!compact && card.isForbidden && (<div className="absolute inset-0 bg-red-900/10 pointer-events-none z-0"></div>)}
+      <div className={`relative z-10 w-full ${compact ? "flex items-center gap-3" : ""}`}>
+        {compact && card.imageUrl && (<div className="shrink-0 w-10 h-14 rounded border border-slate-300 overflow-hidden bg-white shadow-sm"><img src={card.imageUrl} className="w-full h-full object-cover" alt="" loading="lazy" /></div>)}
+        <div className={`flex-1 min-w-0 ${compact ? "" : ""}`}>
+          <div className={`flex justify-between items-start ${compact ? "flex-col justify-center" : "mb-1"}`}>
+            <h3 className={`font-bold leading-tight ${compact ? `truncate w-full text-slate-800 text-sm ${card.isForbidden || card.isLimitOne ? 'text-red-700' : ''}` : "text-lg md:text-xl line-clamp-1 leading-snug"}`}>{card.name}</h3>
+            <div className={`flex items-center gap-1 ${compact ? "w-full mt-0.5" : ""}`}>
+              {!compact && (<button onClick={(e) => { e.stopPropagation(); onView(card); }} className="p-1 text-current opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white/50 rounded-full transition-all" title="檢視詳細大圖"><Eye size={16} /></button>)}
+              <span className={`font-mono font-black ${compact ? "text-xs text-slate-500" : "text-xs md:text-xl bg-white/80 px-2 rounded border border-current/20 shadow-sm"}`}>{card.id}</span>
+            </div>
+          </div>
+          {!compact && (
+            <div className="flex flex-wrap items-center gap-1.5 text-xs md:text-sm opacity-90 font-semibold">
+              <span className="text-[10px] md:text-xs font-bold border border-current px-1 rounded opacity-80 uppercase bg-white/30">{card.color}</span>
+              <span className="bg-white/50 px-2 py-0.5 rounded text-current border border-current/20">{card.type}</span>
+              {card.level && (<span className="text-[10px] md:text-xs font-bold bg-yellow-400 text-yellow-900 px-1 rounded shadow-sm">{card.level}</span>)}
+              {card.rarity && card.rarity !== 'C' && (<span className={`text-[10px] md:text-xs font-bold px-1.5 rounded shadow-sm border ${getRarityStyle(card.rarity)}`}>{card.rarity}</span>)}
+              {card.isFlip && (<span className="flex items-center gap-0.5 text-[10px] md:text-xs bg-slate-800 text-white px-1.5 rounded font-bold tracking-wider">FLIP</span>)}
+              {card.isExtra && (<span className="text-[10px] md:text-xs uppercase tracking-wider bg-purple-200 text-purple-900 px-1 rounded border border-purple-300">EXTRA</span>)}
+              {card.isAncient && <span className="text-[10px] md:text-xs font-bold bg-amber-100 text-amber-800 px-1 rounded border border-amber-300">上古</span>}
+              {card.isDragon && <span className="text-[10px] md:text-xs font-bold bg-red-100 text-red-800 px-1 rounded border border-red-300">龍族</span>}
+              {card.isBeast && <span className="text-[10px] md:text-xs font-bold bg-stone-800 text-stone-100 px-1 rounded border border-stone-600">野獸</span>}
+              {card.isSoulJam && <span className="text-[10px] md:text-xs font-bold bg-pink-100 text-pink-800 px-1 rounded border border-pink-300">靈魂果醬</span>}
+              {card.isArena && <span className="text-[10px] md:text-xs font-bold bg-cyan-100 text-cyan-800 px-1 rounded border border-cyan-300">競技場</span>}
+              {card.isForbidden && <span className="flex items-center gap-0.5 text-[10px] bg-red-600 text-white px-1.5 rounded font-bold"><Ban size={10}/> 禁止</span>}
+              {card.isLimitOne && <span className="flex items-center gap-0.5 text-[10px] bg-orange-500 text-white px-1.5 rounded font-bold"><AlertOctagon size={10}/> Limit 1</span>}
+            </div>
+          )}
+        </div>
+        {compact && (
+            <div className="flex items-center gap-1 bg-white/50 rounded-lg p-1 border border-black/5 shadow-sm" onClick={e => e.stopPropagation()}>
+                <button onClick={() => onDecrement && onDecrement(card)} className="w-8 h-8 flex items-center justify-center bg-red-100 text-red-700 rounded hover:bg-red-200 active:scale-95 transition-all"><Minus size={16} strokeWidth={3} /></button>
+                <div className="w-8 text-center font-black text-lg text-slate-800 leading-none">{count}</div>
+                <button onClick={() => onIncrement && onIncrement(card)} className="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-700 rounded hover:bg-blue-200 active:scale-95 transition-all"><Plus size={16} strokeWidth={3} /></button>
+            </div>
+        )}
+      </div>
+      {!compact && onEdit && onDelete && (<div className="absolute top-2 right-2 flex gap-1 z-20 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={(e) => { e.stopPropagation(); onEdit(card); }} className="p-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 shadow-sm" title="編輯卡片"><Pencil size={14} /></button><button onClick={(e) => { e.stopPropagation(); onDelete(card); }} className="p-1.5 bg-red-500 text-white rounded hover:bg-red-600 shadow-sm" title="刪除卡片"><Trash2 size={14} /></button></div>)}
+      {!compact && count > 0 && (<div className="absolute -top-2 -right-2 bg-slate-800 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-md border-2 border-white z-10">{count}</div>)}
+    </div>
+  );
+});
+
+const StatBadge = ({ icon: Icon, label, current, max, color = "blue", warningAtFull = true }) => {
+  const isFull = current >= max;
+  const colorStyle = isFull && warningAtFull ? "bg-red-50 text-red-600 border-red-200" : `bg-${color}-50 text-${color}-700 border-${color}-200`;
+  return (<div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border ${colorStyle}`}><Icon size={16} /><span>{label}:</span><span className={isFull ? "font-bold" : ""}>{current} / {max}</span></div>);
+};
 
 const DrawTestModal = ({ deck, onClose }) => {
   const [drawCount, setDrawCount] = useState(1);
@@ -1549,9 +1705,6 @@ const PackOpenerModal = ({ allCards, onClose }) => {
   );
 };
 
-// ==========================================
-// App 主程式
-// ==========================================
 export default function App() {
   const [user, setUser] = useState(null);
   const [loadingError, setLoadingError] = useState(null);
