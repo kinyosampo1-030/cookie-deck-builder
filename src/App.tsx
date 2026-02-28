@@ -58,7 +58,8 @@ import {
   Globe, 
   MessageCircle, 
   Heart, 
-  Send, 
+  Send,
+  Clock // 新增：時鐘圖示供最新發布使用
 } from "lucide-react";
 
 import { initializeApp } from "firebase/app";
@@ -478,8 +479,6 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
 
     useEffect(() => {
         if (!db) return;
-        
-        // 修正：移除 orderBy 避免複合索引報錯，改用前端記憶體排序
         const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'community_comments'), where('deckId', '==', deckData.id));
         const unsubscribe = onSnapshot(q, (snap) => {
             let loadedComments = snap.docs.map(d => ({id: d.id, ...d.data()}));
@@ -518,8 +517,8 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
             await updateDoc(deckRef, { commentCount: increment(1) });
             setNewComment("");
         } catch (err) {
-            console.error("留言失敗:", err);
-            alert("留言失敗：" + err.message);
+            console.error(err);
+            alert("留言失敗");
         } finally {
             setIsSending(false);
         }
@@ -551,6 +550,20 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
         }
     };
 
+    // ★ 處理複製邏輯並增加 Copy Count
+    const handleCopyDeck = async () => {
+        try {
+            if (db) {
+                const deckRef = doc(db, 'artifacts', appId, 'public', 'data', 'community_decks', deckData.id);
+                await updateDoc(deckRef, { copyCount: increment(1) });
+            }
+        } catch (err) {
+            console.error("Failed to update copy count", err);
+        }
+        onLoadDeck({main: rawM, extra: rawE}, deckData.name);
+        onClose();
+    };
+
     const getSortedGroups = (cardList) => {
         const cookies = groupCards(cardList.filter(c => c.type === CARD_TYPES.COOKIE && !c.isFlip));
         cookies.sort((a, b) => {
@@ -560,10 +573,7 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
                 if (lvl === CARD_LEVELS.LV3) return 3;
                 return 99;
             }
-            const wa = getLevelVal(a.level);
-            const wb = getLevelVal(b.level);
-            if (wa !== wb) return wa - wb;
-            return a.id.localeCompare(b.id);
+            return getLevelVal(a.level) - getLevelVal(b.level) || a.id.localeCompare(b.id);
         });
 
         const others = groupCards(cardList.filter(c => c.type !== CARD_TYPES.COOKIE && !c.isFlip));
@@ -574,10 +584,7 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
                   if (t === CARD_TYPES.SCENE) return 3;
                   return 4;
               }
-              const wa = getTypeVal(a.type);
-              const wb = getTypeVal(b.type);
-              if (wa !== wb) return wa - wb;
-              return a.id.localeCompare(b.id);
+              return getTypeVal(a.type) - getTypeVal(b.type) || a.id.localeCompare(b.id);
         });
 
         const flips = groupCards(cardList.filter(c => c.isFlip));
@@ -597,7 +604,7 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
     const { cookies, others, flips, extras, rawM, rawE } = getDeckCards();
 
     const renderMiniCard = (group) => (
-        <div key={group.id} className="relative aspect-[3/4] bg-slate-200 rounded border border-slate-300 overflow-hidden group">
+        <div key={group.id} className="relative aspect-[3/4] bg-slate-200 rounded border border-slate-300 overflow-hidden group shadow-sm">
              {group.imageUrl ? <img src={group.imageUrl} alt={group.name} className="w-full h-full object-cover"/> : <div className={`w-full h-full p-1 text-[8px] flex flex-col ${getCardColorStyles(group.color)}`}><span className="font-bold leading-tight">{group.name}</span><span className="mt-1">{group.id}</span></div>}
              <div className="absolute bottom-1 right-1 bg-black text-white text-xs md:text-sm font-black w-6 h-6 md:w-8 md:h-8 rounded shadow-md border border-white/50 z-10 flex items-center justify-center leading-none pb-0.5">
                  x{group.stackCount}
@@ -611,7 +618,7 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
                 <div className="bg-white p-4 border-b flex justify-between items-center shrink-0">
                     <div>
                         <h2 className="text-xl font-bold text-slate-800">{deckData.name}</h2>
-                        <p className="text-xs text-slate-500">作者: {deckData.authorName} · {new Date(deckData.createdAt).toLocaleDateString()}</p>
+                        <p className="text-xs text-slate-500">作者: <span className="font-bold text-slate-700">{deckData.authorName}</span> · {new Date(deckData.createdAt).toLocaleDateString()}</p>
                     </div>
                     <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24}/></button>
                 </div>
@@ -619,16 +626,19 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
                 <div className="flex-1 overflow-y-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 space-y-4">
                         <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
-                             <div className="flex justify-between items-center mb-4">
+                             <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
                                 <div className="flex gap-2">
-                                    <button onClick={handleToggleLike} className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-bold transition-colors ${hasLiked ? 'bg-pink-100 text-pink-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                                    <button onClick={handleToggleLike} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold transition-colors shadow-sm ${hasLiked ? 'bg-pink-100 text-pink-600 border border-pink-200' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'}`}>
                                         <Heart size={16} className={hasLiked ? "fill-pink-600" : ""} /> {likesCount}
                                     </button>
-                                    <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-blue-50 text-blue-600 text-sm font-bold">
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 text-blue-600 text-sm font-bold border border-blue-100 shadow-sm">
                                         <MessageCircle size={16} /> {comments.length}
                                     </div>
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-600 text-sm font-bold border border-emerald-100 shadow-sm">
+                                        <Copy size={16} /> {deckData.copyCount || 0}
+                                    </div>
                                 </div>
-                                <button onClick={() => { onLoadDeck({main: rawM, extra: rawE}, deckData.name); onClose(); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 shadow-sm flex items-center gap-2">
+                                <button onClick={handleCopyDeck} className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-4 py-2 rounded-lg font-bold hover:from-blue-700 hover:to-blue-600 shadow-md flex items-center gap-2 transition-transform active:scale-95">
                                     <Copy size={16}/> 複製並編輯
                                 </button>
                              </div>
@@ -637,25 +647,25 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
                                 {cookies.length > 0 && (
                                     <div>
                                         <h4 className="font-bold text-slate-700 text-sm mb-2 border-l-4 border-yellow-400 pl-2">餅乾卡 (Cookies)</h4>
-                                        <div className="grid grid-cols-6 sm:grid-cols-8 gap-1">{cookies.map(renderMiniCard)}</div>
+                                        <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">{cookies.map(renderMiniCard)}</div>
                                     </div>
                                 )}
                                 {others.length > 0 && (
                                     <div>
                                         <h4 className="font-bold text-slate-700 text-sm mb-2 border-l-4 border-blue-400 pl-2">道具 / 陷阱 / 場景</h4>
-                                        <div className="grid grid-cols-6 sm:grid-cols-8 gap-1">{others.map(renderMiniCard)}</div>
+                                        <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">{others.map(renderMiniCard)}</div>
                                     </div>
                                 )}
                                 {flips.length > 0 && (
                                     <div>
                                         <h4 className="font-bold text-slate-700 text-sm mb-2 border-l-4 border-slate-600 pl-2">FLIP 區</h4>
-                                        <div className="grid grid-cols-6 sm:grid-cols-8 gap-1">{flips.map(renderMiniCard)}</div>
+                                        <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">{flips.map(renderMiniCard)}</div>
                                     </div>
                                 )}
                                 {extras.length > 0 && (
                                     <div>
                                         <h4 className="font-bold text-slate-700 text-sm mb-2 border-l-4 border-purple-500 pl-2">額外牌組 (Extra)</h4>
-                                        <div className="grid grid-cols-6 sm:grid-cols-8 gap-1">{extras.map(renderMiniCard)}</div>
+                                        <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">{extras.map(renderMiniCard)}</div>
                                     </div>
                                 )}
                              </div>
@@ -663,33 +673,32 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user }) => {
                     </div>
 
                     <div className="flex flex-col h-full bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden min-h-[400px]">
-                        <div className="p-3 border-b bg-slate-50 font-bold text-slate-700">留言板</div>
+                        <div className="p-3 border-b bg-slate-50 font-bold text-slate-700 flex items-center gap-2"><MessageCircle size={16}/> 留言板</div>
                         <div className="flex-1 overflow-y-auto p-3 space-y-3">
                             {comments.length === 0 ? <div className="text-center text-slate-400 text-sm py-4">還沒有留言，搶頭香！</div> : comments.map(c => {
                                 const isAuthor = c.userId === deckData.authorId;
                                 return (
-                                <div key={c.id} className={`text-sm border-b border-slate-100 pb-2 last:border-0 ${isAuthor ? 'bg-blue-50 p-2 rounded-lg border border-blue-100' : ''}`}>
+                                <div key={c.id} className={`text-sm border-b border-slate-100 pb-3 last:border-0 ${isAuthor ? 'bg-blue-50/50 p-2 rounded-lg border-blue-100' : ''}`}>
                                     <div className="flex justify-between items-baseline mb-1">
                                         <div className="flex items-center gap-1.5">
                                             <span className={`font-bold ${isAuthor ? 'text-blue-700' : 'text-slate-800'}`}>{c.userName}</span>
                                             {isAuthor && <span className="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full font-bold tracking-wider">作者</span>}
                                         </div>
-                                        {/* 修正：使用 toLocaleString 顯示完整日期與時間 */}
-                                        <span className="text-[10px] text-slate-400">{new Date(c.createdAt).toLocaleString()}</span>
+                                        <span className="text-[10px] text-slate-400 font-mono">{new Date(c.createdAt).toLocaleString()}</span>
                                     </div>
-                                    <p className={`break-words ${isAuthor ? 'text-blue-900' : 'text-slate-600'}`}>{c.content}</p>
+                                    <p className={`break-words leading-relaxed ${isAuthor ? 'text-blue-900' : 'text-slate-600'}`}>{c.content}</p>
                                 </div>
                             )})}
                         </div>
                         <form onSubmit={handleAddComment} className="p-3 border-t bg-slate-50 flex gap-2">
                             <input 
-                                className="flex-1 border rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-blue-500" 
+                                className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
                                 placeholder={user && !user.isAnonymous ? "輸入留言..." : "請先登入..."}
                                 value={newComment}
                                 onChange={e => setNewComment(e.target.value)}
                                 disabled={!user || user.isAnonymous || isSending}
                             />
-                            <button type="submit" disabled={!user || user.isAnonymous || isSending} className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 disabled:opacity-50"><Send size={16}/></button>
+                            <button type="submit" disabled={!user || user.isAnonymous || isSending} className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"><Send size={18}/></button>
                         </form>
                     </div>
                 </div>
@@ -702,6 +711,7 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin }) => {
     const [decks, setDecks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filterColor, setFilterColor] = useState("ALL");
+    const [sortBy, setSortBy] = useState("latest"); // 'latest', 'likes', 'copies'
     const [selectedDeck, setSelectedDeck] = useState(null);
 
     useEffect(() => {
@@ -709,30 +719,37 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin }) => {
         const fetchDecks = async () => {
             setLoading(true);
             try {
-                let q = query(collection(db, 'artifacts', appId, 'public', 'data', 'community_decks'), orderBy('createdAt', 'desc'), limit(50));
-                
-                if (filterColor !== "ALL") {
-                     q = query(collection(db, 'artifacts', appId, 'public', 'data', 'community_decks'), where('colors', 'array-contains', filterColor), orderBy('createdAt', 'desc'), limit(50));
-                }
-
+                // 為了避免 Firebase Index 報錯，我們抓取資料後使用前端排序
+                let q = query(collection(db, 'artifacts', appId, 'public', 'data', 'community_decks'), limit(200)); 
                 const snapshot = await getDocs(q);
-                setDecks(snapshot.docs.map(d => ({id: d.id, ...d.data()})));
-            } catch (e) {
-                console.error(e);
-                if (e.code === 'failed-precondition') {
-                    const q2 = query(collection(db, 'artifacts', appId, 'public', 'data', 'community_decks'), limit(50));
-                    const s2 = await getDocs(q2);
-                    let d = s2.docs.map(d => ({id: d.id, ...d.data()}));
-                    if (filterColor !== "ALL") d = d.filter(x => x.colors?.includes(filterColor));
-                    d.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
-                    setDecks(d);
+                let loadedDecks = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
+                
+                // 1. 顏色過濾
+                if (filterColor !== "ALL") {
+                    loadedDecks = loadedDecks.filter(x => x.colors?.includes(filterColor));
                 }
+                
+                // 2. 依照所選條件進行排序 (在前端執行，不受 Firebase 索引限制)
+                loadedDecks.sort((a, b) => {
+                    if (sortBy === 'likes') {
+                        return (b.likes || 0) - (a.likes || 0) || new Date(b.createdAt) - new Date(a.createdAt);
+                    }
+                    if (sortBy === 'copies') {
+                        return (b.copyCount || 0) - (a.copyCount || 0) || new Date(b.createdAt) - new Date(a.createdAt);
+                    }
+                    // 預設為最新發布
+                    return new Date(b.createdAt) - new Date(a.createdAt);
+                });
+                
+                setDecks(loadedDecks);
+            } catch (e) {
+                console.error("讀取社群牌組失敗:", e);
             } finally {
                 setLoading(false);
             }
         };
         fetchDecks();
-    }, [filterColor]);
+    }, [filterColor, sortBy]);
     
     const getCoverImage = (deck) => {
         if (deck.coverId) {
@@ -768,8 +785,16 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin }) => {
                     <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2"><Globe className="text-blue-500" /> 牌組社群廣場</h2>
                     <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24}/></button>
                 </div>
+                
+                {/* 🌟 排序按鈕區塊 (最新、最熱門、最多複製) */}
+                <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex gap-2 overflow-x-auto shrink-0 shadow-inner">
+                    <button onClick={() => setSortBy('latest')} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${sortBy === 'latest' ? 'bg-white text-blue-700 shadow border border-blue-200' : 'text-slate-500 hover:bg-slate-200 border border-transparent'}`}><Clock size={16} className={sortBy === 'latest' ? 'text-blue-500' : ''}/> 最新發布</button>
+                    <button onClick={() => setSortBy('likes')} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${sortBy === 'likes' ? 'bg-white text-pink-700 shadow border border-pink-200' : 'text-slate-500 hover:bg-slate-200 border border-transparent'}`}><Flame size={16} className={sortBy === 'likes' ? 'text-pink-500' : ''}/> 最多按讚</button>
+                    <button onClick={() => setSortBy('copies')} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${sortBy === 'copies' ? 'bg-white text-emerald-700 shadow border border-emerald-200' : 'text-slate-500 hover:bg-slate-200 border border-transparent'}`}><Copy size={16} className={sortBy === 'copies' ? 'text-emerald-500' : ''}/> 最多複製</button>
+                </div>
+
                 <div className="bg-white p-3 border-b flex gap-2 overflow-x-auto shrink-0">
-                    <button onClick={() => setFilterColor("ALL")} className={`px-4 py-1 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filterColor === "ALL" ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>全部</button>
+                    <button onClick={() => setFilterColor("ALL")} className={`px-4 py-1 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filterColor === "ALL" ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>全部顏色</button>
                     {Object.values(CARD_COLORS).map(c => (
                          <button key={c} onClick={() => setFilterColor(c)} className={`px-4 py-1 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filterColor === c ? "ring-2 ring-offset-1 ring-slate-400" : "opacity-60 hover:opacity-100"}`} style={{backgroundColor: c === '紅色' ? '#fee2e2' : c === '黃色' ? '#fef9c3' : c === '綠色' ? '#d1fae5' : c === '藍色' ? '#dbeafe' : c === '紫色' ? '#f3e8ff' : '#f1f5f9', color: '#334155'}}>{c}</button>
                     ))}
@@ -780,12 +805,13 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin }) => {
                     ) : decks.length === 0 ? (
                          <div className="flex flex-col items-center justify-center h-full text-slate-400">
                              <Box size={64} className="mb-4 opacity-20"/>
-                             <p>目前還沒有這個分類的牌組，來當第一個分享者吧！</p>
+                             <p>目前還沒有符合條件的牌組！</p>
                          </div>
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {decks.map(d => (
-                                <div key={d.id} onClick={() => setSelectedDeck(d)} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer overflow-hidden flex flex-col group h-full">
+                                <div key={d.id} onClick={() => setSelectedDeck(d)} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer overflow-hidden flex flex-col group h-full relative">
+                                    {sortBy === 'likes' && d.likes > 0 && <div className="absolute top-2 right-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[10px] font-black px-2 py-1 rounded shadow-md z-10 flex items-center gap-1"><Flame size={12}/> HOT</div>}
                                     <div className="h-32 bg-slate-200 overflow-hidden relative">
                                         <img src={getCoverImage(d)} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt="Deck Cover" />
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
@@ -798,20 +824,21 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin }) => {
                                     <div className="p-4 flex-1 flex flex-col">
                                         <h3 className="font-bold text-lg text-slate-800 line-clamp-1 mb-1 group-hover:text-blue-600">{d.name}</h3>
                                         <div className="text-xs text-slate-400 mb-4 flex items-center gap-2">
-                                            <span>{d.authorName}</span>
+                                            <span className="font-bold text-slate-500">{d.authorName}</span>
                                             <span>•</span>
                                             <span>{new Date(d.createdAt).toLocaleDateString()}</span>
                                         </div>
                                         <div className="mt-auto flex justify-between items-center text-sm text-slate-500">
-                                            <span className="flex items-center gap-1"><Layers size={14}/> {d.m?.length || 0}</span>
+                                            <span className="flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded font-bold text-xs"><Layers size={12}/> {d.m?.length || 0} 張</span>
                                             <div className="flex gap-3 items-center">
                                                 {isAdmin && (
                                                     <button onClick={(e) => handleDeleteDeck(e, d.id, d.name)} className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-full transition-colors z-10" title="管理員強制刪除">
                                                         <Trash2 size={14}/>
                                                     </button>
                                                 )}
-                                                <span className="flex items-center gap-1"><Heart size={14} className="group-hover:text-pink-500"/> {d.likes || 0}</span>
-                                                <span className="flex items-center gap-1"><MessageCircle size={14} className="group-hover:text-blue-500"/> {d.commentCount || 0}</span>
+                                                <span className="flex items-center gap-1 font-bold text-pink-600"><Heart size={14} className={d.likes > 0 ? "fill-pink-600" : ""}/> {d.likes || 0}</span>
+                                                <span className="flex items-center gap-1 text-slate-400"><MessageCircle size={14}/> {d.commentCount || 0}</span>
+                                                <span className="flex items-center gap-1 text-emerald-600 font-bold"><Copy size={14}/> {d.copyCount || 0}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -856,13 +883,18 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
     if (!userId || !db) return;
     const fetchDecks = async () => {
        try {
-         const q = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'));
+         const q = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'), orderBy('updatedAt', 'desc'));
          const snapshot = await getDocs(q);
-         const loadedDecks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-         loadedDecks.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
-         setDecks(loadedDecks);
+         setDecks(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
        } catch (e) {
          console.error("Error fetching decks", e);
+         if (e.code === 'failed-precondition') {
+             const q2 = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'));
+             const snapshot = await getDocs(q2);
+             const loadedDecks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+             loadedDecks.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+             setDecks(loadedDecks);
+         }
        } finally {
          setLoading(false);
        }
@@ -892,7 +924,7 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
             await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'decks'), deckData);
         }
         
-        const q = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'));
+        const q = query(collection(db, 'artifacts', appId, 'users', userId, 'decks'), orderBy('updatedAt', 'desc'));
         const snapshot = await getDocs(q);
         const loadedDecks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         loadedDecks.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
@@ -1450,157 +1482,6 @@ const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
   );
 };
 
-const DrawTestModal = ({ deck, onClose }) => {
-  const [drawCount, setDrawCount] = useState(1);
-  const [hands, setHands] = useState([]);
-  const [flippedIndices, setFlippedIndices] = useState({});
-
-  const drawCards = useCallback(() => {
-    if (deck.main.length === 0) {
-      alert("主牌組沒有卡片！");
-      return;
-    }
-    const newHands = [];
-    for (let i = 0; i < drawCount; i++) {
-      const shuffled = fisherYatesShuffle(deck.main);
-      newHands.push(shuffled.slice(0, 6));
-    }
-    setHands(newHands);
-    setFlippedIndices({});
-    let delay = 0;
-    newHands.forEach((_, handIdx) => {
-      for (let i = 0; i < 6; i++) {
-        delay += 50; 
-        setTimeout(() => {
-          setFlippedIndices(prev => ({ ...prev, [`${handIdx}-${i}`]: true }));
-        }, delay);
-      }
-    });
-  }, [deck.main, drawCount]);
-
-  useEffect(() => { drawCards(); }, [drawCards]);
-  const handleCardClick = (handIdx, cardIdx) => { setFlippedIndices(prev => ({ ...prev, [`${handIdx}-${cardIdx}`]: true })); };
-
-  return (
-    <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-slate-50 rounded-xl shadow-2xl w-full max-w-5xl p-6 h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center mb-4 shrink-0">
-          <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2"><Dices className="text-blue-600" /> 起始手牌測試</h2>
-          <button onClick={onClose} className="p-1 hover:bg-slate-200 rounded-full"><X size={24} /></button>
-        </div>
-        <div className="flex gap-4 mb-4 justify-center shrink-0">
-          <select className="px-4 py-2 rounded-lg border border-slate-300 font-bold text-slate-700 bg-white focus:ring-2 focus:ring-blue-500 outline-none" value={drawCount} onChange={(e) => setDrawCount(Number(e.target.value))}>
-            <option value={1}>測試 1 組</option>
-            <option value={3}>測試 3 組</option>
-            <option value={5}>測試 5 組</option>
-          </select>
-          <button onClick={drawCards} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold shadow-lg transition-transform active:scale-95"><RefreshCw size={20} /> 重新洗牌並抽牌</button>
-        </div>
-        <div className="flex-1 overflow-y-auto space-y-6 p-2 bg-slate-100 rounded-lg border border-slate-200 shadow-inner">
-          {hands.map((hand, handIdx) => (
-            <div key={handIdx} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
-               <div className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest border-b border-slate-100 pb-1">Hand #{handIdx + 1}</div>
-               <div className="grid grid-cols-6 gap-2 md:gap-4">
-                  {hand.map((card, cardIdx) => (
-                    <div key={`${handIdx}-${card.id}-${cardIdx}`} onClick={() => handleCardClick(handIdx, cardIdx)} className="aspect-[3/4] cursor-pointer perspective-1000 group relative">
-                       <div className={`w-full h-full transition-transform duration-500 transform-style-3d relative ${flippedIndices[`${handIdx}-${cardIdx}`] ? 'rotate-y-180' : ''}`}>
-                            <div className="absolute inset-0 backface-hidden rounded-lg overflow-hidden border-2 border-slate-300 shadow-md"><img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" /></div>
-                            <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-lg overflow-hidden border border-slate-300 shadow-md bg-white">
-                                {card.imageUrl ? (<img src={card.imageUrl} alt={card.name} className="w-full h-full object-cover" />) : (<div className={`w-full h-full p-2 text-xs flex flex-col ${getCardColorStyles(card.color)}`}><span className="font-bold leading-tight">{card.name}</span><span className="text-[10px] mt-1">{card.id}</span></div>)}
-                                <div className="absolute top-1 left-1 bg-black/50 text-white text-[9px] px-1.5 rounded font-bold">#{cardIdx + 1}</div>
-                            </div>
-                       </div>
-                    </div>
-                  ))}
-               </div>
-            </div>
-          ))}
-        </div>
-        <p className="text-center text-slate-500 text-xs mt-3 shrink-0">每次測試皆為獨立洗牌 (Fisher-Yates Shuffle) 後抽取前 6 張卡片</p>
-      </div>
-    </div>
-  );
-};
-
-const PackOpenerModal = ({ allCards, onClose }) => {
-  const [selectedSeries, setSelectedSeries] = useState("ALL");
-  const [openedCards, setOpenedCards] = useState([]);
-  const [flippedIndices, setFlippedIndices] = useState({});
-  const [isOpening, setIsOpening] = useState(false); 
-  const availableSeries = useMemo(() => {
-    const seriesSet = new Set(allCards.filter(c => !['ST', 'P'].includes(c.series)).map(c => c.series));
-    return Array.from(seriesSet).sort();
-  }, [allCards]);
-  const getRarityProb = () => { const r = Math.random() * 100; if (r < 1) return 'EXR'; if (r < 6) return 'UR'; if (r < 16) return 'SR'; if (r < 36) return 'R'; return 'C'; };
-  const openPack = () => {
-    let pool = allCards.filter(c => !['ST', 'P'].includes(c.series));
-    if (selectedSeries !== "ALL") pool = pool.filter(c => c.series === selectedSeries);
-    const cookieCards = pool.filter(c => c.type === CARD_TYPES.COOKIE);
-    const otherCards = pool.filter(c => c.type !== CARD_TYPES.COOKIE);
-    if (otherCards.length < 1) { alert(`該系列非餅乾卡不足 1 張，無法模擬開包！`); return; }
-    if (cookieCards.length < 4) { alert(`該系列餅乾卡不足 4 張，無法模擬開包！`); return; }
-    setIsOpening(true);
-    setOpenedCards([]); 
-    setTimeout(() => {
-        const shuffledOthers = fisherYatesShuffle(otherCards);
-        const selectedOther = shuffledOthers[0]; 
-        const selectedIDs = new Set();
-        if (selectedOther) selectedIDs.add(selectedOther.id);
-        const selectedCookies = [];
-        const targetRarity = getRarityProb();
-        let targetPool = cookieCards.filter(c => (c.rarity || 'C') === targetRarity);
-        if (targetPool.length === 0) targetPool = cookieCards; 
-        const rareCard = targetPool[Math.floor(Math.random() * targetPool.length)];
-        if (rareCard) { selectedCookies.push(rareCard); selectedIDs.add(rareCard.id); }
-        let commonPool = cookieCards.filter(c => (c.rarity || 'C') === 'C' && !selectedIDs.has(c.id));
-        if (commonPool.length < 3) commonPool = cookieCards.filter(c => !selectedIDs.has(c.id));
-        const shuffledCommons = fisherYatesShuffle(commonPool);
-        const commonsToTake = shuffledCommons.slice(0, 3);
-        selectedCookies.push(...commonsToTake);
-        while (selectedCookies.length < 4) { const randomC = cookieCards[Math.floor(Math.random() * cookieCards.length)]; selectedCookies.push(randomC); }
-        const finalPack = fisherYatesShuffle([...selectedCookies, selectedOther]);
-        setOpenedCards(finalPack);
-        setFlippedIndices({});
-        setIsOpening(false); 
-    }, 1200); 
-  };
-  const handleCardClick = (index) => { setFlippedIndices(prev => ({ ...prev, [index]: true })); };
-  const renderCard = (card, index) => (
-    <div key={index} onClick={() => handleCardClick(index)} className="w-[30vw] h-[40vw] md:w-48 md:h-64 cursor-pointer perspective-1000 group relative flex-shrink-0 animate-in zoom-in duration-500">
-        <div className={`w-full h-full transition-all duration-500 transform-style-3d relative ${flippedIndices[index] ? 'rotate-y-180' : ''}`}>
-            <div className="absolute inset-0 backface-hidden rounded-lg overflow-hidden border-2 border-slate-600 shadow-xl group-hover:scale-105 transition-transform"><img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" /></div>
-            <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-lg overflow-hidden border-2 border-white/20 shadow-2xl bg-white relative">
-                {card.imageUrl ? (<img src={card.imageUrl} className="w-full h-full object-cover" alt={card.name} />) : (<div className={`w-full h-full p-2 flex flex-col justify-between ${getCardColorStyles(card.color)}`}><span className="font-bold text-sm">{card.name}</span><span className="font-mono text-xs">{card.id}</span></div>)}
-                {card.rarity && card.rarity !== 'C' && (<div className={`absolute top-1 right-1 text-[10px] font-bold px-1.5 py-0.5 rounded shadow border ${getRarityStyle(card.rarity)}`}>{card.rarity}</div>)}
-            </div>
-        </div>
-    </div>
-  );
-  return (
-    <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-slate-800 rounded-xl shadow-2xl w-full max-w-5xl p-6 min-h-[600px] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center mb-6 text-white">
-          <h2 className="text-2xl font-black flex items-center gap-2"><PackageOpen className="text-yellow-400" /> 開卡包模擬器 (Pack Opener)</h2>
-          <button onClick={onClose} className="p-1 hover:bg-slate-700 rounded-full"><X size={24} /></button>
-        </div>
-        <div className="flex gap-4 mb-8 justify-center">
-          <select className="bg-slate-700 text-white border border-slate-600 rounded-lg px-4 py-2 outline-none font-bold" value={selectedSeries} onChange={(e) => setSelectedSeries(e.target.value)} disabled={isOpening}>
-            <option value="ALL">全部卡池</option>
-            {availableSeries.map(s => <option key={s} value={s}>{s} 系列</option>)}
-          </select>
-          <button onClick={openPack} disabled={isOpening} className="bg-yellow-500 hover:bg-yellow-400 disabled:bg-yellow-700 disabled:text-slate-500 text-slate-900 px-6 py-2 rounded-lg font-black flex items-center gap-2 shadow-lg transition-transform active:scale-95">{isOpening ? "開封中..." : <><PackageOpen size={20} /> 開啟卡包 / Open Pack</>}</button>
-        </div>
-        <div className="flex-1 flex items-center justify-center min-h-[400px]">
-          {isOpening ? (<div className="animate-bounce"><div className="w-48 h-64 bg-gradient-to-tr from-blue-600 to-purple-600 rounded-xl border-4 border-yellow-400 shadow-2xl flex items-center justify-center animate-pulse"><img src={CARD_BACK_URL} className="w-full h-full object-cover rounded-lg opacity-80" alt="Pack" /></div></div>) : openedCards.length === 0 ? (<div className="text-slate-500 flex flex-col items-center"><PackageOpen size={64} className="mb-4 opacity-20" /><p>選擇系列並點擊「開啟卡包」</p><p className="text-xs mt-2 opacity-60">配率：4 張餅乾卡 (含1張稀有位) + 1 張其他卡片</p></div>) : (<div className="flex flex-col items-center gap-4 md:gap-6 w-full"><div className="flex justify-center gap-2 md:gap-6">{openedCards.slice(0, 3).map((card, index) => renderCard(card, index))}</div><div className="flex justify-center gap-2 md:gap-6">{openedCards.slice(3, 5).map((card, index) => renderCard(card, index + 3))}</div></div>)}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ==========================================
-// 🌟 核心組件：單張卡片 (新增 onHover 綁定)
-// ==========================================
 const CardItem = React.memo(({ card, onClick, onView, onEdit, onDelete, onIncrement, onDecrement, count = 0, compact = false, onHoverStart, onHoverMove, onHoverEnd }) => {
   const colorClass = getCardColorStyles(card.color);
   const longPressTimer = useRef(null);
@@ -1670,10 +1551,6 @@ const StatBadge = ({ icon: Icon, label, current, max, color = "blue", warningAtF
   const colorStyle = isFull && warningAtFull ? "bg-red-50 text-red-600 border-red-200" : `bg-${color}-50 text-${color}-700 border-${color}-200`;
   return (<div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border ${colorStyle}`}><Icon size={16} /><span>{label}:</span><span className={isFull ? "font-bold" : ""}>{current} / {max}</span></div>);
 };
-
-// ==========================================
-// App 主程式
-// ==========================================
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -1750,7 +1627,7 @@ export default function App() {
       setToastMsg("暱稱已更新！");
   };
 
-  // Data Loading Effect (移除了BS9限制)
+  // Data Loading Effect
   useEffect(() => {
     if (!db) {
         console.error("Firestore db has not been initialized.");
@@ -1923,6 +1800,7 @@ export default function App() {
               colors: colors,
               likes: 0,
               commentCount: 0,
+              copyCount: 0, // 新增：初始化複製次數
               coverId: deckToPublish.coverId || null,
               createdAt: new Date().toISOString()
           };
@@ -2692,8 +2570,8 @@ export default function App() {
             <StatBadge icon={Zap} label="額外" current={deck.extra.length} max={LIMITS.EXTRA} color="purple" />
             <StatBadge icon={RotateCw} label="Flip" current={flipCount} max={LIMITS.FLIP} color="orange" />
           </div>
-        </div>
-        <div className="mt-2 w-full bg-slate-900/50 p-2.5 rounded-lg border border-slate-600/50">
+          
+          <div className="mt-4 w-full bg-slate-900/50 p-2.5 rounded-lg border border-slate-600/50 shadow-inner">
              <div className="flex justify-between items-center text-[10px] text-slate-300 mb-2 font-bold tracking-wider uppercase">
                 <span className="flex items-center gap-1.5 text-white">
                   <Cookie size={12}/> Cookie Levels
@@ -2724,6 +2602,7 @@ export default function App() {
                 </div>
              </div>
           </div>
+        </div>
         
         <div className="p-2 bg-slate-700 border-b border-slate-600">
             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-2 flex items-center gap-1">
