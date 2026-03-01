@@ -1,0 +1,21 @@
+{
+  "short_name": "薑餅人組牌",
+  "name": "Cookierun: Braverse Deck Builder",
+  "description": "全台最好用的薑餅人對戰卡牌 (CookieRun Braverse) 組牌工具與社群廣場",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#1e293b",
+  "background_color": "#f8fafc"
+}
