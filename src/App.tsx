@@ -2424,9 +2424,9 @@ export default function App() {
                         {deferredPrompt && (
                             <button 
                                 onClick={handleInstallPWA} 
-                                className="relative bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-amber-950 px-4 py-2 md:py-2.5 rounded-xl text-sm font-black flex items-center gap-1.5 shadow-lg shadow-yellow-500/30 transition-transform active:scale-95 border border-yellow-300"
+                                className="relative bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-amber-950 px-3 py-1.5 md:py-2 rounded-xl text-sm font-black flex items-center gap-1.5 shadow-lg shadow-yellow-500/30 transition-transform active:scale-95 border border-yellow-300"
                             >
-                                <Download size={18} className="animate-bounce" /> 
+                                <Download size={16} className="animate-bounce" /> 
                                 <span className="tracking-wide">安裝 App</span>
                             </button>
                         )}
