@@ -1833,6 +1833,41 @@ export default function App() {
   const lastScrollY = useRef(0);
 
   useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('Service Worker 註冊成功', reg.scope))
+        .catch(err => console.error('Service Worker 註冊失敗', err));
+    }
+
+    const handleBeforeInstallPrompt = (e) => {
+      // 防止瀏覽器自動跳出預設的迷你安裝列
+      e.preventDefault();
+      // 把事件存起來，等玩家點擊我們的自訂按鈕時再觸發
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  // 🌟 新增：處理玩家點擊安裝按鈕
+  const handleInstallPWA = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('玩家已安裝 PWA App');
+        }
+        // 無論接受或拒絕，都清空狀態隱藏按鈕
+        setDeferredPrompt(null);
+      });
+    }
+  };
+  
+  useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
     const handleScroll = () => {
