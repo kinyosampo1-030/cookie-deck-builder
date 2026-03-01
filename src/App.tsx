@@ -1811,7 +1811,7 @@ export default function App() {
       setIsDataLoaded(true);
       
       if (!hasShownWelcome.current) { 
-          setToastMsg("🚀 卡片資料庫已完全載入！"); 
+          setToastMsg("🚀 下載組牌器APP可以更快啟動喔！"); 
           hasShownWelcome.current = true; 
       }
     }, (error) => { 
@@ -2489,11 +2489,22 @@ export default function App() {
                             Cookierun: Braverse Deck Builder
                         </h1>
                         <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">
-                            新功能：<span className="text-blue-600 font-black">社群廣場</span> 與 <span className="text-emerald-600 font-black">雲端儲存</span> 上線！
+                            新功能：<span className="text-blue-600 font-black"會員牌組儲存</span> 與 <span className="text-emerald-600 font-black">手機版APP</span> 上線！
                         </p>
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-2 md:gap-4">
+                      {/* 🌟 新增：PWA 安裝按鈕 (當符合安裝條件且未安裝時顯示) */}
+                        {deferredPrompt && (
+                            <button 
+                                onClick={handleInstallPWA} 
+                                className="relative bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-amber-950 px-4 py-2 md:py-2.5 rounded-xl text-sm font-black flex items-center gap-1.5 shadow-lg shadow-yellow-500/30 transition-transform active:scale-95 border border-yellow-300"
+                            >
+                                <Download size={18} className="animate-bounce" /> 
+                                <span className="tracking-wide">安裝 App</span>
+                            </button>
+                        )}
+                      
                         <button 
                             onClick={() => setShowCommunityModal(true)} 
                             className="relative bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-500/40 transition-all hover:-translate-y-0.5 active:scale-95 border border-blue-400"
