@@ -2493,18 +2493,7 @@ export default function App() {
                         </p>
                     </div>
                     
-                    <div className="flex flex-wrap items-center gap-2 md:gap-4">
-                      {/* 🌟 新增：PWA 安裝按鈕 (當符合安裝條件且未安裝時顯示) */}
-                        {deferredPrompt && (
-                            <button 
-                                onClick={handleInstallPWA} 
-                                className="relative bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-amber-950 px-4 py-2 md:py-2.5 rounded-xl text-sm font-black flex items-center gap-1.5 shadow-lg shadow-yellow-500/30 transition-transform active:scale-95 border border-yellow-300"
-                            >
-                                <Download size={16} className="animate-bounce" /> 
-                                <span className="tracking-wide">安裝 App</span>
-                            </button>
-                        )}
-                      
+                    <div className="flex flex-wrap items-center gap-2 md:gap-4">                              
                         <button 
                             onClick={() => setShowCommunityModal(true)} 
                             className="relative bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-500/40 transition-all hover:-translate-y-0.5 active:scale-95 border border-blue-400"
