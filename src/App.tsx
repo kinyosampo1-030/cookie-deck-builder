@@ -2489,7 +2489,7 @@ export default function App() {
                             Cookierun: Braverse Deck Builder
                         </h1>
                         <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">
-                            新功能：<span className="text-blue-600 font-black"會員牌組儲存</span> 與 <span className="text-emerald-600 font-black">手機版APP</span> 上線！
+                            新功能：<span className="text-blue-600 font-black">會員牌組儲存</span> 與 <span className="text-emerald-600 font-black">手機版APP</span> 上線！
                         </p>
                     </div>
                     
