@@ -641,7 +641,7 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin }) => {
     const [decks, setDecks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filterColor, setFilterColor] = useState("ALL");
-    const [sortBy, setSortBy] = useState("latest"); // 'latest', 'likes', 'copies'
+    const [sortBy, setSortBy] = useState("latest");
     const [selectedDeck, setSelectedDeck] = useState(null);
 
     useEffect(() => {
@@ -957,6 +957,7 @@ const ExportModal = ({ deck, deckName, onClose }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isCreatingLink, setIsCreatingLink] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
+  const [generatedImage, setGeneratedImage] = useState(null); // 🌟 新增：存放供 iOS 長按儲存的圖片
 
   useEffect(() => {
     if (!window.html2canvas) {
@@ -991,16 +992,31 @@ const ExportModal = ({ deck, deckName, onClose }) => {
     } finally { setIsCreatingLink(false); }
   };
 
+  // 🌟 修正 iOS 下載 Bug 邏輯
   const handleDownloadImage = async () => {
     if (!window.html2canvas) { alert("組件載入中，請稍後再試..."); return; }
     setIsGenerating(true);
     try {
-      const canvas = await window.html2canvas(exportRef.current, { scale: 2, backgroundColor: "#ffffff", useCORS: true, windowWidth: 1200 });
+      // 加入 allowTaint 改善 iOS Safari 的跨域渲染問題
+      const canvas = await window.html2canvas(exportRef.current, { scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: true, windowWidth: 1200 });
+      const imgData = canvas.toDataURL("image/png");
+      
+      // 設定圖片狀態，讓畫面顯示預覽圖供 iOS 用戶長按儲存
+      setGeneratedImage(imgData);
+      
+      // 同時嘗試傳統的下載方式 (支援 Android 和 Desktop)
       const link = document.createElement("a");
       link.download = `${deckName || "deck"}-${new Date().toISOString().slice(0, 10)}.png`;
-      link.href = canvas.toDataURL();
+      link.href = imgData;
+      document.body.appendChild(link); // 必須 append 到 DOM，iOS 某些版本才允許點擊
       link.click();
-    } catch (err) { console.error(err); alert("圖片生成失敗，請重試"); } finally { setIsGenerating(false); }
+      document.body.removeChild(link);
+    } catch (err) { 
+        console.error(err); 
+        alert("圖片生成失敗，請重試"); 
+    } finally { 
+        setIsGenerating(false); 
+    }
   };
 
   const handleCopyLink = () => { if (!shareUrl) return; navigator.clipboard.writeText(shareUrl); alert("連結已複製到剪貼簿！"); };
@@ -1095,53 +1111,66 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                 <span className="text-slate-600 text-sm">將牌組匯出為高解析度 PNG 圖片 (適合社群分享)</span>
                 <button onClick={handleDownloadImage} disabled={isGenerating} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 disabled:opacity-50 shrink-0">{isGenerating ? "生成中..." : <><Download size={18} /> 下載圖片</>}</button>
               </div>
-              <div className="w-full overflow-x-auto pb-4">
-                <div
-                    ref={exportRef}
-                    className="bg-white p-4 md:p-8 rounded-lg shadow-lg min-w-[800px] lg:min-w-0 w-full mx-auto border border-slate-200"
-                >
-                    <div className="flex justify-between items-end border-b-4 border-slate-800 pb-4 mb-6">
-                        <div className="flex-1"><h1 className="text-4xl font-black text-slate-900 uppercase tracking-tight leading-none">{deckName || "My Deck"}</h1></div>
-                        <div className="flex flex-col items-end gap-1 text-sm font-bold text-slate-600 uppercase tracking-wider min-w-max ml-4">
-                            <span className="flex items-center gap-1"><Layers size={16} /> Total: {deck.main.length}</span>
-                            <span className="flex items-center gap-1"><RotateCw size={16} /> Flip: {flipCount}</span>
-                            {deck.extra.length > 0 && (<span className="flex items-center gap-1 text-purple-600"><Zap size={16} /> Extra: {deck.extra.length}</span>)}
+              
+              {/* 🌟 針對 iOS 的完美解法：如果圖片已經生成，直接顯示在畫面上讓玩家長按儲存 */}
+              {generatedImage ? (
+                  <div className="w-full flex flex-col items-center gap-4 animate-in fade-in">
+                      <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg text-sm w-full font-bold shadow-sm flex flex-col gap-2">
+                         <div className="flex items-center gap-2"><CheckCircle size={18} className="text-green-600"/> 圖片已成功生成！</div>
+                         <p className="text-green-700">若您的裝置 (如 iOS 蘋果手機或 LINE 內建瀏覽器) 未自動下載，<strong className="text-red-600 underline">請直接「長按」下方圖片，選擇「儲存圖片」</strong>。</p>
+                         <button onClick={() => setGeneratedImage(null)} className="mt-2 text-blue-600 underline text-xs self-start">返回重新編輯排版</button>
+                      </div>
+                      <img src={generatedImage} alt="Generated Deck" className="w-full max-w-3xl rounded-lg shadow-2xl border-4 border-slate-200" />
+                  </div>
+              ) : (
+                  <div className="w-full overflow-x-auto pb-4">
+                    <div
+                        ref={exportRef}
+                        className="bg-white p-4 md:p-8 rounded-lg shadow-lg min-w-[800px] lg:min-w-0 w-full mx-auto border border-slate-200"
+                    >
+                        <div className="flex justify-between items-end border-b-4 border-slate-800 pb-4 mb-6">
+                            <div className="flex-1"><h1 className="text-4xl font-black text-slate-900 uppercase tracking-tight leading-none">{deckName || "My Deck"}</h1></div>
+                            <div className="flex flex-col items-end gap-1 text-sm font-bold text-slate-600 uppercase tracking-wider min-w-max ml-4">
+                                <span className="flex items-center gap-1"><Layers size={16} /> Total: {deck.main.length}</span>
+                                <span className="flex items-center gap-1"><RotateCw size={16} /> Flip: {flipCount}</span>
+                                {deck.extra.length > 0 && (<span className="flex items-center gap-1 text-purple-600"><Zap size={16} /> Extra: {deck.extra.length}</span>)}
+                            </div>
+                        </div>
+                        <div className="space-y-6">
+                            {imageExportData.cookies.length > 0 && (
+                                <div>
+                                    <h3 className="font-bold text-slate-700 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-yellow-400 pl-2">Cookies <span className="text-xs opacity-50 ml-1">(Lv.1 &rarr; Lv.3)</span></h3>
+                                    <div className="grid grid-cols-8 gap-1">{imageExportData.cookies.map(renderMiniCard)}</div>
+                                </div>
+                            )}
+                            {imageExportData.others.length > 0 && (
+                                <div>
+                                    <h3 className="font-bold text-slate-700 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-blue-400 pl-2">Items / Traps / Stages</h3>
+                                    <div className="grid grid-cols-8 gap-1">{imageExportData.others.map(renderMiniCard)}</div>
+                                </div>
+                            )}
+                            {imageExportData.flips.length > 0 && (
+                                <div>
+                                    <h3 className="font-bold text-slate-700 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-slate-600 pl-2">FLIP Cards</h3>
+                                    <div className="grid grid-cols-8 gap-1">{imageExportData.flips.map(renderMiniCard)}</div>
+                                </div>
+                            )}
+                            {imageExportData.extras.length > 0 && (
+                                <div className="pt-2 border-t border-slate-100">
+                                    <h3 className="font-bold text-purple-900 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-purple-400 pl-2"><Zap size={16} /> Extra Deck</h3>
+                                    <div className="grid grid-cols-8 gap-1">{imageExportData.extras.map(renderMiniCard)}</div>
+                                </div>
+                            )}
+                        </div>
+                        <div className="mt-8 pt-4 border-t-2 border-slate-100 flex justify-end items-center">
+                            <div className="text-right">
+                                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">CREATED WITH</div>
+                                <div className="text-lg font-black text-slate-300">Braverse Deck Builder</div>
+                            </div>
                         </div>
                     </div>
-                    <div className="space-y-6">
-                        {imageExportData.cookies.length > 0 && (
-                            <div>
-                                <h3 className="font-bold text-slate-700 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-yellow-400 pl-2">Cookies <span className="text-xs opacity-50 ml-1">(Lv.1 &rarr; Lv.3)</span></h3>
-                                <div className="grid grid-cols-8 gap-1">{imageExportData.cookies.map(renderMiniCard)}</div>
-                            </div>
-                        )}
-                        {imageExportData.others.length > 0 && (
-                            <div>
-                                <h3 className="font-bold text-slate-700 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-blue-400 pl-2">Items / Traps / Stages</h3>
-                                <div className="grid grid-cols-8 gap-1">{imageExportData.others.map(renderMiniCard)}</div>
-                            </div>
-                        )}
-                        {imageExportData.flips.length > 0 && (
-                            <div>
-                                <h3 className="font-bold text-slate-700 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-slate-600 pl-2">FLIP Cards</h3>
-                                <div className="grid grid-cols-8 gap-1">{imageExportData.flips.map(renderMiniCard)}</div>
-                            </div>
-                        )}
-                        {imageExportData.extras.length > 0 && (
-                            <div className="pt-2 border-t border-slate-100">
-                                <h3 className="font-bold text-purple-900 text-sm uppercase mb-2 flex items-center gap-2 border-l-4 border-purple-400 pl-2"><Zap size={16} /> Extra Deck</h3>
-                                <div className="grid grid-cols-8 gap-1">{imageExportData.extras.map(renderMiniCard)}</div>
-                            </div>
-                        )}
-                    </div>
-                    <div className="mt-8 pt-4 border-t-2 border-slate-100 flex justify-end items-center">
-                        <div className="text-right">
-                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">CREATED WITH</div>
-                            <div className="text-lg font-black text-slate-300">Braverse Deck Builder</div>
-                        </div>
-                    </div>
-                </div>
-              </div>
+                  </div>
+              )}
             </div>
           )}
           {activeTab === "link" && (
@@ -1320,6 +1349,7 @@ const CardDetailModal = ({ card, onClose }) => {
                </p>
            </div>
         )}
+
       </div>
     </div>
   );
@@ -1631,10 +1661,6 @@ const StatBadge = ({ icon: Icon, label, current, max, color = "blue", warningAtF
   const colorStyle = isFull && warningAtFull ? "bg-red-50 text-red-600 border-red-200" : `bg-${color}-50 text-${color}-700 border-${color}-200`;
   return (<div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border ${colorStyle}`}><Icon size={16} /><span>{label}:</span><span className={isFull ? "font-bold" : ""}>{current} / {max}</span></div>);
 };
-
-// ==========================================
-// App 主程式
-// ==========================================
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -2415,7 +2441,7 @@ export default function App() {
                             Cookierun: Braverse Deck Builder
                         </h1>
                         <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">
-                            新功能：<span className="text-blue-600 font-black">牌組分享廣場</span> 與 <span className="text-emerald-600 font-black">手機版APP</span> 上線！
+                            新功能：<span className="text-blue-600 font-black">社群廣場</span> 與 <span className="text-emerald-600 font-black">手機APP</span> 上線！
                         </p>
                     </div>
                     
@@ -2424,9 +2450,9 @@ export default function App() {
                         {deferredPrompt && (
                             <button 
                                 onClick={handleInstallPWA} 
-                                className="relative bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-amber-950 px-3 py-1.5 md:py-2 rounded-xl text-sm font-black flex items-center gap-1.5 shadow-lg shadow-yellow-500/30 transition-transform active:scale-95 border border-yellow-300"
+                                className="relative bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-amber-950 px-4 py-2 md:py-2.5 rounded-xl text-sm font-black flex items-center gap-1.5 shadow-lg shadow-yellow-500/30 transition-transform active:scale-95 border border-yellow-300"
                             >
-                                <Download size={16} className="animate-bounce" /> 
+                                <Download size={18} className="animate-bounce" /> 
                                 <span className="tracking-wide">安裝 App</span>
                             </button>
                         )}
@@ -2590,8 +2616,9 @@ export default function App() {
 
         {/* Footer 區域 */}
         <div className="bg-white border-t border-slate-200 text-xs text-slate-500 p-2 md:p-3 shrink-0">
-          <div className="md:hidden flex flex-col gap-2">
-              <div className="flex items-center justify-start gap-6 px-1">
+          {/* 手機版佈局 */}
+          <div className="md:hidden flex flex-col gap-1">
+              <div className="flex items-center justify-center gap-6">
                   <a href="https://www.youtube.com/@%E6%A8%82%E5%A4%9A%E7%B6%A0" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-red-600 transition-colors font-bold">
                       <Youtube size={14} /> YouTube
                   </a>
@@ -2599,12 +2626,37 @@ export default function App() {
                       <Facebook size={14} /> 樂多綠Facebook
                   </a>
               </div>
-              <div className="flex items-center justify-start gap-2 overflow-hidden text-[10px] sm:text-xs border-t border-slate-100 pt-2 px-1">
-                  <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold whitespace-nowrap shrink-0">
-                      <ExternalLink size={12} /> 薑餅人對戰卡牌/台灣
-                  </a>
-                  <span className="text-slate-300">|</span>
-                  <span className="truncate text-slate-400">製作者：樂多綠Gamecaster</span>
+              <div className="flex items-center justify-between border-t border-slate-100 pt-1.5 mt-0.5">
+                  <div className="flex items-center gap-2 overflow-hidden text-[10px] sm:text-xs">
+                      <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold whitespace-nowrap shrink-0">
+                          <ExternalLink size={12} /> 薑餅人對戰卡牌/台灣
+                      </a>
+                      <span className="text-slate-300">|</span>
+                      <span className="truncate text-slate-400">製作者：樂多綠Gamecaster</span>
+                  </div>
+                  {user && !user.isAnonymous ? (
+                    <>
+                    <button 
+                        onClick={() => setShowProfileModal(true)} 
+                        className="flex items-center gap-1 p-1 text-slate-500 hover:text-blue-500 transition-colors shrink-0 cursor-pointer" 
+                        title="點擊修改暱稱"
+                    >
+                        <div className="flex flex-col items-start leading-none">
+                            <span className="text-[10px] font-bold truncate max-w-[80px]">{user.displayName || '設定暱稱'}</span>
+                            <span className="text-[8px] opacity-50">已登入</span>
+                        </div>
+                        <UserCog size={14}/>
+                    </button>
+                    <button onClick={handleLogout} className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0" title="登出">
+                        <LogOut size={14}/>
+                    </button>
+                    </>
+                  ) : (
+                    <button onClick={() => setShowLoginModal(true)} className="flex items-center gap-1 p-1 text-blue-600 hover:text-blue-800 transition-colors shrink-0 font-bold" title="登入/註冊">
+                        <span className="text-[10px]">登入/註冊</span>
+                        <UserCog size={14}/>
+                    </button>
+                  )}
               </div>
           </div>
 
@@ -2620,6 +2672,31 @@ export default function App() {
                   <a href="https://www.facebook.com/groups/CookieRunBraverseTW" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition-colors font-bold">
                       <ExternalLink size={14} /> 薑餅人對戰卡牌/台灣
                   </a>
+              </div>
+              <div className="flex justify-end">
+                {user && !user.isAnonymous ? (
+                    <>
+                    <button 
+                        onClick={() => setShowProfileModal(true)} 
+                        className="flex items-center gap-1 p-1 text-slate-500 hover:text-blue-500 transition-colors shrink-0 cursor-pointer" 
+                        title="點擊修改暱稱"
+                    >
+                        <div className="flex flex-col items-start leading-none">
+                            <span className="text-[10px] font-bold truncate max-w-[80px]">{user.displayName || '設定暱稱'}</span>
+                            <span className="text-[8px] opacity-50">已登入</span>
+                        </div>
+                        <UserCog size={14}/>
+                    </button>
+                    <button onClick={handleLogout} className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0" title="登出">
+                        <LogOut size={14}/>
+                    </button>
+                    </>
+                  ) : (
+                    <button onClick={() => setShowLoginModal(true)} className="flex items-center gap-1 p-1 text-blue-600 hover:text-blue-800 transition-colors shrink-0 font-bold" title="登入/註冊">
+                        <span className="text-[10px]">登入/註冊</span>
+                        <UserCog size={14}/>
+                    </button>
+                  )}
               </div>
           </div>
         </div>
