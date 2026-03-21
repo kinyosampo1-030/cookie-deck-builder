@@ -149,6 +149,11 @@ const CARD_RARITIES = {
   EXR: "EXR (Extra Rare)", 
 };
 
+// 🌟 新增：餅乾技能標籤清單
+const COOKIE_SKILLS = [
+  "登場時", "一回合一次", "啟動", "回合結束時", "阻擋", "被動效果", "在自己回合中"
+];
+
 const CARD_BACK_URL = "https://static.wixstatic.com/media/2295bf_b9aee85e881243d99276b2f571927305~mv2.png";
 
 const INITIAL_CARDS = [
@@ -161,6 +166,7 @@ const INITIAL_CARDS = [
     color: CARD_COLORS.RED,
     level: CARD_LEVELS.LV1,
     rarity: "C", 
+    skills: [], // 🌟 新增技能陣列
     isExtra: false,
     isFlip: true,
     isAncient: false,
@@ -957,7 +963,7 @@ const ExportModal = ({ deck, deckName, onClose }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isCreatingLink, setIsCreatingLink] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
-  const [generatedImage, setGeneratedImage] = useState(null); // 🌟 新增：存放供 iOS 長按儲存的圖片
+  const [generatedImage, setGeneratedImage] = useState(null);
 
   useEffect(() => {
     if (!window.html2canvas) {
@@ -992,23 +998,19 @@ const ExportModal = ({ deck, deckName, onClose }) => {
     } finally { setIsCreatingLink(false); }
   };
 
-  // 🌟 修正 iOS 下載 Bug 邏輯
   const handleDownloadImage = async () => {
     if (!window.html2canvas) { alert("組件載入中，請稍後再試..."); return; }
     setIsGenerating(true);
     try {
-      // 加入 allowTaint 改善 iOS Safari 的跨域渲染問題
       const canvas = await window.html2canvas(exportRef.current, { scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: true, windowWidth: 1200 });
       const imgData = canvas.toDataURL("image/png");
       
-      // 設定圖片狀態，讓畫面顯示預覽圖供 iOS 用戶長按儲存
       setGeneratedImage(imgData);
       
-      // 同時嘗試傳統的下載方式 (支援 Android 和 Desktop)
       const link = document.createElement("a");
       link.download = `${deckName || "deck"}-${new Date().toISOString().slice(0, 10)}.png`;
       link.href = imgData;
-      document.body.appendChild(link); // 必須 append 到 DOM，iOS 某些版本才允許點擊
+      document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     } catch (err) { 
@@ -1112,7 +1114,6 @@ const ExportModal = ({ deck, deckName, onClose }) => {
                 <button onClick={handleDownloadImage} disabled={isGenerating} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 disabled:opacity-50 shrink-0">{isGenerating ? "生成中..." : <><Download size={18} /> 下載圖片</>}</button>
               </div>
               
-              {/* 🌟 針對 iOS 的完美解法：如果圖片已經生成，直接顯示在畫面上讓玩家長按儲存 */}
               {generatedImage ? (
                   <div className="w-full flex flex-col items-center gap-4 animate-in fade-in">
                       <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg text-sm w-full font-bold shadow-sm flex flex-col gap-2">
@@ -1230,81 +1231,185 @@ const ExportModal = ({ deck, deckName, onClose }) => {
   );
 };
 
+// 🌟 編輯/新增卡片 Modal (重構版面，加入技能選擇)
 const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
-    const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState({
     series: "BS1", number: "", name: "", color: CARD_COLORS.RED, type: CARD_TYPES.COOKIE, level: CARD_LEVELS.LV1, rarity: "C", 
+    skills: [], // 🌟 初始化技能陣列
     isFlip: false, isExtra: false, isAncient: false, isDragon: false, isBeast: false, isSoulJam: false, isArena: false,
     isForbidden: false, isLimitOne: false, effectText: "", showEffect: false, imageUrl: "",
   });
   const [previewUrl, setPreviewUrl] = useState(null);
   const editorSeriesOptions = useMemo(() => { const stSeries = Array.from({ length: 15 }, (_, i) => `ST${i + 1}`); const bsSeries = ["BS1", "BS2", "BS3", "BS4", "BS5", "BS6", "BS7", "BS8", "BS9"]; const other = ["P"]; return [...stSeries, ...bsSeries, ...other]; }, []);
+  
   useEffect(() => {
     if (initialData) {
       let derivedSeries = "BS1"; let derivedNumber = "";
       if (initialData.id && initialData.id.includes("-")) { const parts = initialData.id.split("-"); derivedSeries = parts[0] || "BS1"; derivedNumber = parts[1] || ""; } else { derivedNumber = initialData.id || ""; }
-      setFormData((prev) => ({ ...prev, ...initialData, series: derivedSeries, number: derivedNumber, rarity: initialData.rarity || "C", effectText: initialData.effectText || "", showEffect: initialData.showEffect || false, isArena: initialData.isArena || false }));
+      setFormData((prev) => ({ 
+          ...prev, 
+          ...initialData, 
+          series: derivedSeries, 
+          number: derivedNumber, 
+          rarity: initialData.rarity || "C", 
+          skills: initialData.skills || [], // 🌟 讀取現有技能
+          effectText: initialData.effectText || "", 
+          showEffect: initialData.showEffect || false, 
+          isArena: initialData.isArena || false 
+      }));
       if (initialData.imageUrl) { setPreviewUrl(initialData.imageUrl); }
     }
   }, [initialData]);
+
   const handleFileChange = async (e) => { const file = e.target.files[0]; if (file) { if (file.size > 1024 * 1024) { alert("圖片過大！請使用 1MB 以下的圖片，系統將嘗試自動壓縮。"); } try { const compressedBase64 = await compressImage(file); setPreviewUrl(compressedBase64); setFormData({ ...formData, imageUrl: compressedBase64 }); } catch (err) { console.error("圖片處理失敗", err); alert("圖片處理失敗，請換一張試試"); } } };
-  const handleSubmit = (e) => { e.preventDefault(); if (!formData.name) { alert("請填寫卡片名稱"); return; } if (formData.imageUrl && formData.imageUrl.length > 1048400) { alert("圖片壓縮後依然過大！請更換一張解析度較低的圖片。"); return; } let fullId; if (initialData && initialData.id) { fullId = initialData.id; } else { if (!formData.number) { alert("請填寫編號"); return; } const finalSeries = formData.series.toUpperCase(); fullId = `${finalSeries}-${formData.number}`; } const submitData = { ...formData, id: fullId, series: formData.series.toUpperCase(), level: formData.type === CARD_TYPES.COOKIE ? formData.level : null }; onAdd(submitData); };
+  
+  // 🌟 處理技能標籤的勾選/取消
+  const handleSkillToggle = (skill) => {
+      setFormData(prev => {
+          const currentSkills = prev.skills || [];
+          if (currentSkills.includes(skill)) {
+              return { ...prev, skills: currentSkills.filter(s => s !== skill) };
+          } else {
+              return { ...prev, skills: [...currentSkills, skill] };
+          }
+      });
+  };
+
+  const handleSubmit = (e) => { 
+      e.preventDefault(); 
+      if (!formData.name) { alert("請填寫卡片名稱"); return; } 
+      if (formData.imageUrl && formData.imageUrl.length > 1048400) { alert("圖片壓縮後依然過大！請更換一張解析度較低的圖片。"); return; } 
+      let fullId; 
+      if (initialData && initialData.id) { fullId = initialData.id; } 
+      else { 
+          if (!formData.number) { alert("請填寫編號"); return; } 
+          const finalSeries = formData.series.toUpperCase(); fullId = `${finalSeries}-${formData.number}`; 
+      } 
+      const submitData = { 
+          ...formData, 
+          id: fullId, 
+          series: formData.series.toUpperCase(), 
+          level: formData.type === CARD_TYPES.COOKIE ? formData.level : null,
+          skills: formData.type === CARD_TYPES.COOKIE ? formData.skills : [] // 確保只有餅乾卡有技能
+      }; 
+      onAdd(submitData); 
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center p-4 border-b">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div className="flex justify-between items-center p-4 border-b shrink-0 bg-slate-50 rounded-t-xl">
           <h2 className="text-xl font-bold flex items-center gap-2">{initialData ? (<><Pencil className="text-blue-600" /> 編輯卡片</>) : (<><Plus className="text-blue-600" /> 新增自定義卡片</>)}</h2>
-          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24} /></button>
+          <button onClick={onClose} className="p-1 hover:bg-slate-200 rounded-full transition-colors"><X size={24} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <div className={`bg-slate-50 p-3 rounded border ${initialData ? "opacity-70 pointer-events-none" : ""}`}>
-              <label className="block text-sm font-bold text-slate-700 mb-2">卡片編號 (ID) {initialData && (<span className="text-xs text-red-500 font-normal ml-2">編輯模式下無法修改</span>)}</label>
-              <div className="flex gap-2 items-center">
-                <input list="series-options" type="text" className="border rounded p-2 bg-white flex-1 font-bold uppercase" value={formData.series} onChange={(e) => setFormData({ ...formData, series: e.target.value })} placeholder="選擇或輸入系列" />
-                <datalist id="series-options">{editorSeriesOptions.map((opt) => (<option key={opt} value={opt} />))}</datalist>
-                <span className="font-bold text-slate-400">-</span>
-                <input type="text" placeholder="001" required={!initialData} className="border rounded p-2 flex-1 font-mono" value={formData.number} onChange={(e) => setFormData({ ...formData, number: e.target.value })} />
+        
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+          
+          {/* 區塊一：基本卡片屬性 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
+              <div className={`col-span-1 md:col-span-2 ${initialData ? "opacity-70 pointer-events-none" : ""}`}>
+                <label className="block text-sm font-bold text-slate-700 mb-1">卡片編號 (ID) {initialData && (<span className="text-xs text-red-500 font-normal ml-2">編輯模式下無法修改</span>)}</label>
+                <div className="flex gap-2 items-center">
+                  <input list="series-options" type="text" className="border border-slate-300 rounded p-2 bg-white flex-1 font-bold uppercase focus:ring-2 focus:ring-blue-500 outline-none" value={formData.series} onChange={(e) => setFormData({ ...formData, series: e.target.value })} placeholder="選擇系列" />
+                  <span className="font-bold text-slate-400">-</span>
+                  <input type="text" placeholder="001" required={!initialData} className="border border-slate-300 rounded p-2 flex-1 font-mono focus:ring-2 focus:ring-blue-500 outline-none" value={formData.number} onChange={(e) => setFormData({ ...formData, number: e.target.value })} />
+                </div>
               </div>
-            </div>
-            <div><label className="block text-sm font-medium text-slate-700 mb-1">卡片名稱</label><input type="text" required className="w-full border rounded p-2" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><label className="block text-sm font-medium text-slate-700 mb-1">種類</label><select className="w-full border rounded p-2" value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })}>{Object.values(CARD_TYPES).map((t) => (<option key={t} value={t}>{t}</option>))}</select></div>
-              <div><label className="block text-sm font-medium text-slate-700 mb-1">顏色</label><select className="w-full border rounded p-2" value={formData.color} onChange={(e) => setFormData({ ...formData, color: e.target.value })}>{Object.values(CARD_COLORS).map((c) => (<option key={c} value={c}>{c}</option>))}</select></div>
-            </div>
-            {formData.type === CARD_TYPES.COOKIE && (<div><label className="block text-sm font-medium text-slate-700 mb-1">等級 (Level)</label><select className="w-full border rounded p-2" value={formData.level} onChange={(e) => setFormData({ ...formData, level: e.target.value })}>{Object.values(CARD_LEVELS).map((lvl) => (<option key={lvl} value={lvl}>{lvl}</option>))}</select></div>)}
-            <div><label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">稀有度 <Gem size={14} className="text-purple-500"/></label><select className="w-full border rounded p-2" value={formData.rarity} onChange={(e) => setFormData({ ...formData, rarity: e.target.value })}>{Object.entries(CARD_RARITIES).map(([key, label]) => (<option key={key} value={key}>{label}</option>))}</select></div>
-            <div className="col-span-1 md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1"><Languages size={16} /> 英文效果文本 (English Effect)</label>
-                <textarea className="w-full border rounded p-2 h-24 text-sm font-sans" placeholder="Enter English effect text here..." value={formData.effectText} onChange={(e) => setFormData({...formData, effectText: e.target.value})} />
-                <div className="flex items-center gap-2 mt-2"><input type="checkbox" id="showEffect" checked={formData.showEffect} onChange={(e) => setFormData({...formData, showEffect: e.target.checked})} className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" /><label htmlFor="showEffect" className="text-sm font-bold text-slate-700 cursor-pointer select-none">啟用效果文本顯示 (Enable Effect Display)</label></div>
-            </div>
-            <div className="bg-slate-50 p-4 rounded-lg border col-span-1 md:col-span-2">
-                <div className="grid grid-cols-2 gap-y-3 gap-x-4">
-                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5" checked={formData.isFlip} onChange={(e) => setFormData({ ...formData, isFlip: e.target.checked })} /><span>FLIP</span></label>
-                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5" checked={formData.isExtra} onChange={(e) => setFormData({ ...formData, isExtra: e.target.checked })} /><span>Extra Deck</span></label>
-                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5" checked={formData.isAncient} onChange={(e) => setFormData({ ...formData, isAncient: e.target.checked })} /><span>上古餅乾</span></label>
-                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5" checked={formData.isDragon} onChange={(e) => setFormData({ ...formData, isDragon: e.target.checked })} /><span>龍族</span></label>
-                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5" checked={formData.isBeast} onChange={(e) => setFormData({ ...formData, isBeast: e.target.checked })} /><span>野獸餅乾</span></label>
-                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5" checked={formData.isSoulJam} onChange={(e) => setFormData({ ...formData, isSoulJam: e.target.checked })} /><span>靈魂果醬</span></label>
-                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5" checked={formData.isArena} onChange={(e) => setFormData({ ...formData, isArena: e.target.checked })} /><span>競技場 (Arena)</span></label>
-                </div>
-                <div className="mt-4 pt-4 border-t border-slate-200 grid grid-cols-2 gap-y-3 gap-x-4">
-                    <label className="flex items-center gap-2 cursor-pointer text-red-600 font-bold"><input type="checkbox" className="w-5 h-5 accent-red-600" checked={formData.isForbidden} onChange={(e) => setFormData({ ...formData, isForbidden: e.target.checked })} /><span>🚫 禁止卡</span></label>
-                    <label className="flex items-center gap-2 cursor-pointer text-orange-600 font-bold"><input type="checkbox" className="w-5 h-5 accent-orange-600" checked={formData.isLimitOne} onChange={(e) => setFormData({ ...formData, isLimitOne: e.target.checked })} /><span>⚠️ 限制卡 (Limit 1)</span></label>
-                </div>
+              
+              <div className="col-span-1 md:col-span-2">
+                  <label className="block text-sm font-bold text-slate-700 mb-1">卡片名稱</label>
+                  <input type="text" required className="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none font-bold" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+              </div>
+              
+              <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">種類</label>
+                  <select className="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })}>{Object.values(CARD_TYPES).map((t) => (<option key={t} value={t}>{t}</option>))}</select>
+              </div>
+              <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">顏色</label>
+                  <select className="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.color} onChange={(e) => setFormData({ ...formData, color: e.target.value })}>{Object.values(CARD_COLORS).map((c) => (<option key={c} value={c}>{c}</option>))}</select>
+              </div>
+              
+              {formData.type === CARD_TYPES.COOKIE && (
+                  <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">等級 (Level)</label>
+                      <select className="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.level} onChange={(e) => setFormData({ ...formData, level: e.target.value })}>{Object.values(CARD_LEVELS).map((lvl) => (<option key={lvl} value={lvl}>{lvl}</option>))}</select>
+                  </div>
+              )}
+              
+              <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1 flex items-center gap-1">稀有度 <Gem size={14} className="text-purple-500"/></label>
+                  <select className="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.rarity} onChange={(e) => setFormData({ ...formData, rarity: e.target.value })}>{Object.entries(CARD_RARITIES).map(([key, label]) => (<option key={key} value={key}>{label}</option>))}</select>
+              </div>
+          </div>
+
+          {/* 區塊二：英文效果文本 */}
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+              <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-1"><Languages size={16} className="text-blue-600"/> 英文效果文本 (English Effect)</label>
+              <textarea className="w-full border border-slate-300 rounded p-3 h-24 text-sm font-sans focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Enter English effect text here..." value={formData.effectText} onChange={(e) => setFormData({...formData, effectText: e.target.value})} />
+              <div className="flex items-center gap-2 mt-3 bg-white p-2 rounded border border-slate-100 shadow-sm w-max">
+                  <input type="checkbox" id="showEffect" checked={formData.showEffect} onChange={(e) => setFormData({...formData, showEffect: e.target.checked})} className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" />
+                  <label htmlFor="showEffect" className="text-sm font-bold text-slate-700 cursor-pointer select-none">啟用效果文本顯示 (Enable Display)</label>
+              </div>
+          </div>
+
+          {/* 🌟 區塊三：餅乾技能標籤 (僅限餅乾卡) */}
+          {formData.type === CARD_TYPES.COOKIE && (
+              <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                  <label className="block text-sm font-bold text-amber-900 mb-3 flex items-center gap-1.5">
+                      <Zap size={16} className="text-amber-600"/> 餅乾技能標籤 (可複選)
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                      {COOKIE_SKILLS.map(skill => (
+                          <label key={skill} className="flex items-center gap-1.5 cursor-pointer bg-white px-3 py-1.5 rounded-full border border-amber-200 shadow-sm hover:bg-amber-100 transition-colors">
+                              <input 
+                                  type="checkbox" 
+                                  className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500 border-amber-300"
+                                  checked={(formData.skills || []).includes(skill)}
+                                  onChange={() => handleSkillToggle(skill)}
+                              />
+                              <span className="text-sm font-bold text-amber-900">{skill}</span>
+                          </label>
+                      ))}
+                  </div>
+              </div>
+          )}
+
+          {/* 區塊四：特殊屬性與限制 */}
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+              <label className="block text-sm font-bold text-slate-700 mb-3">特殊屬性 (Special Attributes)</label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-y-3 gap-x-4">
+                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5 rounded text-blue-600 focus:ring-blue-500" checked={formData.isFlip} onChange={(e) => setFormData({ ...formData, isFlip: e.target.checked })} /><span className="text-sm font-bold text-slate-700">FLIP</span></label>
+                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5 rounded text-blue-600 focus:ring-blue-500" checked={formData.isExtra} onChange={(e) => setFormData({ ...formData, isExtra: e.target.checked })} /><span className="text-sm font-bold text-slate-700">Extra Deck</span></label>
+                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5 rounded text-amber-500 focus:ring-amber-500" checked={formData.isAncient} onChange={(e) => setFormData({ ...formData, isAncient: e.target.checked })} /><span className="text-sm font-bold text-slate-700">上古餅乾</span></label>
+                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5 rounded text-red-500 focus:ring-red-500" checked={formData.isDragon} onChange={(e) => setFormData({ ...formData, isDragon: e.target.checked })} /><span className="text-sm font-bold text-slate-700">龍族</span></label>
+                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5 rounded text-stone-600 focus:ring-stone-500" checked={formData.isBeast} onChange={(e) => setFormData({ ...formData, isBeast: e.target.checked })} /><span className="text-sm font-bold text-slate-700">野獸餅乾</span></label>
+                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5 rounded text-pink-500 focus:ring-pink-500" checked={formData.isSoulJam} onChange={(e) => setFormData({ ...formData, isSoulJam: e.target.checked })} /><span className="text-sm font-bold text-slate-700">靈魂果醬</span></label>
+                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-5 h-5 rounded text-cyan-500 focus:ring-cyan-500" checked={formData.isArena} onChange={(e) => setFormData({ ...formData, isArena: e.target.checked })} /><span className="text-sm font-bold text-slate-700">競技場 (Arena)</span></label>
+              </div>
+              
+              <div className="mt-4 pt-4 border-t border-slate-200 grid grid-cols-2 gap-y-3 gap-x-4">
+                  <label className="flex items-center gap-2 cursor-pointer text-red-600 font-bold"><input type="checkbox" className="w-5 h-5 accent-red-600" checked={formData.isForbidden} onChange={(e) => setFormData({ ...formData, isForbidden: e.target.checked })} /><span>🚫 禁止卡</span></label>
+                  <label className="flex items-center gap-2 cursor-pointer text-orange-600 font-bold"><input type="checkbox" className="w-5 h-5 accent-orange-600" checked={formData.isLimitOne} onChange={(e) => setFormData({ ...formData, isLimitOne: e.target.checked })} /><span>⚠️ 限制卡 (Limit 1)</span></label>
+              </div>
+          </div>
+
+          {/* 區塊五：圖片上傳 */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-2">卡片預覽圖 (Image) {initialData && (<span className="text-xs text-gray-500 font-normal">(不更換則維持原圖)</span>)}</label>
+            <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 relative h-64 flex items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer group">
+              {previewUrl ? (<img src={previewUrl} className="absolute inset-0 w-full h-full object-contain p-2" />) : (<div className="text-slate-400 flex flex-col items-center group-hover:text-blue-500 transition-colors"><ImageIcon size={48} className="mb-2" /><span className="text-sm font-bold">點擊或拖曳上傳圖片</span></div>)}
+              <input type="file" accept="image/*" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
             </div>
           </div>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">圖片 {initialData && (<span className="text-xs text-gray-500">(不更換則維持原圖)</span>)}</label>
-              <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 relative h-64 flex items-center justify-center bg-slate-100">
-                {previewUrl ? (<img src={previewUrl} className="absolute inset-0 w-full h-full object-contain" />) : (<div className="text-slate-400 flex flex-col items-center"><ImageIcon size={48} /><span className="text-sm mt-2">上傳圖片</span></div>)}
-                <input type="file" accept="image/*" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
-              </div>
-            </div>
-            <button type="submit" disabled={isProcessing} className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold disabled:opacity-50">{isProcessing ? "處理中..." : initialData ? "更新卡片資訊" : "確認上傳並同步"}</button>
-          </div>
+          
         </form>
+        
+        <div className="p-4 border-t bg-white shrink-0">
+            <button type="submit" onClick={handleSubmit} disabled={isProcessing} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold text-lg disabled:opacity-50 shadow-lg shadow-blue-500/30 transition-all active:scale-95">
+                {isProcessing ? "處理中..." : initialData ? "更新卡片資訊" : "確認上傳並同步至資料庫"}
+            </button>
+        </div>
       </div>
     </div>
   );
@@ -1330,11 +1435,18 @@ const CardDetailModal = ({ card, onClose }) => {
                 {card.level && <p className="flex justify-between border-b border-current/20 pb-1"><span>等級</span> <span>{card.level}</span></p>}
                 <p className="flex justify-between border-b border-current/20 pb-1"><span>稀有度</span> <span>{card.rarity || 'C'}</span></p>
              </div>
+             
              <div className="flex flex-wrap gap-2 mt-4">
                 {card.isFlip && <span className="bg-slate-800 text-white px-2 py-1 rounded text-xs font-bold">FLIP</span>}
                 {card.isExtra && <span className="bg-purple-200 text-purple-900 px-2 py-1 rounded text-xs font-bold border border-purple-300">EXTRA</span>}
                 {card.isForbidden && <span className="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">禁止卡</span>}
                 {card.isLimitOne && <span className="bg-orange-500 text-white px-2 py-1 rounded text-xs font-bold">限制卡 (Limit 1)</span>}
+                {/* 🌟 顯示技能標籤 */}
+                {(card.skills || []).map(skill => (
+                    <span key={`skill-${skill}`} className="bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs font-bold border border-amber-300 flex items-center gap-1">
+                        <Zap size={10}/> {skill}
+                    </span>
+                ))}
              </div>
           </div>
         )}
@@ -1349,7 +1461,6 @@ const CardDetailModal = ({ card, onClose }) => {
                </p>
            </div>
         )}
-
       </div>
     </div>
   );
@@ -1379,6 +1490,7 @@ const BulkImportModal = ({ onClose, onImport, isProcessing }) => {
     "color": "紅色",
     "level": "LV.1",
     "rarity": "C",
+    "skills": ["登場時", "阻擋"],
     "isFlip": true,
     "isExtra": false,
     "isAncient": false,
@@ -1668,10 +1780,14 @@ export default function App() {
   const [allCards, setAllCards] = useState([]);
   const [deck, setDeck] = useState({ main: [], extra: [] });
   const [deckName, setDeckName] = useState("我的餅乾牌組");
+  
+  // 🌟 更新：Filters State 新增 `skills` 陣列
   const [filters, setFilters] = useState({
     search: "", type: "ALL", color: "ALL", level: "ALL", series: "ALL", rarity: "ALL", levelOrRarity: "ALL",
+    skills: [], // 🌟 初始化為空陣列
     showExtra: false, showFlip: false, showAncient: false, showDragon: false, showBeast: false, showSoulJam: false, showArena: false,
   });
+  
   const [toastMsg, setToastMsg] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -1690,16 +1806,12 @@ export default function App() {
   const loadMoreRef = useRef(null);
   const hasShownWelcome = useRef(false);
   
-  // 🌟 PWA 安裝提示狀態
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-
-  // New States
   const [showStorageModal, setShowStorageModal] = useState(false);
   const [showCommunityModal, setShowCommunityModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false); 
 
-  // 🌟 懸停預覽專用 State 與 Ref
   const hoverPreviewRef = useRef(null);
   const [hoveredCard, setHoveredCard] = useState(null);
 
@@ -1734,7 +1846,6 @@ export default function App() {
       setToastMsg("暱稱已更新！");
   };
 
-  // Data Loading Effect
   useEffect(() => {
     if (!db) {
         console.error("Firestore db has not been initialized.");
@@ -1742,11 +1853,8 @@ export default function App() {
         setIsDataLoaded(true);
         return;
     }
-    
     if (!user) return;
-
     setIsDataLoaded(false);
-
     let q;
     try {
         q = query(collection(db, 'artifacts', appId, 'public', 'data', 'cards')); 
@@ -1756,14 +1864,11 @@ export default function App() {
         setIsDataLoaded(true);
         return;
     }
-
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const cards = snapshot.docs.map(doc => doc.data());
       cards.sort((a, b) => a.id.localeCompare(b.id));
-      
       setAllCards(cards);
       setIsDataLoaded(true);
-      
       if (!hasShownWelcome.current) { 
           setToastMsg("🚀 卡片資料庫已完全載入！"); 
           hasShownWelcome.current = true; 
@@ -1777,36 +1882,29 @@ export default function App() {
             setToastMsg(`資料庫讀取失敗: ${error.message}`); 
         }
     });
-    
     return () => unsubscribe();
   }, [user]);
 
-  // Scroll Header Effect
   const [showHeader, setShowHeader] = useState(true);
   const scrollContainerRef = useRef(null);
   const lastScrollY = useRef(0);
 
-  // 🌟 註冊 Service Worker 與監聽 PWA 安裝事件
   useEffect(() => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js')
         .then(reg => console.log('Service Worker 註冊成功', reg.scope))
         .catch(err => console.error('Service Worker 註冊失敗', err));
     }
-
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
     };
-
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, []);
 
-  // 🌟 處理玩家點擊安裝按鈕
   const handleInstallPWA = () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
@@ -1835,9 +1933,7 @@ export default function App() {
 
   const LIMITS = { MAIN: 60, EXTRA: 6, COPY: 4, FLIP: 16 };
 
-  const closeToast = useCallback(() => {
-    setToastMsg(null);
-  }, []);
+  const closeToast = useCallback(() => { setToastMsg(null); }, []);
 
   useEffect(() => { 
     document.title = "Cookierun: Braverse Deck Builder"; 
@@ -1846,8 +1942,6 @@ export default function App() {
     link.rel = 'icon'; 
     link.href = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍪</text></svg>`; 
     document.getElementsByTagName('head')[0].appendChild(link); 
-    
-    // 強制寫入 Viewport，確保手機版不會縮放成桌面版！
     let viewportMeta = document.querySelector('meta[name="viewport"]');
     if (!viewportMeta) {
         viewportMeta = document.createElement('meta');
@@ -1883,16 +1977,12 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  const handleUserLogin = async (email, password) => {
-      await signInWithEmailAndPassword(auth, email, password);
-  };
-
+  const handleUserLogin = async (email, password) => { await signInWithEmailAndPassword(auth, email, password); };
   const handleUserRegister = async (email, password, displayName) => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName: displayName });
       setUser({ ...userCredential.user, displayName });
   };
-
   const handleLogout = async () => {
       if (confirm("確定要登出嗎？")) {
           await signOut(auth);
@@ -1902,24 +1992,16 @@ export default function App() {
   };
 
   const handleLoadDeckFromStorage = (loadedDeckObj, newName) => { 
-      setDeck({ 
-          main: loadedDeckObj?.main || [], 
-          extra: loadedDeckObj?.extra || [] 
-      }); 
+      setDeck({ main: loadedDeckObj?.main || [], extra: loadedDeckObj?.extra || [] }); 
       setDeckName(newName || "我的餅乾牌組"); 
       setToastMsg("牌組載入成功！"); 
   };
 
   const handleLoadDeckFromCommunity = (loadedDeckObj, newName) => {
       if (deck.main.length > 0 || deck.extra.length > 0) {
-          if (!confirm("確定要複製並載入這副牌組嗎？\n⚠️ 警告：目前的牌組將被清空覆蓋！")) {
-              return; 
-          }
+          if (!confirm("確定要複製並載入這副牌組嗎？\n⚠️ 警告：目前的牌組將被清空覆蓋！")) return; 
       }
-      setDeck({ 
-          main: loadedDeckObj?.main || [], 
-          extra: loadedDeckObj?.extra || [] 
-      });
+      setDeck({ main: loadedDeckObj?.main || [], extra: loadedDeckObj?.extra || [] });
       setDeckName(newName || "社群牌組");
       setToastMsg("✨ 社群牌組載入成功！");
       setShowCommunityModal(false);
@@ -1930,7 +2012,6 @@ export default function App() {
           const cardIds = [...(deckToPublish.m || [])];
           const cards = cardIds.map(id => allCards.find(c => c.id === id)).filter(Boolean);
           const colors = [...new Set(cards.map(c => c.color).filter(Boolean))];
-
           const publicData = {
               name: deckToPublish.name,
               authorId: user.uid,
@@ -1944,7 +2025,6 @@ export default function App() {
               coverId: deckToPublish.coverId || null,
               createdAt: new Date().toISOString()
           };
-          
           await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'community_decks'), publicData);
           alert("發布成功！大家可以在社群廣場看到你的牌組了。");
           setShowStorageModal(false);
@@ -2009,9 +2089,7 @@ export default function App() {
   const getFlipCount = () => deck.main.filter(c => c.isFlip).length;
 
   const nonFlipCookieCount = useMemo(() => {
-    return deck.main.filter(
-      (c) => c.type === CARD_TYPES.COOKIE && c.isFlip === false
-    ).length;
+    return deck.main.filter((c) => c.type === CARD_TYPES.COOKIE && c.isFlip === false).length;
   }, [deck.main]);
 
   const forbiddenCount = useMemo(() => {
@@ -2030,35 +2108,20 @@ export default function App() {
   }, [deck]);
 
   const addToDeck = useCallback((card) => {
-    if (card.isForbidden) {
-        setToastMsg("❌ 加入了禁止卡 (正式比賽無法使用)");
-    }
+    if (card.isForbidden) setToastMsg("❌ 加入了禁止卡 (正式比賽無法使用)");
     const currentCount = deck.main.filter(c => c.id === card.id).length + deck.extra.filter(c => c.id === card.id).length;
-    if (card.isLimitOne && currentCount >= 1) {
-        setToastMsg("⚠️ 加入了第二張限制卡 (正式比賽無法使用)");
-    }
+    if (card.isLimitOne && currentCount >= 1) setToastMsg("⚠️ 加入了第二張限制卡 (正式比賽無法使用)");
     const isExtra = isExtraDeckCard(card);
     const targetDeckKey = isExtra ? "extra" : "main";
     const limit = isExtra ? LIMITS.EXTRA : LIMITS.MAIN;
     const current = deck[targetDeckKey];
     const flipCountCurrent = deck.main.filter(c => c.isFlip).length;
-    if (isExtra && current.length >= limit) {
-      setToastMsg(`額外牌組已滿 (${LIMITS.EXTRA}張)`);
-      return;
-    }
-    if (currentCount >= LIMITS.COPY) {
-      setToastMsg(`同名卡片最多 ${LIMITS.COPY} 張`);
-      return;
-    }
-    if (card.isFlip && !isExtra && flipCountCurrent >= LIMITS.FLIP) {
-      setToastMsg(`Flip 卡片上限 ${LIMITS.FLIP} 張`);
-      return;
-    }
+    if (isExtra && current.length >= limit) { setToastMsg(`額外牌組已滿 (${LIMITS.EXTRA}張)`); return; }
+    if (currentCount >= LIMITS.COPY) { setToastMsg(`同名卡片最多 ${LIMITS.COPY} 張`); return; }
+    if (card.isFlip && !isExtra && flipCountCurrent >= LIMITS.FLIP) { setToastMsg(`Flip 卡片上限 ${LIMITS.FLIP} 張`); return; }
     setDeck((prev) => ({
       ...prev,
-      [targetDeckKey]: [...prev[targetDeckKey], card].sort((a, b) =>
-        a.id.localeCompare(b.id)
-      ),
+      [targetDeckKey]: [...prev[targetDeckKey], card].sort((a, b) => a.id.localeCompare(b.id)),
     }));
   }, [deck]);
 
@@ -2078,9 +2141,7 @@ export default function App() {
 
   const handleShareClick = () => {
     if (deck.main.length > LIMITS.MAIN) {
-      if (window.confirm("主牌組張數已超過 60 張上限，確定要繼續分享/輸出嗎？")) {
-        setShowExportModal(true);
-      }
+      if (window.confirm("主牌組張數已超過 60 張上限，確定要繼續分享/輸出嗎？")) setShowExportModal(true);
     } else {
       setShowExportModal(true);
     }
@@ -2109,10 +2170,7 @@ export default function App() {
     }
     setIsProcessing(true);
     try {
-      await setDoc(
-        doc(db, "artifacts", appId, "public", "data", "cards", cardData.id),
-        cardData
-      );
+      await setDoc(doc(db, "artifacts", appId, "public", "data", "cards", cardData.id), cardData);
       setToastMsg(editingCard ? "卡片更新成功" : "卡片新增成功");
       setShowAddModal(false);
       setEditingCard(null);
@@ -2142,15 +2200,7 @@ export default function App() {
     try {
       cardsData.forEach((card) => {
         if (!card.id || !card.name) return; 
-        const ref = doc(
-          db,
-          "artifacts",
-          appId,
-          "public",
-          "data",
-          "cards",
-          card.id
-        );
+        const ref = doc(db, "artifacts", appId, "public", "data", "cards", card.id);
         batch.set(ref, card);
         count++;
       });
@@ -2168,9 +2218,7 @@ export default function App() {
   const handleDeleteCard = async (card) => {
     if (!confirm(`確定要永久刪除「${card.name}」嗎？此動作無法復原。`)) return;
     try {
-      await deleteDoc(
-        doc(db, "artifacts", appId, "public", "data", "cards", card.id)
-      );
+      await deleteDoc(doc(db, "artifacts", appId, "public", "data", "cards", card.id));
       setToastMsg(`已刪除 ${card.name}`);
     } catch (err) {
       console.error(err);
@@ -2183,6 +2231,7 @@ export default function App() {
     setShowAddModal(true);
   };
 
+  // 🌟 更新：過濾邏輯加入技能標籤判定 (AND 邏輯交集)
   const filteredCards = useMemo(
     () =>
       allCards.filter((card) => {
@@ -2203,14 +2252,14 @@ export default function App() {
 
         const matchLevelOrRarity = (() => {
           if (filters.levelOrRarity === "ALL") return true;
-          if (Object.values(CARD_LEVELS).includes(filters.levelOrRarity)) {
-              return card.level === filters.levelOrRarity;
-          }
-          if (Object.keys(CARD_RARITIES).includes(filters.levelOrRarity)) {
-             return card.rarity === filters.levelOrRarity;
-          }
+          if (Object.values(CARD_LEVELS).includes(filters.levelOrRarity)) return card.level === filters.levelOrRarity;
+          if (Object.keys(CARD_RARITIES).includes(filters.levelOrRarity)) return card.rarity === filters.levelOrRarity;
           return false;
         })();
+
+        // 🌟 新增：陣列中的每個被勾選技能，都必須存在於該卡片的 skills 陣列中
+        const matchSkills = filters.skills.length === 0 || 
+            filters.skills.every(skill => (card.skills || []).includes(skill));
 
         const matchExtra = filters.showExtra ? card.isExtra : true;
         const matchFlip = filters.showFlip ? card.isFlip : true;
@@ -2226,6 +2275,7 @@ export default function App() {
           matchColor &&
           matchSeries &&
           matchLevelOrRarity && 
+          matchSkills && // 🌟 新增判定條件
           matchExtra &&
           matchFlip &&
           matchAncient &&
@@ -2347,6 +2397,12 @@ export default function App() {
                             {hoveredCard.isExtra && <span className="bg-purple-200 text-purple-900 px-2 py-0.5 rounded text-[10px] font-bold border border-purple-300">EXTRA</span>}
                             {hoveredCard.isForbidden && <span className="bg-red-600 text-white px-2 py-0.5 rounded text-[10px] font-bold">禁止卡</span>}
                             {hoveredCard.isLimitOne && <span className="bg-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">限制卡 (Limit 1)</span>}
+                            {/* 預覽時也顯示技能 */}
+                            {(hoveredCard.skills || []).map(skill => (
+                                <span key={`hover-skill-${skill}`} className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-[10px] font-bold border border-amber-300">
+                                    {skill}
+                                </span>
+                            ))}
                         </div>
                     </div>
                 )}
@@ -2446,7 +2502,6 @@ export default function App() {
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-2 md:gap-4">
-                        {/* 🌟 PWA 安裝按鈕 */}
                         {deferredPrompt && (
                             <button 
                                 onClick={handleInstallPWA} 
@@ -2523,7 +2578,38 @@ export default function App() {
                           <div className="relative flex-1"><Layers className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.series} onChange={(e) => setFilters({...filters, series: e.target.value})}><option value="ALL">全部系列</option>{CARD_SERIES_OPTIONS.map((s) => (<option key={s} value={s}>{s}</option>))}</select></div>
                           <div className="relative flex-1"><Gem className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.levelOrRarity} onChange={(e) => setFilters({...filters, levelOrRarity: e.target.value})}><option value="ALL">全部等級/稀有度</option><optgroup label="等級 (Levels)">{Object.values(CARD_LEVELS).map((l) => (<option key={l} value={l}>{l}</option>))}</optgroup><optgroup label="稀有度 (Rarities)">{Object.entries(CARD_RARITIES).map(([k, v]) => (<option key={k} value={k}>{v}</option>))}</optgroup></select></div>
                         </div>
-                        <div className="flex flex-wrap gap-3 mt-2 pl-1 select-none items-center">
+
+                        {/* 🌟 方案二實作：橫向滑動的技能標籤列 */}
+                        <div className="w-full overflow-x-auto pb-2 mt-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                            <div className="flex gap-2 w-max px-1">
+                                {COOKIE_SKILLS.map(skill => {
+                                    const isSelected = filters.skills.includes(skill);
+                                    return (
+                                        <button
+                                            key={`filter-${skill}`}
+                                            onClick={() => {
+                                                setFilters(prev => ({
+                                                    ...prev,
+                                                    skills: isSelected 
+                                                        ? prev.skills.filter(s => s !== skill)
+                                                        : [...prev.skills, skill]
+                                                }))
+                                            }}
+                                            className={`px-3 py-1.5 md:px-4 md:py-2 rounded-full text-xs md:text-sm font-bold whitespace-nowrap transition-all shadow-sm flex items-center gap-1.5 ${
+                                                isSelected 
+                                                ? 'bg-amber-100 text-amber-800 border-2 border-amber-400' 
+                                                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                                            }`}
+                                        >
+                                            {isSelected ? <CheckCircle size={14} className="text-amber-600" /> : <Zap size={14} className="text-slate-400" />}
+                                            {skill}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-3 mt-1 pl-1 select-none items-center">
                           <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
                             <input type="checkbox" className="hidden peer" checked={filters.showExtra} onChange={(e) => setFilters({ ...filters, showExtra: e.target.checked })} />
                             <span className="flex items-center gap-1.5 text-xs md:text-sm uppercase tracking-wider bg-purple-100 text-purple-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-purple-300 peer-checked:bg-purple-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-purple-400 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
