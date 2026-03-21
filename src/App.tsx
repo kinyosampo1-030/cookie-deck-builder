@@ -151,7 +151,7 @@ const CARD_RARITIES = {
 
 // 🌟 新增：餅乾技能標籤清單
 const COOKIE_SKILLS = [
-  "登場時", "一回合一次", "啟動", "回合結束時", "阻擋", "被動效果", "在自己回合中"
+  "登場時", "一回合一次", "啟動", "在自己回合中","回合結束時", "暈倒時", "阻擋", "被動技能", "無技能", "純白板"
 ];
 
 const CARD_BACK_URL = "https://static.wixstatic.com/media/2295bf_b9aee85e881243d99276b2f571927305~mv2.png";
@@ -2497,7 +2497,7 @@ export default function App() {
                             Cookierun: Braverse Deck Builder
                         </h1>
                         <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">
-                            新功能：<span className="text-blue-600 font-black">社群廣場</span> 與 <span className="text-emerald-600 font-black">手機APP</span> 上線！
+                            新功能：<span className="text-blue-600 font-black">技能篩選</span> 與 <span className="text-emerald-600 font-black">手機APP</span> 上線！
                         </p>
                     </div>
                     
