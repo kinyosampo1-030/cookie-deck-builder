@@ -138,7 +138,7 @@ const CARD_COLORS = {
 };
 const CARD_LEVELS = { LV1: "LV.1", LV2: "LV.2", LV3: "LV.3" };
 const CARD_SERIES_OPTIONS = [
-  "ST", "BS1", "BS2", "BS3", "BS4", "BS5", "BS6", "BS7", "BS8", "BS9", "P",
+  "ST", "BS1", "BS2", "BS3", "BS4", "BS5", "BS6", "BS7", "BS8", "BS9", "BS10", "P",
 ];
 
 const CARD_RARITIES = {
@@ -1240,7 +1240,7 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
     isForbidden: false, isLimitOne: false, effectText: "", showEffect: false, imageUrl: "",
   });
   const [previewUrl, setPreviewUrl] = useState(null);
-  const editorSeriesOptions = useMemo(() => { const stSeries = Array.from({ length: 15 }, (_, i) => `ST${i + 1}`); const bsSeries = ["BS1", "BS2", "BS3", "BS4", "BS5", "BS6", "BS7", "BS8", "BS9"]; const other = ["P"]; return [...stSeries, ...bsSeries, ...other]; }, []);
+  const editorSeriesOptions = useMemo(() => { const stSeries = Array.from({ length: 15 }, (_, i) => `ST${i + 1}`); const bsSeries = ["BS1", "BS2", "BS3", "BS4", "BS5", "BS6", "BS7", "BS8", "BS9", "BS10"]; const other = ["P"]; return [...stSeries, ...bsSeries, ...other]; }, []);
   
   useEffect(() => {
     if (initialData) {
@@ -1626,14 +1626,14 @@ const PackOpenerModal = ({ allCards, onClose }) => {
   const [flippedIndices, setFlippedIndices] = useState({});
   const [isOpening, setIsOpening] = useState(false); 
   const availableSeries = useMemo(() => {
-    const seriesSet = new Set(allCards.filter(c => !['ST', 'P'].includes(c.series)).map(c => c.series));
-    return Array.from(seriesSet).sort();
-  }, [allCards]);
+  const seriesSet = new Set(allCards.filter(c => !c.series.startsWith('ST') && c.series !== 'P').map(c => c.series));
+  return Array.from(seriesSet).sort();
+ }, [allCards]);
   
   const getRarityProb = () => { const r = Math.random() * 100; if (r < 1) return 'EXR'; if (r < 6) return 'UR'; if (r < 16) return 'SR'; if (r < 36) return 'R'; return 'C'; };
   
   const openPack = () => {
-    let pool = allCards.filter(c => !['ST', 'P'].includes(c.series));
+    let pool = allCards.filter(c => !c.series.startsWith('ST') && c.series !== 'P');
     if (selectedSeries !== "ALL") pool = pool.filter(c => c.series === selectedSeries);
     const cookieCards = pool.filter(c => c.type === CARD_TYPES.COOKIE);
     const otherCards = pool.filter(c => c.type !== CARD_TYPES.COOKIE);
