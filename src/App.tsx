@@ -1737,7 +1737,7 @@ export default function App() {
     );
 
   return (
-    <div className="flex w-full fixed inset-0 flex-col md:flex-row bg-slate-50 overflow-hidden font-sans text-slate-900 overscroll-contain h-[100dvh]">
+    <div className="flex w-full fixed inset-0 print:static print:h-auto print:overflow-visible print:bg-white flex-col md:flex-row bg-slate-50 overflow-hidden font-sans text-slate-900 overscroll-contain h-[100dvh]">
       {/* 🌟 電腦版懸停預覽 (Hover Preview) */}
       {hoveredCard && (
         <div
@@ -1850,7 +1850,7 @@ export default function App() {
       )}
 
       {/* 左側：卡片清單 */}
-      <div className="flex-1 flex flex-col min-w-0 border-r border-slate-200 min-h-0 relative">
+      <div className="flex-1 flex flex-col min-w-0 border-r border-slate-200 min-h-0 relative print:hidden">
         <div 
             className={`
               bg-white border-b border-slate-200 shadow-sm z-10 shrink-0 
@@ -2164,10 +2164,7 @@ export default function App() {
       </div>
 
       {/* 手機版：懸浮按鈕 (FAB) 開啟牌組清單 */}
-      <button
-        className="md:hidden fixed bottom-6 right-6 z-40 bg-blue-600 text-white p-4 rounded-full shadow-lg flex items-center justify-center gap-2 hover:bg-blue-700 transition-all hover:scale-105 active:scale-95 ring-2 ring-white"
-        onClick={() => setIsMobileDeckOpen(true)}
-      >
+      <button className="print:hidden md:hidden fixed bottom-6 right-6 z-40 bg-blue-600 text-white p-4 rounded-full shadow-lg flex items-center justify-center gap-2 hover:bg-blue-700 transition-all hover:scale-105 active:scale-95 ring-2 ring-white" onClick={() => setIsMobileDeckOpen(true)}>
         <Layers size={24} />
         <span className="font-bold text-lg">{deck.main.length}</span>
       </button>
@@ -2181,7 +2178,7 @@ export default function App() {
       )}
 
       {/* 右側：牌組清單 */}
-      <div className={`
+      <div className={`print:hidden
           bg-white shadow-2xl z-50 flex flex-col border-l border-slate-300
           md:relative md:w-80 lg:w-96 md:h-auto md:translate-x-0 md:flex md:shadow-none
           fixed inset-y-0 right-0 w-[85vw] max-w-sm transition-transform duration-300 ease-in-out
