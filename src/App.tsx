@@ -716,7 +716,7 @@ const ExportModal = ({ deck, deckName, onClose, lang }) => {
             <div className="p-4 print:p-0">
                 <div className="print:hidden bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-6 flex justify-between items-center">
                     <div className="text-yellow-800 text-sm">
-                        <p className="font-bold">{lang === 'en' ? 'Cookierun: Braverse Decklist' : '薑餅人對戰卡牌比賽用牌表'}</p>
+                        <p className="font-bold">{lang === 'en' ? 'Tournament Decklist' : '比賽用牌組清單'}</p>
                         <p>{lang === 'en' ? 'Designed for A4 printing (Ctrl+P).' : '此頁面設計為 A4 列印格式，可直接列印繳交。請使用瀏覽器列印功能 (Ctrl+P)。'}</p>
                     </div>
                     <button onClick={handlePrint} className="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-slate-700">
@@ -724,66 +724,67 @@ const ExportModal = ({ deck, deckName, onClose, lang }) => {
                     </button>
                 </div>
                 
-                {/* 🌟 修正點：加入 flex flex-col 與 min-h 確保底部對齊 */}
-                <div className="bg-white p-8 max-w-[210mm] mx-auto border border-slate-200 print:border-none print:p-0 font-sans text-slate-900 flex flex-col min-h-[297mm]">
+                {/* 🌟 修正點 1：移除強制高度，改用 w-full 讓印表機自然縮放比例 */}
+                <div className="bg-white p-6 sm:p-8 max-w-[210mm] w-full mx-auto border border-slate-200 print:border-none print:p-0 font-sans text-slate-900 flex flex-col">
                     
-                    <div className="text-center mb-6 border-b-2 border-slate-800 pb-4 shrink-0">
-                        <h1 className="text-2xl font-black tracking-wide">
+                    <div className="text-center mb-4 sm:mb-6 border-b-2 border-slate-800 pb-3 sm:pb-4 shrink-0">
+                        <h1 className="text-xl sm:text-2xl font-black tracking-wide">
                             {lang === 'en' ? 'Cookierun: Braverse Decklist' : '薑餅人對戰卡牌 比賽用牌表'}
                         </h1>
                     </div>
 
-                    <div className="flex gap-4 mb-8 shrink-0">
+                    <div className="flex gap-4 mb-6 shrink-0">
                         <div className="flex-1 flex flex-col gap-1">
-                            <span className="text-xs font-bold text-slate-500 uppercase">{lang === 'en' ? 'Player Name' : '玩家名稱'}</span>
-                            <div className="border border-slate-300 rounded h-10 bg-slate-50"></div>
+                            <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase">{lang === 'en' ? 'Player Name' : '玩家名稱'}</span>
+                            <div className="border border-slate-300 rounded h-8 sm:h-10 bg-slate-50"></div>
                         </div>
-                        {/* 🌟 修正點：加入電話號碼欄位 */}
                         <div className="flex-1 flex flex-col gap-1">
-                            <span className="text-xs font-bold text-slate-500 uppercase">{lang === 'en' ? 'Phone No.' : '電話號碼'}</span>
-                            <div className="border border-slate-300 rounded h-10 bg-slate-50"></div>
+                            <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase">{lang === 'en' ? 'Phone No.' : '電話號碼'}</span>
+                            <div className="border border-slate-300 rounded h-8 sm:h-10 bg-slate-50"></div>
                         </div>
                     </div>
 
-                    {/* 🌟 修正點：flex-1 讓中間卡表區域自動撐開高度 */}
-                    <div className="grid grid-cols-2 gap-8 items-start flex-1">
-                        <div className="flex flex-col gap-4">
+                    {/* 🌟 修正點 2：重新分配左右欄位，緊湊間距 */}
+                    <div className="grid grid-cols-2 gap-4 sm:gap-8 items-start flex-1 mb-6">
+                        {/* 左側：餅乾卡、FLIP卡 */}
+                        <div className="flex flex-col gap-3 sm:gap-4">
                              {renderPrintSection("餅乾卡", "Cookie Cards", grouped.cookies, "border-yellow-400 bg-yellow-50 text-yellow-800")}
+                             {renderPrintSection("Flip 卡", "Flip Cards", grouped.flips, "border-slate-400 bg-slate-100 text-slate-800")}
                         </div>
-                        <div className="flex flex-col gap-4">
+                        {/* 右側：道具、陷阱、場景、額外卡 */}
+                        <div className="flex flex-col gap-3 sm:gap-4">
                              {renderPrintSection("道具卡", "Item Cards", grouped.items, "border-blue-400 bg-blue-50 text-blue-800")}
                              {renderPrintSection("陷阱卡", "Trap Cards", grouped.traps, "border-red-400 bg-red-50 text-red-800")}
                              {renderPrintSection("場景卡", "Stage Cards", grouped.stages, "border-green-400 bg-green-50 text-green-800")}
-                             {renderPrintSection("Flip 卡", "Flip Cards", grouped.flips, "border-slate-400 bg-slate-100 text-slate-800")}
                              {renderPrintSection("Extra卡", "Extra Cards", grouped.extras, "border-purple-400 bg-purple-50 text-purple-800")}
                         </div>
                     </div>
 
-                    {/* 🌟 修正點：底部數量統計與版權宣告，shrink-0 確保不被擠壓 */}
-                    <div className="mt-8 pt-6 border-t-2 border-slate-800 flex justify-between items-end shrink-0">
-                         <div className="flex gap-8">
+                    {/* 🌟 修正點 3：底部統計與版權宣告加入 break-inside-avoid 確保列印不被切斷 */}
+                    <div className="pt-4 sm:pt-6 border-t-2 border-slate-800 flex justify-between items-end shrink-0 break-inside-avoid">
+                         <div className="flex gap-4 sm:gap-8">
                              <div className="flex flex-col gap-1">
-                                 <span className="font-bold text-sm">
+                                 <span className="font-bold text-xs sm:text-sm">
                                      {lang === 'en' ? 'Main Deck Count' : '主牌組數量'} 
-                                     <span className="text-[10px] font-normal text-slate-500 uppercase block">(Main Deck Total)</span>
+                                     <span className="text-[8px] sm:text-[10px] font-normal text-slate-500 uppercase block">(Main Deck Total)</span>
                                  </span>
-                                 <div className="border border-slate-400 h-12 w-24 rounded bg-white flex items-center justify-center font-black text-2xl shadow-inner text-slate-800">
+                                 <div className="border border-slate-400 h-10 w-20 sm:h-12 sm:w-24 rounded bg-white flex items-center justify-center font-black text-xl sm:text-2xl shadow-inner text-slate-800">
                                      {deck.main.length}
                                  </div>
                              </div>
                              <div className="flex flex-col gap-1">
-                                 <span className="font-bold text-sm">
+                                 <span className="font-bold text-xs sm:text-sm">
                                      {lang === 'en' ? 'Extra Deck Count' : 'Extra數量'} 
-                                     <span className="text-[10px] font-normal text-slate-500 uppercase block">(Extra Deck Total)</span>
+                                     <span className="text-[8px] sm:text-[10px] font-normal text-slate-500 uppercase block">(Extra Deck Total)</span>
                                  </span>
-                                 <div className="border border-slate-400 h-12 w-24 rounded bg-white flex items-center justify-center font-black text-2xl shadow-inner text-slate-800">
+                                 <div className="border border-slate-400 h-10 w-20 sm:h-12 sm:w-24 rounded bg-white flex items-center justify-center font-black text-xl sm:text-2xl shadow-inner text-slate-800">
                                      {deck.extra.length}
                                  </div>
                              </div>
                          </div>
-                         <div className="text-[10px] text-slate-500 font-bold mb-1 text-right max-w-[250px] leading-relaxed">
+                         <div className="text-[8px] sm:text-[10px] text-slate-500 font-bold mb-1 text-right max-w-[200px] sm:max-w-[250px] leading-relaxed">
                              {lang === 'en' 
-                                 ? 'Created by 樂多綠Gamecaster. Please check your decklist carefully before submission.' 
+                                 ? 'Created by Miday Gamecaster. Please check your decklist carefully before submission.' 
                                  : '牌表格式由樂多綠Gamecaster製作，請繳出前確實檢查牌組正確性。'}
                          </div>
                     </div>
