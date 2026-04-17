@@ -715,16 +715,21 @@ const ExportModal = ({ deck, deckName, onClose, lang }) => {
           {activeTab === "list" && (
             <div className="p-4 print:p-0">
                 <div className="print:hidden bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-6 flex justify-between items-center">
-                    <button onClick={handlePrint} className="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2">
+                    <div className="text-yellow-800 text-sm">
+                        <p className="font-bold">{lang === 'en' ? 'Cookierun: Braverse Decklist' : '薑餅人對戰卡牌比賽用牌表'}</p>
+                        <p>{lang === 'en' ? 'Designed for A4 printing (Ctrl+P).' : '此頁面設計為 A4 列印格式，可直接列印繳交。請使用瀏覽器列印功能 (Ctrl+P)。'}</p>
+                    </div>
+                    <button onClick={handlePrint} className="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-slate-700">
                         <Printer size={18} /> {lang === 'en' ? 'Print' : '列印此清單'}
                     </button>
                 </div>
-                {/* A4 尺寸外框，加入 flex flex-col 讓底部可以自動貼齊下方 */}
-                <div className="bg-white p-8 max-w-[210mm] mx-auto border border-slate-200 print:border-none print:p-0 font-sans text-slate-900 relative min-h-[297mm] flex flex-col">
+                
+                {/* 🌟 修正點：加入 flex flex-col 與 min-h 確保底部對齊 */}
+                <div className="bg-white p-8 max-w-[210mm] mx-auto border border-slate-200 print:border-none print:p-0 font-sans text-slate-900 flex flex-col min-h-[297mm]">
                     
                     <div className="text-center mb-6 border-b-2 border-slate-800 pb-4 shrink-0">
                         <h1 className="text-2xl font-black tracking-wide">
-                            {lang === 'en' ? 'Cookierun: Braverse Decklist' : '薑餅人對戰卡牌比賽用牌表'}
+                            {lang === 'en' ? 'Cookierun: Braverse Decklist' : '薑餅人對戰卡牌 比賽用牌表'}
                         </h1>
                     </div>
 
@@ -733,17 +738,17 @@ const ExportModal = ({ deck, deckName, onClose, lang }) => {
                             <span className="text-xs font-bold text-slate-500 uppercase">{lang === 'en' ? 'Player Name' : '玩家名稱'}</span>
                             <div className="border border-slate-300 rounded h-10 bg-slate-50"></div>
                         </div>
-                        {/* 新增電話號碼欄位 */}
+                        {/* 🌟 修正點：加入電話號碼欄位 */}
                         <div className="flex-1 flex flex-col gap-1">
-                            <span className="text-xs font-bold text-slate-500 uppercase">{lang === 'en' ? 'Phone Number' : '電話號碼'}</span>
+                            <span className="text-xs font-bold text-slate-500 uppercase">{lang === 'en' ? 'Phone No.' : '電話號碼'}</span>
                             <div className="border border-slate-300 rounded h-10 bg-slate-50"></div>
                         </div>
                     </div>
 
-                    {/* 卡片清單區塊 (flex-1 讓它自動撐開高度) */}
+                    {/* 🌟 修正點：flex-1 讓中間卡表區域自動撐開高度 */}
                     <div className="grid grid-cols-2 gap-8 items-start flex-1">
                         <div className="flex flex-col gap-4">
-                            {renderPrintSection("餅乾卡", "Cookie Cards", grouped.cookies, "border-yellow-400 bg-yellow-50 text-yellow-800")}
+                             {renderPrintSection("餅乾卡", "Cookie Cards", grouped.cookies, "border-yellow-400 bg-yellow-50 text-yellow-800")}
                         </div>
                         <div className="flex flex-col gap-4">
                              {renderPrintSection("道具卡", "Item Cards", grouped.items, "border-blue-400 bg-blue-50 text-blue-800")}
@@ -754,26 +759,32 @@ const ExportModal = ({ deck, deckName, onClose, lang }) => {
                         </div>
                     </div>
 
-                    {/* 新增：底部數量統計與版權宣告 (shrink-0 確保它固定在最後) */}
-                    <div className="mt-12 pt-6 border-t-2 border-slate-800 flex justify-between items-end shrink-0">
-                         <div className="flex gap-6">
+                    {/* 🌟 修正點：底部數量統計與版權宣告，shrink-0 確保不被擠壓 */}
+                    <div className="mt-8 pt-6 border-t-2 border-slate-800 flex justify-between items-end shrink-0">
+                         <div className="flex gap-8">
                              <div className="flex flex-col gap-1">
-                                 <span className="font-bold text-sm">{lang === 'en' ? 'Main Deck Count' : '主牌組數量'}</span>
+                                 <span className="font-bold text-sm">
+                                     {lang === 'en' ? 'Main Deck Count' : '主牌組數量'} 
+                                     <span className="text-[10px] font-normal text-slate-500 uppercase block">(Main Deck Total)</span>
+                                 </span>
                                  <div className="border border-slate-400 h-12 w-24 rounded bg-white flex items-center justify-center font-black text-2xl shadow-inner text-slate-800">
                                      {deck.main.length}
                                  </div>
                              </div>
                              <div className="flex flex-col gap-1">
-                                 <span className="font-bold text-sm">{lang === 'en' ? 'Extra Deck Count' : 'Extra數量'}</span>
+                                 <span className="font-bold text-sm">
+                                     {lang === 'en' ? 'Extra Deck Count' : 'Extra數量'} 
+                                     <span className="text-[10px] font-normal text-slate-500 uppercase block">(Extra Deck Total)</span>
+                                 </span>
                                  <div className="border border-slate-400 h-12 w-24 rounded bg-white flex items-center justify-center font-black text-2xl shadow-inner text-slate-800">
                                      {deck.extra.length}
                                  </div>
                              </div>
                          </div>
-                         <div className="text-[10px] text-slate-500 font-bold mb-1 text-right max-w-[220px] leading-relaxed">
+                         <div className="text-[10px] text-slate-500 font-bold mb-1 text-right max-w-[250px] leading-relaxed">
                              {lang === 'en' 
-                                 ? 'Created by Miday Gamecaster. Please check your decklist carefully before submission.' 
-                                 : '牌表格式由樂多綠Gamecaster製作，請在繳出前確實檢查牌組正確性。'}
+                                 ? 'Created by 樂多綠Gamecaster. Please check your decklist carefully before submission.' 
+                                 : '牌表格式由樂多綠Gamecaster製作，請繳出前確實檢查牌組正確性。'}
                          </div>
                     </div>
                 </div>
