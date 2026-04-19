@@ -703,13 +703,86 @@ const ExportModal = ({ deck, deckName, onClose, lang }) => {
             </div>
           )}
           {activeTab === "link" && (
-            <div className="flex flex-col gap-6 max-w-lg mx-auto mt-8">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Link</label>
-                <div className="flex gap-2">
-                  {shareUrl ? (<><input type="text" readOnly value={shareUrl} className="flex-1 border rounded-lg px-3 py-2" /><button onClick={handleCopyLink} className="bg-slate-800 text-white px-4 py-2 rounded-lg"><Copy size={18} /></button></>) : (<button onClick={handleGenerateShortLink} disabled={isCreatingLink} className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold">Generate</button>)}
+            <div className="flex flex-col gap-6 max-w-lg mx-auto mt-8 min-h-[400px]">
+                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-5">
+                    {/* 標題與圖示 */}
+                    <div className="flex items-center gap-3 text-blue-600 border-b border-slate-100 pb-3">
+                        <LinkIcon size={24} />
+                        <h3 className="text-lg font-bold">
+                            {lang === 'en' ? 'Permanent Share Link' : '製作永久分享連結'}
+                        </h3>
+                    </div>
+                    
+                    {/* 功能詳細說明 */}
+                    <div className="space-y-3">
+                        <p className="text-sm text-slate-600 leading-relaxed font-medium">
+                            {lang === 'en' 
+                              ? 'This function converts your current deck into a permanent cloud link.' 
+                              : '此功能會將您目前的牌組配置轉換為一個專屬的雲端代碼。'}
+                        </p>
+                        <p className="text-sm text-slate-500 leading-relaxed bg-slate-50 p-3 rounded-lg border-l-4 border-blue-400">
+                            {lang === 'en' 
+                              ? 'Other players can use this link to directly view your deck and continue editing it in their own builder!' 
+                              : '產生連結後，其他餅友可以直接透過連結查看您的配牌，並能以此為基礎繼續進行編輯與調整，非常適合分享給隊友或社群討論！'}
+                        </p>
+                    </div>
+
+                    {/* 按鈕與結果區塊 */}
+                    <div className="pt-4">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                            {lang === 'en' ? 'Deck Secret Link' : '牌組專屬分享連結'}
+                        </label>
+                        <div className="flex gap-2">
+                            {shareUrl ? (
+                                <>
+                                    <input 
+                                        type="text" 
+                                        readOnly 
+                                        value={shareUrl} 
+                                        className="flex-1 border-2 border-slate-100 rounded-lg px-3 py-2 text-slate-600 bg-slate-50 font-mono text-sm focus:outline-none" 
+                                    />
+                                    <button 
+                                        onClick={handleCopyLink} 
+                                        className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-all active:scale-95 shrink-0"
+                                    >
+                                        <Copy size={18} /> {lang === 'en' ? 'Copy' : '複製'}
+                                    </button>
+                                </>
+                            ) : (
+                                <button 
+                                    onClick={handleGenerateShortLink} 
+                                    disabled={isCreatingLink} 
+                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/20 active:scale-95 disabled:opacity-50"
+                                >
+                                    {isCreatingLink ? (
+                                        <>
+                                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                                            {lang === 'en' ? 'Saving to Cloud...' : '正在同步至雲端...'}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <LinkIcon size={20} />
+                                            {lang === 'en' ? 'Generate Permanent Link' : '立即產生永久連結'}
+                                        </>
+                                    )}
+                                </button>
+                            )}
+                        </div>
+                    </div>
                 </div>
-              </div>
+
+                {/* 底部小提示 */}
+                <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex gap-3 items-start shrink-0">
+                    <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                    <div className="text-xs text-amber-800 leading-relaxed">
+                        <p className="font-bold mb-1">{lang === 'en' ? 'Note:' : '溫馨小提示：'}</p>
+                        <p>
+                            {lang === 'en' 
+                              ? 'The shared link is a static snapshot. If you modify your deck later, you will need to generate a new link to share the updated version.' 
+                              : '分享連結是該時間點的快照。如果您之後修改了牌組，需要重新產生一個新連結才能分享最新的版本喔！'}
+                        </p>
+                    </div>
+                </div>
             </div>
           )}
           {activeTab === "list" && (
@@ -724,69 +797,68 @@ const ExportModal = ({ deck, deckName, onClose, lang }) => {
                     </button>
                 </div>
                 
-                {/* 🌟 修正點 1：移除強制高度，改用 w-full 讓印表機自然縮放比例 */}
-                <div className="bg-white p-6 sm:p-8 max-w-[210mm] w-full mx-auto border border-slate-200 print:border-none print:p-0 font-sans text-slate-900 flex flex-col">
-                    
-                    <div className="text-center mb-4 sm:mb-6 border-b-2 border-slate-800 pb-3 sm:pb-4 shrink-0">
-                        <h1 className="text-xl sm:text-2xl font-black tracking-wide">
-                            {lang === 'en' ? 'Cookierun: Braverse Decklist' : '薑餅人對戰卡牌 比賽用牌表'}
-                        </h1>
-                    </div>
+                {/* 🌟 修改 1：新增 overflow-x-auto 容器，讓手機可以左右滑動查看完整版面 */}
+                <div className="overflow-x-auto w-full pb-8 print:overflow-visible print:pb-0">
+                    {/* 🌟 修改 2：將 w-full 改為 min-w-[800px]，強制撐開 A4 比例，防止手機版擠壓變形 */}
+                    <div className="bg-white p-6 sm:p-8 min-w-[800px] max-w-[210mm] mx-auto border border-slate-200 print:border-none print:p-0 font-sans text-slate-900 flex flex-col">
+                        
+                        <div className="text-center mb-4 sm:mb-6 border-b-2 border-slate-800 pb-3 sm:pb-4 shrink-0">
+                            <h1 className="text-xl sm:text-2xl font-black tracking-wide">
+                                {lang === 'en' ? 'Cookierun: Braverse Decklist' : '薑餅人對戰卡牌 比賽用牌表'}
+                            </h1>
+                        </div>
 
-                    <div className="flex gap-4 mb-6 shrink-0">
-                        <div className="flex-1 flex flex-col gap-1">
-                            <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase">{lang === 'en' ? 'Player Name' : '玩家名稱'}</span>
-                            <div className="border border-slate-300 rounded h-8 sm:h-10 bg-slate-50"></div>
+                        <div className="flex gap-4 mb-6 shrink-0">
+                            <div className="flex-1 flex flex-col gap-1">
+                                <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase">{lang === 'en' ? 'Player Name' : '玩家名稱'}</span>
+                                <div className="border border-slate-300 rounded h-8 sm:h-10 bg-slate-50"></div>
+                            </div>
+                            <div className="flex-1 flex flex-col gap-1">
+                                <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase">{lang === 'en' ? 'Phone No.' : '電話號碼'}</span>
+                                <div className="border border-slate-300 rounded h-8 sm:h-10 bg-slate-50"></div>
+                            </div>
                         </div>
-                        <div className="flex-1 flex flex-col gap-1">
-                            <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase">{lang === 'en' ? 'Phone No.' : '電話號碼'}</span>
-                            <div className="border border-slate-300 rounded h-8 sm:h-10 bg-slate-50"></div>
-                        </div>
-                    </div>
 
-                    {/* 🌟 修正點 2：重新分配左右欄位，緊湊間距 */}
-                    <div className="grid grid-cols-2 gap-4 sm:gap-8 items-start flex-1 mb-6">
-                        {/* 左側：餅乾卡、FLIP卡 */}
-                        <div className="flex flex-col gap-3 sm:gap-4">
-                             {renderPrintSection("餅乾卡", "Cookie Cards", grouped.cookies, "border-yellow-400 bg-yellow-50 text-yellow-800")}
-                             {renderPrintSection("Flip 卡", "Flip Cards", grouped.flips, "border-slate-400 bg-slate-100 text-slate-800")}
+                        <div className="grid grid-cols-2 gap-4 sm:gap-8 items-start flex-1 mb-6">
+                            <div className="flex flex-col gap-3 sm:gap-4">
+                                 {renderPrintSection("餅乾卡", "Cookie Cards", grouped.cookies, "border-yellow-400 bg-yellow-50 text-yellow-800")}
+                                 {renderPrintSection("Flip 卡", "Flip Cards", grouped.flips, "border-slate-400 bg-slate-100 text-slate-800")}
+                            </div>
+                            <div className="flex flex-col gap-3 sm:gap-4">
+                                 {renderPrintSection("道具卡", "Item Cards", grouped.items, "border-blue-400 bg-blue-50 text-blue-800")}
+                                 {renderPrintSection("陷阱卡", "Trap Cards", grouped.traps, "border-red-400 bg-red-50 text-red-800")}
+                                 {renderPrintSection("場景卡", "Stage Cards", grouped.stages, "border-green-400 bg-green-50 text-green-800")}
+                                 {renderPrintSection("Extra卡", "Extra Cards", grouped.extras, "border-purple-400 bg-purple-50 text-purple-800")}
+                            </div>
                         </div>
-                        {/* 右側：道具、陷阱、場景、額外卡 */}
-                        <div className="flex flex-col gap-3 sm:gap-4">
-                             {renderPrintSection("道具卡", "Item Cards", grouped.items, "border-blue-400 bg-blue-50 text-blue-800")}
-                             {renderPrintSection("陷阱卡", "Trap Cards", grouped.traps, "border-red-400 bg-red-50 text-red-800")}
-                             {renderPrintSection("場景卡", "Stage Cards", grouped.stages, "border-green-400 bg-green-50 text-green-800")}
-                             {renderPrintSection("Extra卡", "Extra Cards", grouped.extras, "border-purple-400 bg-purple-50 text-purple-800")}
-                        </div>
-                    </div>
 
-                    {/* 🌟 修正點 3：底部統計與版權宣告加入 break-inside-avoid 確保列印不被切斷 */}
-                    <div className="pt-4 sm:pt-6 border-t-2 border-slate-800 flex justify-between items-end shrink-0 break-inside-avoid">
-                         <div className="flex gap-4 sm:gap-8">
-                             <div className="flex flex-col gap-1">
-                                 <span className="font-bold text-xs sm:text-sm">
-                                     {lang === 'en' ? 'Main Deck Count' : '主牌組數量'} 
-                                     <span className="text-[8px] sm:text-[10px] font-normal text-slate-500 uppercase block">(Main Deck Total)</span>
-                                 </span>
-                                 <div className="border border-slate-400 h-10 w-20 sm:h-12 sm:w-24 rounded bg-white flex items-center justify-center font-black text-xl sm:text-2xl shadow-inner text-slate-800">
-                                     {deck.main.length}
+                        <div className="pt-4 sm:pt-6 border-t-2 border-slate-800 flex justify-between items-end shrink-0 break-inside-avoid">
+                             <div className="flex gap-4 sm:gap-8">
+                                 <div className="flex flex-col gap-1">
+                                     <span className="font-bold text-xs sm:text-sm">
+                                         {lang === 'en' ? 'Main Deck Count' : '主牌組數量'} 
+                                         <span className="text-[8px] sm:text-[10px] font-normal text-slate-500 uppercase block">(Main Deck Total)</span>
+                                     </span>
+                                     <div className="border border-slate-400 h-10 w-20 sm:h-12 sm:w-24 rounded bg-white flex items-center justify-center font-black text-xl sm:text-2xl shadow-inner text-slate-800">
+                                         {deck.main.length}
+                                     </div>
+                                 </div>
+                                 <div className="flex flex-col gap-1">
+                                     <span className="font-bold text-xs sm:text-sm">
+                                         {lang === 'en' ? 'Extra Deck Count' : 'Extra數量'} 
+                                         <span className="text-[8px] sm:text-[10px] font-normal text-slate-500 uppercase block">(Extra Deck Total)</span>
+                                     </span>
+                                     <div className="border border-slate-400 h-10 w-20 sm:h-12 sm:w-24 rounded bg-white flex items-center justify-center font-black text-xl sm:text-2xl shadow-inner text-slate-800">
+                                         {deck.extra.length}
+                                     </div>
                                  </div>
                              </div>
-                             <div className="flex flex-col gap-1">
-                                 <span className="font-bold text-xs sm:text-sm">
-                                     {lang === 'en' ? 'Extra Deck Count' : 'Extra數量'} 
-                                     <span className="text-[8px] sm:text-[10px] font-normal text-slate-500 uppercase block">(Extra Deck Total)</span>
-                                 </span>
-                                 <div className="border border-slate-400 h-10 w-20 sm:h-12 sm:w-24 rounded bg-white flex items-center justify-center font-black text-xl sm:text-2xl shadow-inner text-slate-800">
-                                     {deck.extra.length}
-                                 </div>
+                             <div className="text-[8px] sm:text-[10px] text-slate-500 font-bold mb-1 text-right max-w-[200px] sm:max-w-[250px] leading-relaxed">
+                                 {lang === 'en' 
+                                     ? 'Created by Miday Gamecaster. Please check your decklist carefully before submission.' 
+                                     : '牌表格式由樂多綠Gamecaster製作，請繳出前確實檢查牌組正確性。'}
                              </div>
-                         </div>
-                         <div className="text-[8px] sm:text-[10px] text-slate-500 font-bold mb-1 text-right max-w-[200px] sm:max-w-[250px] leading-relaxed">
-                             {lang === 'en' 
-                                 ? 'Created by Miday Gamecaster. Please check your decklist carefully before submission.' 
-                                 : '牌表格式由樂多綠Gamecaster製作，請繳出前確實檢查牌組正確性。'}
-                         </div>
+                        </div>
                     </div>
                 </div>
             </div>
