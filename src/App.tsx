@@ -9,7 +9,7 @@ import {
   getAuth, signInAnonymously, signInWithCustomToken, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, signOut, onAuthStateChanged,
 } from "firebase/auth";
 import {
-  getFirestore, collection, doc, setDoc, getDoc, addDoc, onSnapshot, query, writeBatch, deleteDoc, where, getDocs, orderBy, updateDoc, increment, runTransaction, limit
+  getFirestore, initializeFirestore, persistentLocalCache, collection, doc, setDoc, getDoc, addDoc, onSnapshot, query, writeBatch, deleteDoc, where, getDocs, orderBy, updateDoc, increment, runTransaction, limit
 } from "firebase/firestore";
 
 // --- Firebase Initialization ---
@@ -27,7 +27,15 @@ const firebaseConfig = {
 };
 
 try {
-  if (firebaseConfig.apiKey) { app = initializeApp(firebaseConfig); auth = getAuth(app); db = getFirestore(app); } 
+  if (firebaseConfig.apiKey) { 
+    app = initializeApp(firebaseConfig); 
+    auth = getAuth(app); 
+    
+    // 🌟 啟動本地快取魔法 (Local Cache)
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache()
+    });
+  } 
   else { console.warn("Firebase API Key not found."); }
 } catch (e) { console.error("Firebase initialization failed:", e); }
 
