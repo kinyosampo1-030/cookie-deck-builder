@@ -419,12 +419,20 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin, lang }) 
         return CARD_BACK_URL;
     };
 
-    const handleDeleteDeck = async (e, deckId, deckName) => {
-        e.stopPropagation();
-        if (!isAdmin) return;
-        if (!confirm(`確定刪除 / Delete ${deckName}?`)) return;
-        try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'community_decks', deckId)); setDecks(prev => prev.filter(d => d.id !== deckId)); alert("Deleted"); } catch (err) { alert("Error"); }
-    };
+    const handleDeleteCommunityDeck = async (deckId, deckName) => {
+    if (!confirm(`確定要刪除「${deckName}」這份牌組嗎？此動作無法復原。`)) return;
+
+    try {
+      // 指向資料庫中該份牌組的路徑
+      const deckRef = doc(db, "artifacts", appId, "public", "data", "community_decks", deckId);
+      await deleteDoc(deckRef);
+      alert("牌組已成功從社群廣場移除。");
+      // 刪除後不需要重新整理，Firestore 的 onSnapshot 會自動更新畫面
+    } catch (error) {
+      console.error("刪除失敗:", error);
+      alert("刪除失敗：您並沒有權限刪除此牌組，或請聯絡管理員。");
+    }
+  };
 
     return (
         <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4" onClick={onClose}>
@@ -463,7 +471,18 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin, lang }) 
                                         <div className="mt-auto flex justify-between items-center text-sm text-slate-500">
                                             <span className="flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded font-bold text-xs"><Layers size={12}/> {d.m?.length || 0}</span>
                                             <div className="flex gap-3 items-center">
-                                                {isAdmin && <button onClick={(e) => handleDeleteDeck(e, d.id, d.name)} className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-full transition-colors z-10"><Trash2 size={14}/></button>}
+                                                {(isAdmin || (user && d.authorId === user.uid)) && (
+        <button 
+            onClick={(e) => {
+                e.stopPropagation(); // 防止點到卡片背後的開啟事件
+                handleDeleteCommunityDeck(d.id, d.name);
+            }} 
+            className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-full transition-colors z-10"
+            title="刪除牌組"
+        >
+            <Trash2 size={14}/>
+        </button>
+    )}
                                                 <span className="flex items-center gap-1 font-bold text-pink-600"><Heart size={14} className={d.likes > 0 ? "fill-pink-600" : ""}/> {d.likes || 0}</span>
                                                 <span className="flex items-center gap-1 text-slate-400"><MessageCircle size={14}/> {d.commentCount || 0}</span>
                                                 <span className="flex items-center gap-1 text-emerald-600 font-bold"><Copy size={14}/> {d.copyCount || 0}</span>
