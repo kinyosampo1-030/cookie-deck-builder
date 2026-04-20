@@ -637,7 +637,7 @@ const ExportModal = ({ deck, deckName, onClose, lang }) => {
     if (!window.html2canvas) return;
     setIsGenerating(true);
     try {
-      const canvas = await window.html2canvas(exportRef.current, { scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: true, windowWidth: 1200 });
+      const canvas = await window.html2canvas(exportRef.current, { scale: 2, backgroundColor: "#ffffff", useCORS: true, windowWidth: 1200 });
       const imgData = canvas.toDataURL("image/png");
       setGeneratedImage(imgData);
       const link = document.createElement("a");
@@ -673,7 +673,7 @@ const ExportModal = ({ deck, deckName, onClose, lang }) => {
 
   const renderMiniCard = (group) => (
     <div key={group.id} className="relative aspect-[3/4] rounded overflow-hidden border border-slate-200 shadow-sm bg-slate-50 group">
-        {group.imageUrl ? (<img src={group.imageUrl} alt={group.name} className="w-full h-full object-cover" />) : (<div className={`w-full h-full flex flex-col p-1 text-[8px] ${getCardColorStyles(group.color)}`}><span className="font-bold leading-tight line-clamp-3">{cName(group, lang)}</span></div>)}
+        {group.imageUrl ? (<img src={group.imageUrl} alt={group.name} crossOrigin="anonymous" className="w-full h-full object-cover" />) : (<div className={`w-full h-full flex flex-col p-1 text-[8px] ${getCardColorStyles(group.color)}`}><span className="font-bold leading-tight line-clamp-3">{cName(group, lang)}</span></div>)}
         <div className="absolute bottom-1 right-1 bg-black text-white text-sm font-black w-7 h-7 md:w-8 md:h-8 rounded shadow-md border border-white/50 z-10 flex items-center justify-center leading-none pb-0.5">x{group.stackCount}</div>
     </div>
   );
