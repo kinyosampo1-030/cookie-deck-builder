@@ -2094,9 +2094,13 @@ export default function App() {
   <div className="flex gap-2 border-l-2 border-slate-200 pl-3 items-center">
       <button onClick={() => { setEditingCard(null); setShowAddModal(true); }} className="bg-slate-700 hover:bg-slate-800 text-white p-2 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors" title="新增卡片"><Plus size={18} /></button>
       <button onClick={() => setShowBulkModal(true)} className="bg-slate-700 hover:bg-slate-800 text-white p-2 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors" title="匯入卡片"><FileJson size={18} /></button>
+      
+      {/* 👇 這是我們剛剛新增的匯出按鈕，我幫您補上 </button> 了 */}
       <button onClick={handleExportCardData} className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors" title="下載精簡版資料 (翻譯專用)">
           <Download size={18} />
-      {/* 🌟 新增：這就是資料轉移按鈕 */}
+      </button>
+
+      {/* 🌟 這是資料轉移按鈕 */}
       <button 
           onClick={startFullMigration} 
           disabled={migrationStatus.isRunning}
