@@ -1270,47 +1270,6 @@ export default function App() {
   const [showDrawTestModal, setShowDrawTestModal] = useState(false); 
   const [showPackOpenerModal, setShowPackOpenerModal] = useState(false); 
   const [viewingCard, setViewingCard] = useState(null);
-  const [migrationStatus, setMigrationStatus] = useState({ current: 0, total: 0, isRunning: false });
-
-  const startFullMigration = async () => {
-    if (!isAdmin) return;
-    const cardsToProcess = allCards.filter(c => c.imageUrl && c.imageUrl.startsWith('data:image'));
-    
-    if (cardsToProcess.length === 0) {
-      setToastMsg("✅ 所有卡片都已完成轉移，無需重複執行！");
-      return;
-    }
-
-    if (!confirm(`系統準備處理 ${cardsToProcess.length} 筆資料。轉移期間請勿關閉網頁，確定開始？`)) return;
-
-    setMigrationStatus({ current: 0, total: cardsToProcess.length, isRunning: true });
-    let count = 0;
-
-    const batchSize = 10; // 每 10 張一組，效能與穩定度最平衡
-    for (let i = 0; i < cardsToProcess.length; i += batchSize) {
-      const currentBatch = cardsToProcess.slice(i, i + batchSize);
-      
-      await Promise.all(currentBatch.map(async (card) => {
-        try {
-          const fileRef = ref(storage, `cards/${card.id}.jpg`);
-          await uploadString(fileRef, card.imageUrl, 'data_url');
-          const cloudUrl = await getDownloadURL(fileRef);
-          
-          // 更新資料庫
-          const cardDoc = doc(db, "artifacts", appId, "public", "data", "cards", card.id);
-          await updateDoc(cardDoc, { imageUrl: cloudUrl });
-          count++;
-        } catch (err) {
-          console.error(`卡片 ${card.id} 處理失敗:`, err);
-        }
-      }));
-
-      setMigrationStatus(prev => ({ ...prev, current: Math.min(i + batchSize, cardsToProcess.length) }));
-    }
-
-    setMigrationStatus({ current: 0, total: 0, isRunning: false });
-    alert(`🎉 大功告成！成功優化了 ${count} 張卡片。現在你的資料庫已經大幅瘦身！`);
-  };
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [editingCard, setEditingCard] = useState(null);
@@ -2095,24 +2054,10 @@ export default function App() {
       <button onClick={() => { setEditingCard(null); setShowAddModal(true); }} className="bg-slate-700 hover:bg-slate-800 text-white p-2 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors" title="新增卡片"><Plus size={18} /></button>
       <button onClick={() => setShowBulkModal(true)} className="bg-slate-700 hover:bg-slate-800 text-white p-2 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors" title="匯入卡片"><FileJson size={18} /></button>
       
-      {/* 👇 這是我們剛剛新增的匯出按鈕，我幫您補上 </button> 了 */}
       <button onClick={handleExportCardData} className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors" title="下載精簡版資料 (翻譯專用)">
           <Download size={18} />
       </button>
 
-      {/* 🌟 這是資料轉移按鈕 */}
-      <button 
-          onClick={startFullMigration} 
-          disabled={migrationStatus.isRunning}
-          className={`bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow transition-colors ${migrationStatus.isRunning ? 'opacity-50' : ''}`}
-          title="優化效能：將 Base64 轉為 Storage URL"
-      >
-          <Database size={16} />
-          {migrationStatus.isRunning 
-              ? `處理中... (${migrationStatus.current}/${migrationStatus.total})` 
-              : "資料庫優化"
-          }
-      </button>
   </div>
 )}
                         {!isAdmin && user && user.isAnonymous && (
