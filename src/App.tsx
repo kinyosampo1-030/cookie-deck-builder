@@ -1700,11 +1700,14 @@ export default function App() {
     if (isOffline) {
         setAllCards(prev => {
             const cardMap = new Map(prev.map(c => [c.id, c]));
-            cardsData.forEach(c => cardMap.set(c.id, c));
+            cardsData.forEach(c => {
+                const existing = cardMap.get(c.id) || {};
+                cardMap.set(c.id, { ...existing, ...c }); // 離線模式也使用合併
+            });
             return Array.from(cardMap.values()).sort((a, b) => a.id.localeCompare(b.id));
         });
         setShowBulkModal(false);
-        setToastMsg(`離線模式：已匯入 ${cardsData.length} 張卡片`);
+        setToastMsg(`離線模式：已合併更新 ${cardsData.length} 張卡片`);
         return;
     }
     if (!user || !db) return;
@@ -1713,13 +1716,16 @@ export default function App() {
     let count = 0;
     try {
       cardsData.forEach((card) => {
-        if (!card.id || !card.name) return; 
+        if (!card.id) return; // 只要有 ID 就能更新
         const ref = doc(db, "artifacts", appId, "public", "data", "cards", card.id);
-        batch.set(ref, card);
+        
+        // 🌟 關鍵修改：加上 { merge: true }
+        // 這樣 Firebase 只會更新您提供的欄位 (例如 nameEn)，原本的圖片和技能都會安全保留！
+        batch.set(ref, card, { merge: true });
         count++;
       });
       await batch.commit();
-      setToastMsg(`成功匯入 ${count} 張卡片！`);
+      setToastMsg(`成功更新/合併了 ${count} 張卡片！`);
       setShowBulkModal(false);
     } catch (err) {
       console.error(err);
@@ -1729,6 +1735,25 @@ export default function App() {
     }
   };
 
+  const handleExportCardData = () => {
+      // 只挑出 ID、中文名、英文名，避免檔案太大
+      const exportData = allCards.map(c => ({
+          id: c.id,
+          name: c.name,
+          nameEn: c.nameEn || ""
+      }));
+      
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `cookie_cards_translation_${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setToastMsg("已下載待翻譯清單！");
+  };
+  
   const handleDeleteCard = async (card) => {
     if (!confirm(`確定要永久刪除「${card.name}」嗎？此動作無法復原。`)) return;
     try {
@@ -2069,7 +2094,8 @@ export default function App() {
   <div className="flex gap-2 border-l-2 border-slate-200 pl-3 items-center">
       <button onClick={() => { setEditingCard(null); setShowAddModal(true); }} className="bg-slate-700 hover:bg-slate-800 text-white p-2 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors" title="新增卡片"><Plus size={18} /></button>
       <button onClick={() => setShowBulkModal(true)} className="bg-slate-700 hover:bg-slate-800 text-white p-2 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors" title="匯入卡片"><FileJson size={18} /></button>
-      
+      <button onClick={handleExportCardData} className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition-colors" title="下載精簡版資料 (翻譯專用)">
+          <Download size={18} />
       {/* 🌟 新增：這就是資料轉移按鈕 */}
       <button 
           onClick={startFullMigration} 
