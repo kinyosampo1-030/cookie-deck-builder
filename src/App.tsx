@@ -1255,7 +1255,8 @@ export default function App() {
   
   // 🌟 全域語言狀態
   const [lang, setLang] = useState('zh'); // 'zh' or 'en'
-
+  const [showGlobalBanner, setShowGlobalBanner] = useState(true);
+  
   const [filters, setFilters] = useState({
     search: "", type: "ALL", color: "ALL", level: "ALL", series: "ALL", rarity: "ALL", levelOrRarity: "ALL",
     skills: [], 
@@ -1982,6 +1983,32 @@ export default function App() {
 
       {/* 左側：卡片清單 */}
       <div className="flex-1 flex flex-col min-w-0 border-r border-slate-200 min-h-0 relative print:hidden">
+        {showGlobalBanner && (
+          <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white px-4 py-3 flex justify-between items-center shadow-sm z-50 print:hidden shrink-0">
+              <div className="flex flex-col md:flex-row items-start md:items-center gap-2 md:gap-4 w-full">
+                  <div className="flex items-center gap-2">
+                      <Sparkles className="text-yellow-300 animate-pulse shrink-0" size={20} />
+                      <span className="font-black tracking-wide text-sm md:text-base text-yellow-300 drop-shadow-md">
+                          {lang === 'zh' ? '重大更新 MEGA UPDATE' : 'GLOBAL UPDATE'}
+                      </span>
+                  </div>
+                  <p className="text-xs md:text-sm font-bold opacity-95 leading-relaxed">
+                      {lang === 'zh' 
+                          ? '全面支援英文！收錄超過 1380 張最新譯名卡片，與全球玩家一起組牌吧！' 
+                          : 'Full English Support is here! Over 1400+ cards translated. Join the global community!'}
+                  </p>
+                  {lang === 'zh' && (
+                      <button onClick={() => setLang('en')} className="mt-1 md:mt-0 bg-white/20 hover:bg-white/30 border border-white/40 text-white px-3 py-1 rounded-full text-xs font-bold transition-all shadow-sm flex items-center gap-1 active:scale-95">
+                          <Languages size={14}/> Switch to English
+                      </button>
+                  )}
+              </div>
+              <button onClick={() => setShowGlobalBanner(false)} className="p-1.5 hover:bg-white/20 rounded-full transition-colors shrink-0 ml-2" title="關閉">
+                  <X size={18} />
+              </button>
+          </div>
+        )}
+        
         <div 
             className={`
               bg-white border-b border-slate-200 shadow-sm z-10 shrink-0 
