@@ -2197,7 +2197,7 @@ export default function App() {
                             </div>
                         </div>
 
-{/* 🌟 特殊屬性篩選列：改為橫向滑動容器以節省空間 */}
+{/* 🌟 特殊屬性篩選列：橫向滑動容器 */}
                         <div className="w-full overflow-x-auto pb-2 mt-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                             <div className="flex gap-3 w-max px-1 select-none items-center">
                                 
@@ -2252,8 +2252,10 @@ export default function App() {
                                       <Swords size={16} className="w-3 h-3 md:w-4 md:h-4" /> {t('競技場', lang)}
                                     </span>
                                 </label>
-                                </div>
+                                
+                            </div>
                         </div>
+                    </div>
                 </div>
             </div>
         </div>
