@@ -735,31 +735,47 @@ const grouped = useMemo(() => {
               ) : (
                   <div className="w-full overflow-x-auto pb-4">
                     <div ref={exportRef} className="bg-white p-4 md:p-8 rounded-lg shadow-lg min-w-[800px] lg:min-w-0 w-full mx-auto border border-slate-200">
-                        <div className="flex justify-between items-end border-b-4 border-slate-800 pb-4 mb-6">
-                            <div className="flex-1"><h1 className="text-4xl font-black text-slate-900 uppercase tracking-tight leading-none">{deckName}</h1></div>
-                            <div className="flex flex-col items-end gap-1 text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-wider min-w-max ml-4">
-    <span className="flex items-center gap-1 bg-slate-800 text-white px-2 py-0.5 rounded shadow-sm mb-1"><Layers size={14} /> TOTAL: {deck.main.length}</span>
-    <span className="flex items-center gap-1 text-yellow-600"><Cookie size={14} /> Cookie: {grouped.cookies.reduce((acc, g) => acc + g.stackCount, 0)}</span>
-    <span className="flex items-center gap-1 text-blue-600"><Box size={14} /> Item: {grouped.items.reduce((acc, g) => acc + g.stackCount, 0)}</span>
-    <span className="flex items-center gap-1 text-red-600"><Zap size={14} /> Trap: {grouped.traps.reduce((acc, g) => acc + g.stackCount, 0)}</span>
-    <span className="flex items-center gap-1 text-emerald-600"><Globe size={14} /> Stage: {grouped.stages.reduce((acc, g) => acc + g.stackCount, 0)}</span>
-    <div className="w-full h-px bg-slate-200 my-0.5"></div>
-    <span className="flex items-center gap-1 text-orange-600"><RotateCw size={14} /> FLIP: {deck.main.filter(c => c.isFlip).length}</span>
-    {deck.extra.length > 0 && (<span className="flex items-center gap-1 text-purple-600"><Zap size={14} /> EXTRA: {deck.extra.length}</span>)}
-                        </div>
-                          <div className="mt-10 pt-4 border-t-2 border-slate-900 flex justify-between items-end">
-    <div className="flex flex-col">
-        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Designed by</span>
-        <span className="text-sm font-bold text-slate-800">樂多綠 Gamecaster</span>
-    </div>
-    <div className="flex flex-col items-end">
-        <div className="flex items-center gap-1.5 text-blue-600 font-black text-base md:text-lg tracking-tight">
-            <Cookie size={20} className="fill-blue-600" />
-            <span>Cookierun Braverse Deck Builder</span>
-        </div>
-        <span className="text-[9px] text-slate-400 font-mono italic">All images © Devsisters Corp.</span>
-    </div>
-</div>
+                  
+                  {/* 1. 標題與右上角數據看板 */}
+                  <div className="flex justify-between items-end border-b-4 border-slate-800 pb-4 mb-6">
+                      <div className="flex-1"><h1 className="text-4xl font-black text-slate-900 uppercase tracking-tight leading-none">{deckName}</h1></div>
+                      
+                      <div className="flex flex-col items-end gap-1 text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-wider min-w-max ml-4">
+                          <span className="flex items-center gap-1 bg-slate-800 text-white px-2 py-0.5 rounded shadow-sm mb-1"><Layers size={14} /> TOTAL: {deck.main.length}</span>
+                          <span className="flex items-center gap-1 text-yellow-600"><Cookie size={14} /> Cookie: {grouped.cookies.reduce((acc, g) => acc + g.stackCount, 0)}</span>
+                          <span className="flex items-center gap-1 text-blue-600"><Box size={14} /> Item: {grouped.items.reduce((acc, g) => acc + g.stackCount, 0)}</span>
+                          <span className="flex items-center gap-1 text-red-600"><Zap size={14} /> Trap: {grouped.traps.reduce((acc, g) => acc + g.stackCount, 0)}</span>
+                          <span className="flex items-center gap-1 text-emerald-600"><Globe size={14} /> Stage: {grouped.stages.reduce((acc, g) => acc + g.stackCount, 0)}</span>
+                          <div className="w-full h-px bg-slate-200 my-0.5"></div>
+                          <span className="flex items-center gap-1 text-orange-600"><RotateCw size={14} /> FLIP: {deck.main.filter(c => c.isFlip).length}</span>
+                          {deck.extra.length > 0 && (<span className="flex items-center gap-1 text-purple-600"><Zap size={14} /> EXTRA: {deck.extra.length}</span>)}
+                      </div>
+                  </div>
+
+                  {/* 2. 中間的卡片清單區塊 */}
+                  <div className="space-y-6">
+                      {grouped.cookies.length > 0 && (<div><h3 className="font-bold text-slate-700 text-sm uppercase mb-2 border-l-4 border-yellow-400 pl-2">{lang==='en'?'Cookies':'餅乾卡'}</h3><div className="grid grid-cols-8 gap-1">{grouped.cookies.map(renderMiniCard)}</div></div>)}
+                      {grouped.others.length > 0 && (<div><h3 className="font-bold text-slate-700 text-sm uppercase mb-2 border-l-4 border-blue-400 pl-2">{lang==='en'?'Items / Traps / Stages':'道具 / 陷阱 / 場景'}</h3><div className="grid grid-cols-8 gap-1">{grouped.others.map(renderMiniCard)}</div></div>)}
+                      {grouped.flips.length > 0 && (<div><h3 className="font-bold text-slate-700 text-sm uppercase mb-2 border-l-4 border-slate-600 pl-2">FLIP Cards</h3><div className="grid grid-cols-8 gap-1">{grouped.flips.map(renderMiniCard)}</div></div>)}
+                      {grouped.extras.length > 0 && (<div><h3 className="font-bold text-purple-900 text-sm uppercase mb-2 border-l-4 border-purple-400 pl-2">Extra Deck</h3><div className="grid grid-cols-8 gap-1">{grouped.extras.map(renderMiniCard)}</div></div>)}
+                  </div>
+
+                  {/* 3. 底部的商標區塊 (放在這裡才正確！) */}
+                  <div className="mt-10 pt-4 border-t-2 border-slate-900 flex justify-between items-end">
+                      <div className="flex flex-col">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Designed by</span>
+                          <span className="text-sm font-bold text-slate-800">樂多綠 Gamecaster</span>
+                      </div>
+                      <div className="flex flex-col items-end">
+                          <div className="flex items-center gap-1.5 text-blue-600 font-black text-base md:text-lg tracking-tight">
+                              <Cookie size={20} className="fill-blue-600" />
+                              <span>Cookierun Braverse Deck Builder</span>
+                          </div>
+                          <span className="text-[9px] text-slate-400 font-mono italic">All images © Devsisters Corp.</span>
+                      </div>
+                  </div>
+
+              </div>
                         <div className="space-y-6">
                             {grouped.cookies.length > 0 && (<div><h3 className="font-bold text-slate-700 text-sm uppercase mb-2 border-l-4 border-yellow-400 pl-2">{lang==='en'?'Cookies':'餅乾卡'}</h3><div className="grid grid-cols-8 gap-1">{grouped.cookies.map(renderMiniCard)}</div></div>)}
                             {grouped.others.length > 0 && (<div><h3 className="font-bold text-slate-700 text-sm uppercase mb-2 border-l-4 border-blue-400 pl-2">{lang==='en'?'Items / Traps / Stages':'道具 / 陷阱 / 場景'}</h3><div className="grid grid-cols-8 gap-1">{grouped.others.map(renderMiniCard)}</div></div>)}
