@@ -650,13 +650,30 @@ const ExportModal = ({ deck, deckName, onClose, lang }) => {
   const handleCopyLink = () => { if (!shareUrl) return; navigator.clipboard.writeText(shareUrl); alert(lang==='en'?"Copied!":"已複製！"); };
   const handlePrint = () => { window.print(); };
 
-  const grouped = useMemo(() => {
+const grouped = useMemo(() => {
     const processGroup = (list) => groupCards(list).sort((a, b) => a.id.localeCompare(b.id));
+    
+    // 1. 餅乾卡的排序邏輯 (原本的，依 LV 排序)
     const cookiesRaw = deck.main.filter(c => c.type === CARD_TYPES.COOKIE && !c.isFlip);
     const cookiesGrouped = groupCards(cookiesRaw).sort((a, b) => {
         const getLvlVal = (lvl) => { if (lvl === CARD_LEVELS.LV1) return 1; if (lvl === CARD_LEVELS.LV2) return 2; if (lvl === CARD_LEVELS.LV3) return 3; return 99; };
         return getLvlVal(a.level) - getLvlVal(b.level) || a.id.localeCompare(b.id);
     });
+
+    // 🌟 2. 新增：道具/陷阱/場景的專屬排序邏輯
+    const othersRaw = deck.main.filter(c => c.type !== CARD_TYPES.COOKIE && !c.isFlip);
+    const othersGrouped = groupCards(othersRaw).sort((a, b) => {
+        // 給予不同種類權重：道具(1) -> 陷阱(2) -> 場景(3)
+        const getTypeVal = (t) => { 
+            if (t === CARD_TYPES.ITEM) return 1; 
+            if (t === CARD_TYPES.TRAP) return 2; 
+            if (t === CARD_TYPES.SCENE) return 3; 
+            return 4; 
+        };
+        // 先比對種類權重，如果種類相同，才繼續比對卡片編號 (id)
+        return getTypeVal(a.type) - getTypeVal(b.type) || a.id.localeCompare(b.id);
+    });
+
     return {
         cookies: cookiesGrouped,
         items: processGroup(deck.main.filter(c => c.type === CARD_TYPES.ITEM)),
@@ -664,7 +681,8 @@ const ExportModal = ({ deck, deckName, onClose, lang }) => {
         stages: processGroup(deck.main.filter(c => c.type === CARD_TYPES.SCENE)),
         flips: processGroup(deck.main.filter(c => c.isFlip)),
         extras: processGroup(deck.extra),
-        others: processGroup(deck.main.filter(c => c.type !== CARD_TYPES.COOKIE && !c.isFlip)) // For image export
+        // 🌟 3. 將原本的 processGroup 替換成我們寫好的 othersGrouped
+        others: othersGrouped 
     };
   }, [deck]);
 
@@ -719,12 +737,29 @@ const ExportModal = ({ deck, deckName, onClose, lang }) => {
                     <div ref={exportRef} className="bg-white p-4 md:p-8 rounded-lg shadow-lg min-w-[800px] lg:min-w-0 w-full mx-auto border border-slate-200">
                         <div className="flex justify-between items-end border-b-4 border-slate-800 pb-4 mb-6">
                             <div className="flex-1"><h1 className="text-4xl font-black text-slate-900 uppercase tracking-tight leading-none">{deckName}</h1></div>
-                            <div className="flex flex-col items-end gap-1 text-sm font-bold text-slate-600 uppercase tracking-wider min-w-max ml-4">
-                                <span className="flex items-center gap-1"><Layers size={16} /> Total: {deck.main.length}</span>
-                                <span className="flex items-center gap-1"><RotateCw size={16} /> Flip: {deck.main.filter(c=>c.isFlip).length}</span>
-                                {deck.extra.length > 0 && (<span className="flex items-center gap-1 text-purple-600"><Zap size={16} /> Extra: {deck.extra.length}</span>)}
-                            </div>
+                            <div className="flex flex-col items-end gap-1 text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-wider min-w-max ml-4">
+    <span className="flex items-center gap-1 bg-slate-800 text-white px-2 py-0.5 rounded shadow-sm mb-1"><Layers size={14} /> TOTAL: {deck.main.length}</span>
+    <span className="flex items-center gap-1 text-yellow-600"><Cookie size={14} /> Cookie: {grouped.cookies.reduce((acc, g) => acc + g.stackCount, 0)}</span>
+    <span className="flex items-center gap-1 text-blue-600"><Box size={14} /> Item: {grouped.items.reduce((acc, g) => acc + g.stackCount, 0)}</span>
+    <span className="flex items-center gap-1 text-red-600"><Zap size={14} /> Trap: {grouped.traps.reduce((acc, g) => acc + g.stackCount, 0)}</span>
+    <span className="flex items-center gap-1 text-emerald-600"><Globe size={14} /> Stage: {grouped.stages.reduce((acc, g) => acc + g.stackCount, 0)}</span>
+    <div className="w-full h-px bg-slate-200 my-0.5"></div>
+    <span className="flex items-center gap-1 text-orange-600"><RotateCw size={14} /> FLIP: {deck.main.filter(c => c.isFlip).length}</span>
+    {deck.extra.length > 0 && (<span className="flex items-center gap-1 text-purple-600"><Zap size={14} /> EXTRA: {deck.extra.length}</span>)}
                         </div>
+                          <div className="mt-10 pt-4 border-t-2 border-slate-900 flex justify-between items-end">
+    <div className="flex flex-col">
+        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Designed by</span>
+        <span className="text-sm font-bold text-slate-800">樂多綠 Gamecaster</span>
+    </div>
+    <div className="flex flex-col items-end">
+        <div className="flex items-center gap-1.5 text-blue-600 font-black text-base md:text-lg tracking-tight">
+            <Cookie size={20} className="fill-blue-600" />
+            <span>Cookierun Braverse Deck Builder</span>
+        </div>
+        <span className="text-[9px] text-slate-400 font-mono italic">All images © Devsisters Corp.</span>
+    </div>
+</div>
                         <div className="space-y-6">
                             {grouped.cookies.length > 0 && (<div><h3 className="font-bold text-slate-700 text-sm uppercase mb-2 border-l-4 border-yellow-400 pl-2">{lang==='en'?'Cookies':'餅乾卡'}</h3><div className="grid grid-cols-8 gap-1">{grouped.cookies.map(renderMiniCard)}</div></div>)}
                             {grouped.others.length > 0 && (<div><h3 className="font-bold text-slate-700 text-sm uppercase mb-2 border-l-4 border-blue-400 pl-2">{lang==='en'?'Items / Traps / Stages':'道具 / 陷阱 / 場景'}</h3><div className="grid grid-cols-8 gap-1">{grouped.others.map(renderMiniCard)}</div></div>)}
