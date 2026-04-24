@@ -783,7 +783,6 @@ const grouped = useMemo(() => {
                             {grouped.extras.length > 0 && (<div><h3 className="font-bold text-purple-900 text-sm uppercase mb-2 border-l-4 border-purple-400 pl-2">Extra Deck</h3><div className="grid grid-cols-8 gap-1">{grouped.extras.map(renderMiniCard)}</div></div>)}
                         </div>
                     </div>
-                  </div>
               )}
             </div>
           )}
