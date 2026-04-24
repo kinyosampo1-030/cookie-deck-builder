@@ -1326,6 +1326,7 @@ export default function App() {
   const [editingCard, setEditingCard] = useState(null);
   const [isDataLoaded, setIsDataLoaded] = useState(false); 
   const [isMobileDeckOpen, setIsMobileDeckOpen] = useState(false);
+  const [isDesktopDeckOpen, setIsDesktopDeckOpen] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
   const [visibleCount, setVisibleCount] = useState(30);
   const loadMoreRef = useRef(null);
@@ -1334,7 +1335,7 @@ export default function App() {
   const [showStorageModal, setShowStorageModal] = useState(false);
   const [showCommunityModal, setShowCommunityModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showFilters, setShowFilters] = useState(false); 
+  const [showFilters, setShowFilters] = useState(true); 
 
   const hoverPreviewRef = useRef(null);
   const [hoveredCard, setHoveredCard] = useState(null);
@@ -2148,14 +2149,14 @@ export default function App() {
                 {/* --- 篩選與搜尋 --- */}
                 <div className="w-full flex flex-col gap-2">
                     <button 
-                        onClick={() => setShowFilters(!showFilters)} 
-                        className="w-full flex items-center justify-between bg-slate-100 p-2 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-200 transition-colors border border-slate-200 shadow-sm md:hidden"
-                    >
+      onClick={() => setShowFilters(!showFilters)} 
+      className="w-full flex items-center justify-between bg-slate-100 p-2 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-200 transition-colors border border-slate-200 shadow-sm"
+  >
                         <span className="flex items-center gap-2"><Filter size={16} className="text-blue-600" /> {lang==='en'?'Filters':'搜尋與進階篩選'}</span>
                         {showFilters ? <ChevronUp size={18} className="text-slate-500" /> : <ChevronDown size={18} className="text-slate-500" />}
                     </button>
                     
-                    <div className={`flex flex-col gap-2 transition-all duration-300 ease-in-out overflow-hidden origin-top ${showFilters ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0 md:max-h-none md:opacity-100'}`}>
+                    <div className={`flex flex-col gap-2 transition-all duration-300 ease-in-out overflow-hidden origin-top ${showFilters ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
                         <div className="relative w-full"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><input type="text" placeholder={lang==='en'?'Search name or ID...':'搜尋名稱或編號...'} className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} /></div>
                         <div className="flex gap-2">
                           <div className="relative flex-1"><Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} /><select className="w-full pl-10 pr-4 py-1.5 md:py-2 bg-slate-100 border-none rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" value={filters.type} onChange={(e) => setFilters({...filters, type: e.target.value})}>{['ALL', ...Object.values(CARD_TYPES)].map(tVal => <option key={tVal} value={tVal}>{tVal === 'ALL' ? (lang==='en'?'All Types':'全部種類') : t(tVal, lang)}</option>)}</select></div>
@@ -2393,10 +2394,21 @@ export default function App() {
       {/* 右側：牌組清單 */}
       <div className={`print:hidden
           bg-white shadow-2xl z-50 flex flex-col border-l border-slate-300
-          md:relative md:w-80 lg:w-96 md:h-auto md:translate-x-0 md:flex md:shadow-none
-          fixed inset-y-0 right-0 w-[85vw] max-w-sm transition-transform duration-300 ease-in-out
+          fixed inset-y-0 right-0 transition-all duration-300 ease-in-out
+          w-[85vw] max-w-sm 
           ${isMobileDeckOpen ? 'translate-x-0' : 'translate-x-full'}
+          md:relative md:w-80 lg:w-96 md:h-auto md:shadow-none
+          md:${isDesktopDeckOpen ? 'translate-x-0 md:mr-0' : 'translate-x-full md:-mr-80 lg:-mr-96'}
       `}>
+        
+        {/* 🌟 新增：電腦版專用的側邊收合按鈕 */}
+        <button 
+            onClick={() => setIsDesktopDeckOpen(!isDesktopDeckOpen)}
+            className="hidden md:flex absolute -left-8 top-1/2 -translate-y-1/2 bg-slate-800 text-white w-8 h-16 rounded-l-xl items-center justify-center shadow-md hover:bg-blue-600 transition-colors z-50"
+            title={isDesktopDeckOpen ? "收起牌組面板" : "展開牌組面板"}
+        >
+            {isDesktopDeckOpen ? <ChevronRight size={24} /> : <ChevronLeft size={24} />}
+        </button>
         <div className="p-4 bg-slate-800 text-white border-b border-slate-700 shrink-0">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-bold flex items-center gap-2 flex-1"><Box size={20} className="text-blue-400"/> {lang==='en'?'My Deck':'目前牌組'}</h2>
