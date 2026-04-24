@@ -2252,8 +2252,7 @@ export default function App() {
                                       <Swords size={16} className="w-3 h-3 md:w-4 md:h-4" /> {t('競技場', lang)}
                                     </span>
                                 </label>
-                                
-                            </div>
+                                </div>
                         </div>
                 </div>
             </div>
