@@ -2197,59 +2197,64 @@ export default function App() {
                             </div>
                         </div>
 
-                        <div className="flex flex-wrap gap-3 mt-1 pl-1 select-none items-center">
-                          <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                            <input type="checkbox" className="hidden peer" checked={filters.showExtra} onChange={(e) => setFilters({ ...filters, showExtra: e.target.checked })} />
-                            <span className="flex items-center gap-1.5 text-xs md:text-sm uppercase tracking-wider bg-purple-100 text-purple-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-purple-300 peer-checked:bg-purple-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-purple-400 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
-                              <Zap size={16} className="w-3 h-3 md:w-4 md:h-4" /> EXTRA
-                            </span>
-                          </label>
+{/* 🌟 特殊屬性篩選列：改為橫向滑動容器以節省空間 */}
+                        <div className="w-full overflow-x-auto pb-2 mt-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                            <div className="flex gap-3 w-max px-1 select-none items-center">
+                                
+                                <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95 shrink-0">
+                                    <input type="checkbox" className="hidden peer" checked={filters.showExtra} onChange={(e) => setFilters({ ...filters, showExtra: e.target.checked })} />
+                                    <span className="flex items-center gap-1.5 text-xs md:text-sm uppercase tracking-wider bg-purple-100 text-purple-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-purple-300 peer-checked:bg-purple-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-purple-400 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
+                                      <Zap size={16} className="w-3 h-3 md:w-4 md:h-4" /> EXTRA
+                                    </span>
+                                </label>
 
-                          <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                            <input type="checkbox" className="hidden peer" checked={filters.showFlip} onChange={(e) => setFilters({ ...filters, showFlip: e.target.checked })} />
-                            <span className="flex items-center gap-1.5 text-xs md:text-sm bg-slate-200 text-slate-700 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-slate-300 peer-checked:bg-slate-800 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-slate-500 opacity-70 peer-checked:opacity-100 font-bold tracking-wider shadow-sm transition-all">
-                              <RotateCw size={16} className="w-3 h-3 md:w-4 md:h-4" /> FLIP
-                            </span>
-                          </label>
+                                <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95 shrink-0">
+                                    <input type="checkbox" className="hidden peer" checked={filters.showFlip} onChange={(e) => setFilters({ ...filters, showFlip: e.target.checked })} />
+                                    <span className="flex items-center gap-1.5 text-xs md:text-sm bg-slate-200 text-slate-700 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-slate-300 peer-checked:bg-slate-800 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-slate-500 opacity-70 peer-checked:opacity-100 font-bold tracking-wider shadow-sm transition-all">
+                                      <RotateCw size={16} className="w-3 h-3 md:w-4 md:h-4" /> FLIP
+                                    </span>
+                                </label>
 
-                          <div className="h-6 w-px bg-slate-300 mx-1 hidden md:block"></div>
+                                {/* 分隔線 */}
+                                <div className="h-5 w-px bg-slate-300 mx-0.5 shrink-0"></div>
 
-                          <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                            <input type="checkbox" className="hidden peer" checked={filters.showAncient} onChange={(e) => setFilters({ ...filters, showAncient: e.target.checked })} />
-                            <span className="flex items-center gap-1.5 text-xs md:text-sm bg-amber-100 text-amber-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-amber-300 peer-checked:bg-amber-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-amber-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
-                              <Crown size={16} className="w-3 h-3 md:w-4 md:h-4" /> {t('上古', lang)}
-                            </span>
-                          </label>
+                                <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95 shrink-0">
+                                    <input type="checkbox" className="hidden peer" checked={filters.showAncient} onChange={(e) => setFilters({ ...filters, showAncient: e.target.checked })} />
+                                    <span className="flex items-center gap-1.5 text-xs md:text-sm bg-amber-100 text-amber-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-amber-300 peer-checked:bg-amber-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-amber-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
+                                      <Crown size={16} className="w-3 h-3 md:w-4 md:h-4" /> {t('上古', lang)}
+                                    </span>
+                                </label>
 
-                          <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                            <input type="checkbox" className="hidden peer" checked={filters.showDragon} onChange={(e) => setFilters({ ...filters, showDragon: e.target.checked })} />
-                            <span className="flex items-center gap-1.5 text-xs md:text-sm bg-red-100 text-red-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-red-300 peer-checked:bg-red-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-red-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
-                              <Flame size={16} className="w-3 h-3 md:w-4 md:h-4" /> {t('龍族', lang)}
-                            </span>
-                          </label>
+                                <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95 shrink-0">
+                                    <input type="checkbox" className="hidden peer" checked={filters.showDragon} onChange={(e) => setFilters({ ...filters, showDragon: e.target.checked })} />
+                                    <span className="flex items-center gap-1.5 text-xs md:text-sm bg-red-100 text-red-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-red-300 peer-checked:bg-red-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-red-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
+                                      <Flame size={16} className="w-3 h-3 md:w-4 md:h-4" /> {t('龍族', lang)}
+                                    </span>
+                                </label>
 
-                          <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                            <input type="checkbox" className="hidden peer" checked={filters.showBeast} onChange={(e) => setFilters({ ...filters, showBeast: e.target.checked })} />
-                            <span className="flex items-center gap-1.5 text-xs md:text-sm bg-stone-200 text-stone-800 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-stone-300 peer-checked:bg-stone-700 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-stone-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
-                              <PawPrint size={16} className="w-3 h-3 md:w-4 md:h-4" /> {t('野獸', lang)}
-                            </span>
-                          </label>
+                                <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95 shrink-0">
+                                    <input type="checkbox" className="hidden peer" checked={filters.showBeast} onChange={(e) => setFilters({ ...filters, showBeast: e.target.checked })} />
+                                    <span className="flex items-center gap-1.5 text-xs md:text-sm bg-stone-200 text-stone-800 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-stone-300 peer-checked:bg-stone-700 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-stone-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
+                                      <PawPrint size={16} className="w-3 h-3 md:w-4 md:h-4" /> {t('野獸', lang)}
+                                    </span>
+                                </label>
 
-                          <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                            <input type="checkbox" className="hidden peer" checked={filters.showSoulJam} onChange={(e) => setFilters({ ...filters, showSoulJam: e.target.checked })} />
-                            <span className="flex items-center gap-1.5 text-xs md:text-sm bg-pink-100 text-pink-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-pink-300 peer-checked:bg-pink-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-pink-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
-                              <Sparkles size={16} className="w-3 h-3 md:w-4 md:h-4" /> {t('靈魂果醬', lang)}
-                            </span>
-                          </label>
-                          
-                          <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                            <input type="checkbox" className="hidden peer" checked={filters.showArena} onChange={(e) => setFilters({ ...filters, showArena: e.target.checked })} />
-                            <span className="flex items-center gap-1.5 text-xs md:text-sm bg-cyan-100 text-cyan-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-cyan-300 peer-checked:bg-cyan-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-cyan-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
-                              <Swords size={16} className="w-3 h-3 md:w-4 md:h-4" /> {t('競技場', lang)}
-                            </span>
-                          </label>
+                                <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95 shrink-0">
+                                    <input type="checkbox" className="hidden peer" checked={filters.showSoulJam} onChange={(e) => setFilters({ ...filters, showSoulJam: e.target.checked })} />
+                                    <span className="flex items-center gap-1.5 text-xs md:text-sm bg-pink-100 text-pink-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-pink-300 peer-checked:bg-pink-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-pink-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
+                                      <Sparkles size={16} className="w-3 h-3 md:w-4 md:h-4" /> {t('靈魂果醬', lang)}
+                                    </span>
+                                </label>
+
+                                <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95 shrink-0">
+                                    <input type="checkbox" className="hidden peer" checked={filters.showArena} onChange={(e) => setFilters({ ...filters, showArena: e.target.checked })} />
+                                    <span className="flex items-center gap-1.5 text-xs md:text-sm bg-cyan-100 text-cyan-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-cyan-300 peer-checked:bg-cyan-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-cyan-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
+                                      <Swords size={16} className="w-3 h-3 md:w-4 md:h-4" /> {t('競技場', lang)}
+                                    </span>
+                                </label>
+                                
+                            </div>
                         </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -2397,11 +2402,12 @@ export default function App() {
           fixed inset-y-0 right-0 transition-all duration-300 ease-in-out
           w-[85vw] max-w-sm 
           ${isMobileDeckOpen ? 'translate-x-0' : 'translate-x-full'}
-          md:relative md:w-80 lg:w-96 md:h-auto md:shadow-none
-          md:${isDesktopDeckOpen ? 'translate-x-0 md:mr-0' : 'translate-x-full md:-mr-80 lg:-mr-96'}
+          
+          md:relative md:w-80 lg:w-96 md:h-auto md:shadow-none md:translate-x-0
+          ${isDesktopDeckOpen ? 'md:mr-0' : 'md:-mr-80 lg:-mr-96'}
       `}>
         
-        {/* 🌟 新增：電腦版專用的側邊收合按鈕 */}
+        {/* 🌟 電腦版專用的側邊收合按鈕 (已修正定位) */}
         <button 
             onClick={() => setIsDesktopDeckOpen(!isDesktopDeckOpen)}
             className="hidden md:flex absolute -left-8 top-1/2 -translate-y-1/2 bg-slate-800 text-white w-8 h-16 rounded-l-xl items-center justify-center shadow-md hover:bg-blue-600 transition-colors z-50"
@@ -2409,6 +2415,7 @@ export default function App() {
         >
             {isDesktopDeckOpen ? <ChevronRight size={24} /> : <ChevronLeft size={24} />}
         </button>
+
         <div className="p-4 bg-slate-800 text-white border-b border-slate-700 shrink-0">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-bold flex items-center gap-2 flex-1"><Box size={20} className="text-blue-400"/> {lang==='en'?'My Deck':'目前牌組'}</h2>
