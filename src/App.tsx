@@ -740,17 +740,28 @@ const grouped = useMemo(() => {
                   <div className="flex justify-between items-end border-b-4 border-slate-800 pb-4 mb-6">
                       <div className="flex-1"><h1 className="text-4xl font-black text-slate-900 uppercase tracking-tight leading-none">{deckName}</h1></div>
                       
-                      <div className="flex flex-col items-end gap-1 text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-wider min-w-max ml-4">
-                          <span className="flex items-center gap-1 bg-slate-800 text-white px-2 py-0.5 rounded shadow-sm mb-1"><Layers size={14} /> TOTAL: {deck.main.length}</span>
-                          <span className="flex items-center gap-1 text-yellow-600"><Cookie size={14} /> Cookie: {grouped.cookies.reduce((acc, g) => acc + g.stackCount, 0)}</span>
-                          <span className="flex items-center gap-1 text-blue-600"><Box size={14} /> Item: {grouped.items.reduce((acc, g) => acc + g.stackCount, 0)}</span>
-                          <span className="flex items-center gap-1 text-red-600"><Zap size={14} /> Trap: {grouped.traps.reduce((acc, g) => acc + g.stackCount, 0)}</span>
-                          <span className="flex items-center gap-1 text-emerald-600"><Globe size={14} /> Stage: {grouped.stages.reduce((acc, g) => acc + g.stackCount, 0)}</span>
-                          <div className="w-full h-px bg-slate-200 my-0.5"></div>
-                          <span className="flex items-center gap-1 text-orange-600"><RotateCw size={14} /> FLIP: {deck.main.filter(c => c.isFlip).length}</span>
-                          {deck.extra.length > 0 && (<span className="flex items-center gap-1 text-purple-600"><Zap size={14} /> EXTRA: {deck.extra.length}</span>)}
+                      <div className="flex flex-col items-end gap-2 text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-wider min-w-max ml-4">
+                          
+                          {/* 第一排：Total, Extra */}
+                          <div className="flex items-center gap-4">
+                              <span className="flex items-center gap-1 bg-slate-800 text-white px-2 py-0.5 rounded shadow-sm"><Layers size={14} /> TOTAL: {deck.main.length}</span>
+                              <span className="flex items-center gap-1 text-purple-600"><Zap size={14} /> EXTRA: {deck.extra.length}</span>
+                          </div>
+                          
+                          {/* 第二排：Cookie, FLIP */}
+                          <div className="flex items-center gap-4">
+                              <span className="flex items-center gap-1 text-yellow-600"><Cookie size={14} /> Cookie: {grouped.cookies.reduce((acc, g) => acc + g.stackCount, 0)}</span>
+                              <span className="flex items-center gap-1 text-orange-600"><RotateCw size={14} /> FLIP: {deck.main.filter(c => c.isFlip).length}</span>
+                          </div>
+                          
+                          {/* 第三排：Item, Trap, Stage */}
+                          <div className="flex items-center gap-4">
+                              <span className="flex items-center gap-1 text-blue-600"><Box size={14} /> Item: {grouped.items.reduce((acc, g) => acc + g.stackCount, 0)}</span>
+                              <span className="flex items-center gap-1 text-red-600"><Zap size={14} /> Trap: {grouped.traps.reduce((acc, g) => acc + g.stackCount, 0)}</span>
+                              <span className="flex items-center gap-1 text-emerald-600"><Globe size={14} /> Stage: {grouped.stages.reduce((acc, g) => acc + g.stackCount, 0)}</span>
+                          </div>
+
                       </div>
-                  </div>
 
                   {/* 2. 中間的卡片清單區塊 */}
                   <div className="space-y-6">
