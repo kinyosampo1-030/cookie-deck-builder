@@ -650,27 +650,23 @@ const ExportModal = ({ deck, deckName, onClose, lang }) => {
   const handleCopyLink = () => { if (!shareUrl) return; navigator.clipboard.writeText(shareUrl); alert(lang==='en'?"Copied!":"已複製！"); };
   const handlePrint = () => { window.print(); };
 
-const grouped = useMemo(() => {
+  const grouped = useMemo(() => {
     const processGroup = (list) => groupCards(list).sort((a, b) => a.id.localeCompare(b.id));
     
-    // 1. 餅乾卡的排序邏輯 (原本的，依 LV 排序)
     const cookiesRaw = deck.main.filter(c => c.type === CARD_TYPES.COOKIE && !c.isFlip);
     const cookiesGrouped = groupCards(cookiesRaw).sort((a, b) => {
         const getLvlVal = (lvl) => { if (lvl === CARD_LEVELS.LV1) return 1; if (lvl === CARD_LEVELS.LV2) return 2; if (lvl === CARD_LEVELS.LV3) return 3; return 99; };
         return getLvlVal(a.level) - getLvlVal(b.level) || a.id.localeCompare(b.id);
     });
 
-    // 🌟 2. 新增：道具/陷阱/場景的專屬排序邏輯
     const othersRaw = deck.main.filter(c => c.type !== CARD_TYPES.COOKIE && !c.isFlip);
     const othersGrouped = groupCards(othersRaw).sort((a, b) => {
-        // 給予不同種類權重：道具(1) -> 陷阱(2) -> 場景(3)
         const getTypeVal = (t) => { 
             if (t === CARD_TYPES.ITEM) return 1; 
             if (t === CARD_TYPES.TRAP) return 2; 
             if (t === CARD_TYPES.SCENE) return 3; 
             return 4; 
         };
-        // 先比對種類權重，如果種類相同，才繼續比對卡片編號 (id)
         return getTypeVal(a.type) - getTypeVal(b.type) || a.id.localeCompare(b.id);
     });
 
@@ -681,13 +677,9 @@ const grouped = useMemo(() => {
         stages: processGroup(deck.main.filter(c => c.type === CARD_TYPES.SCENE)),
         flips: processGroup(deck.main.filter(c => c.isFlip)),
         extras: processGroup(deck.extra),
-        // 🌟 3. 將原本的 processGroup 替換成我們寫好的 othersGrouped
         others: othersGrouped 
     };
   }, [deck]);
-
-  const getSectionCount = (groups) => groups.reduce((acc, g) => acc + g.stackCount, 0);
-  const flipCount = deck.main.filter(c => c.isFlip).length;
 
   const renderMiniCard = (group) => (
     <div key={group.id} className="relative aspect-[3/4] rounded overflow-hidden border border-slate-200 shadow-sm bg-slate-50 group">
@@ -713,11 +705,13 @@ const grouped = useMemo(() => {
           <h2 className="text-xl font-bold flex items-center gap-2"><Share2 className="text-blue-600" /> {lang==='en'?'Share / Export':'輸出與分享'}</h2>
           <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24} /></button>
         </div>
+        
         <div className="flex border-b print:hidden">
           <button onClick={() => setActiveTab("image")} className={`flex-1 py-3 font-bold text-sm ${activeTab === "image" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-500 hover:bg-slate-50"}`}>Image</button>
           <button onClick={() => setActiveTab("link")} className={`flex-1 py-3 font-bold text-sm ${activeTab === "link" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-500 hover:bg-slate-50"}`}>Link</button>
           <button onClick={() => setActiveTab("list")} className={`flex-1 py-3 font-bold text-sm ${activeTab === "list" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-500 hover:bg-slate-50"}`}>Print List</button>
         </div>
+
         <div className="flex-1 overflow-y-auto p-6 bg-slate-100 print:bg-white print:p-0 print:overflow-visible">
           {activeTab === "image" && (
             <div className="flex flex-col items-center gap-4">
@@ -735,149 +729,99 @@ const grouped = useMemo(() => {
               ) : (
                   <div className="w-full overflow-x-auto pb-4">
                     <div ref={exportRef} className="bg-white p-4 md:p-8 rounded-lg shadow-lg min-w-[800px] lg:min-w-0 w-full mx-auto border border-slate-200">
-                  
-                  {/* 1. 標題與右上角數據看板 */}
-                  <div className="flex justify-between items-end border-b-4 border-slate-800 pb-4 mb-6">
-                      <div className="flex-1"><h1 className="text-4xl font-black text-slate-900 uppercase tracking-tight leading-none">{deckName}</h1></div>
                       
-                      <div className="flex flex-col items-end gap-2 text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-wider min-w-max ml-4">
+                      {/* 1. 標題與三排橫向數據看板 */}
+                      <div className="flex justify-between items-end border-b-4 border-slate-800 pb-4 mb-6">
+                          <div className="flex-1"><h1 className="text-4xl font-black text-slate-900 uppercase tracking-tight leading-none">{deckName}</h1></div>
                           
-                          {/* 第一排：Total, Extra */}
-                          <div className="flex items-center gap-4">
-                              <span className="flex items-center gap-1 bg-slate-800 text-white px-2 py-0.5 rounded shadow-sm"><Layers size={14} /> TOTAL: {deck.main.length}</span>
-                              <span className="flex items-center gap-1 text-purple-600"><Zap size={14} /> EXTRA: {deck.extra.length}</span>
+                          <div className="flex flex-col items-end gap-2 text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-wider min-w-max ml-4">
+                              {/* 第一排：Total, Extra */}
+                              <div className="flex items-center gap-4">
+                                  <span className="flex items-center gap-1 bg-slate-800 text-white px-2 py-0.5 rounded shadow-sm"><Layers size={14} /> TOTAL: {deck.main.length}</span>
+                                  <span className="flex items-center gap-1 text-purple-600"><Zap size={14} /> EXTRA: {deck.extra.length}</span>
+                              </div>
+                              
+                              {/* 第二排：Cookie, FLIP */}
+                              <div className="flex items-center gap-4">
+                                  <span className="flex items-center gap-1 text-yellow-600"><Cookie size={14} /> Cookie: {grouped.cookies.reduce((acc, g) => acc + g.stackCount, 0)}</span>
+                                  <span className="flex items-center gap-1 text-orange-600"><RotateCw size={14} /> FLIP: {deck.main.filter(c => c.isFlip).length}</span>
+                              </div>
+                              
+                              {/* 第三排：Item, Trap, Stage */}
+                              <div className="flex items-center gap-4">
+                                  <span className="flex items-center gap-1 text-blue-600"><Box size={14} /> Item: {grouped.items.reduce((acc, g) => acc + g.stackCount, 0)}</span>
+                                  <span className="flex items-center gap-1 text-red-600"><Zap size={14} /> Trap: {grouped.traps.reduce((acc, g) => acc + g.stackCount, 0)}</span>
+                                  <span className="flex items-center gap-1 text-emerald-600"><Globe size={14} /> Stage: {grouped.stages.reduce((acc, g) => acc + g.stackCount, 0)}</span>
+                              </div>
                           </div>
-                          
-                          {/* 第二排：Cookie, FLIP */}
-                          <div className="flex items-center gap-4">
-                              <span className="flex items-center gap-1 text-yellow-600"><Cookie size={14} /> Cookie: {grouped.cookies.reduce((acc, g) => acc + g.stackCount, 0)}</span>
-                              <span className="flex items-center gap-1 text-orange-600"><RotateCw size={14} /> FLIP: {deck.main.filter(c => c.isFlip).length}</span>
-                          </div>
-                          
-                          {/* 第三排：Item, Trap, Stage */}
-                          <div className="flex items-center gap-4">
-                              <span className="flex items-center gap-1 text-blue-600"><Box size={14} /> Item: {grouped.items.reduce((acc, g) => acc + g.stackCount, 0)}</span>
-                              <span className="flex items-center gap-1 text-red-600"><Zap size={14} /> Trap: {grouped.traps.reduce((acc, g) => acc + g.stackCount, 0)}</span>
-                              <span className="flex items-center gap-1 text-emerald-600"><Globe size={14} /> Stage: {grouped.stages.reduce((acc, g) => acc + g.stackCount, 0)}</span>
-                          </div>
-
-                  {/* 2. 中間的卡片清單區塊 */}
-                  <div className="space-y-6">
-                      {grouped.cookies.length > 0 && (<div><h3 className="font-bold text-slate-700 text-sm uppercase mb-2 border-l-4 border-yellow-400 pl-2">{lang==='en'?'Cookies':'餅乾卡'}</h3><div className="grid grid-cols-8 gap-1">{grouped.cookies.map(renderMiniCard)}</div></div>)}
-                      {grouped.others.length > 0 && (<div><h3 className="font-bold text-slate-700 text-sm uppercase mb-2 border-l-4 border-blue-400 pl-2">{lang==='en'?'Items / Traps / Stages':'道具 / 陷阱 / 場景'}</h3><div className="grid grid-cols-8 gap-1">{grouped.others.map(renderMiniCard)}</div></div>)}
-                      {grouped.flips.length > 0 && (<div><h3 className="font-bold text-slate-700 text-sm uppercase mb-2 border-l-4 border-slate-600 pl-2">FLIP Cards</h3><div className="grid grid-cols-8 gap-1">{grouped.flips.map(renderMiniCard)}</div></div>)}
-                      {grouped.extras.length > 0 && (<div><h3 className="font-bold text-purple-900 text-sm uppercase mb-2 border-l-4 border-purple-400 pl-2">Extra Deck</h3><div className="grid grid-cols-8 gap-1">{grouped.extras.map(renderMiniCard)}</div></div>)}
-                  </div>
-
-                  {/* 3. 底部的商標區塊 (放在這裡才正確！) */}
-                  <div className="mt-10 pt-4 border-t-2 border-slate-900 flex justify-between items-end">
-                      <div className="flex flex-col">
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Designed by</span>
-                          <span className="text-sm font-bold text-slate-800">樂多綠 Gamecaster</span>
                       </div>
-                      <div className="flex flex-col items-end">
-                          <div className="flex items-center gap-1.5 text-blue-600 font-black text-base md:text-lg tracking-tight">
-                              <Cookie size={20} className="fill-blue-600" />
-                              <span>Cookierun Braverse Deck Builder</span>
-                          </div>
-                          <span className="text-[9px] text-slate-400 font-mono italic">All images © Devsisters Corp.</span>
-                      </div>
-                  </div>
 
-              </div>
-                        <div className="space-y-6">
-                            {grouped.cookies.length > 0 && (<div><h3 className="font-bold text-slate-700 text-sm uppercase mb-2 border-l-4 border-yellow-400 pl-2">{lang==='en'?'Cookies':'餅乾卡'}</h3><div className="grid grid-cols-8 gap-1">{grouped.cookies.map(renderMiniCard)}</div></div>)}
-                            {grouped.others.length > 0 && (<div><h3 className="font-bold text-slate-700 text-sm uppercase mb-2 border-l-4 border-blue-400 pl-2">{lang==='en'?'Items / Traps / Stages':'道具 / 陷阱 / 場景'}</h3><div className="grid grid-cols-8 gap-1">{grouped.others.map(renderMiniCard)}</div></div>)}
-                            {grouped.flips.length > 0 && (<div><h3 className="font-bold text-slate-700 text-sm uppercase mb-2 border-l-4 border-slate-600 pl-2">FLIP Cards</h3><div className="grid grid-cols-8 gap-1">{grouped.flips.map(renderMiniCard)}</div></div>)}
-                            {grouped.extras.length > 0 && (<div><h3 className="font-bold text-purple-900 text-sm uppercase mb-2 border-l-4 border-purple-400 pl-2">Extra Deck</h3><div className="grid grid-cols-8 gap-1">{grouped.extras.map(renderMiniCard)}</div></div>)}
-                        </div>
+                      {/* 2. 中間的卡片清單區塊 */}
+                      <div className="space-y-6">
+                          {grouped.cookies.length > 0 && (<div><h3 className="font-bold text-slate-700 text-sm uppercase mb-2 border-l-4 border-yellow-400 pl-2">{lang==='en'?'Cookies':'餅乾卡'}</h3><div className="grid grid-cols-8 gap-1">{grouped.cookies.map(renderMiniCard)}</div></div>)}
+                          {grouped.others.length > 0 && (<div><h3 className="font-bold text-slate-700 text-sm uppercase mb-2 border-l-4 border-blue-400 pl-2">{lang==='en'?'Items / Traps / Stages':'道具 / 陷阱 / 場景'}</h3><div className="grid grid-cols-8 gap-1">{grouped.others.map(renderMiniCard)}</div></div>)}
+                          {grouped.flips.length > 0 && (<div><h3 className="font-bold text-slate-700 text-sm uppercase mb-2 border-l-4 border-slate-600 pl-2">FLIP Cards</h3><div className="grid grid-cols-8 gap-1">{grouped.flips.map(renderMiniCard)}</div></div>)}
+                          {grouped.extras.length > 0 && (<div><h3 className="font-bold text-purple-900 text-sm uppercase mb-2 border-l-4 border-purple-400 pl-2">Extra Deck</h3><div className="grid grid-cols-8 gap-1">{grouped.extras.map(renderMiniCard)}</div></div>)}
+                      </div>
+
+                      {/* 3. 底部的商標區塊 */}
+                      <div className="mt-10 pt-4 border-t-2 border-slate-900 flex justify-between items-end">
+                          <div className="flex flex-col">
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Designed by</span>
+                              <span className="text-sm font-bold text-slate-800">樂多綠 Gamecaster</span>
+                          </div>
+                          <div className="flex flex-col items-end">
+                              <div className="flex items-center gap-1.5 text-blue-600 font-black text-base md:text-lg tracking-tight">
+                                  <Cookie size={20} className="fill-blue-600" />
+                                  <span>Cookierun Braverse Deck Builder</span>
+                              </div>
+                              <span className="text-[9px] text-slate-400 font-mono italic">All images © Devsisters Corp.</span>
+                          </div>
+                      </div>
+
                     </div>
+                  </div>
               )}
             </div>
           )}
+
           {activeTab === "link" && (
             <div className="flex flex-col gap-6 max-w-lg mx-auto mt-8 min-h-[400px]">
                 <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-5">
-                    {/* 標題與圖示 */}
                     <div className="flex items-center gap-3 text-blue-600 border-b border-slate-100 pb-3">
                         <LinkIcon size={24} />
-                        <h3 className="text-lg font-bold">
-                            {lang === 'en' ? 'Permanent Share Link' : '製作永久分享連結'}
-                        </h3>
+                        <h3 className="text-lg font-bold">{lang === 'en' ? 'Permanent Share Link' : '製作永久分享連結'}</h3>
                     </div>
-                    
-                    {/* 功能詳細說明 */}
                     <div className="space-y-3">
-                        <p className="text-sm text-slate-600 leading-relaxed font-medium">
-                            {lang === 'en' 
-                              ? 'This function converts your current deck into a permanent cloud link.' 
-                              : '此功能會將您目前的牌組配置轉換為一個專屬的雲端代碼。'}
-                        </p>
-                        <p className="text-sm text-slate-500 leading-relaxed bg-slate-50 p-3 rounded-lg border-l-4 border-blue-400">
-                            {lang === 'en' 
-                              ? 'Other players can use this link to directly view your deck and continue editing it in their own builder!' 
-                              : '產生連結後，其他餅友可以直接透過連結查看您的配牌，並能以此為基礎繼續進行編輯與調整，非常適合分享給隊友或社群討論！'}
-                        </p>
+                        <p className="text-sm text-slate-600 leading-relaxed font-medium">{lang === 'en' ? 'This function converts your current deck into a permanent cloud link.' : '此功能會將您目前的牌組配置轉換為一個專屬的雲端代碼。'}</p>
+                        <p className="text-sm text-slate-500 leading-relaxed bg-slate-50 p-3 rounded-lg border-l-4 border-blue-400">{lang === 'en' ? 'Other players can use this link to directly view your deck and continue editing it in their own builder!' : '產生連結後，其他餅友可以直接透過連結查看您的配牌，並能以此為基礎繼續進行編輯與調整，非常適合分享給隊友或社群討論！'}</p>
                     </div>
-
-                    {/* 按鈕與結果區塊 */}
                     <div className="pt-4">
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                            {lang === 'en' ? 'Deck Secret Link' : '牌組專屬分享連結'}
-                        </label>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{lang === 'en' ? 'Deck Secret Link' : '牌組專屬分享連結'}</label>
                         <div className="flex gap-2">
                             {shareUrl ? (
                                 <>
-                                    <input 
-                                        type="text" 
-                                        readOnly 
-                                        value={shareUrl} 
-                                        className="flex-1 border-2 border-slate-100 rounded-lg px-3 py-2 text-slate-600 bg-slate-50 font-mono text-sm focus:outline-none" 
-                                    />
-                                    <button 
-                                        onClick={handleCopyLink} 
-                                        className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-all active:scale-95 shrink-0"
-                                    >
-                                        <Copy size={18} /> {lang === 'en' ? 'Copy' : '複製'}
-                                    </button>
+                                    <input type="text" readOnly value={shareUrl} className="flex-1 border-2 border-slate-100 rounded-lg px-3 py-2 text-slate-600 bg-slate-50 font-mono text-sm focus:outline-none" />
+                                    <button onClick={handleCopyLink} className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-all active:scale-95 shrink-0"><Copy size={18} /> {lang === 'en' ? 'Copy' : '複製'}</button>
                                 </>
                             ) : (
-                                <button 
-                                    onClick={handleGenerateShortLink} 
-                                    disabled={isCreatingLink} 
-                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/20 active:scale-95 disabled:opacity-50"
-                                >
-                                    {isCreatingLink ? (
-                                        <>
-                                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                                            {lang === 'en' ? 'Saving to Cloud...' : '正在同步至雲端...'}
-                                        </>
-                                    ) : (
-                                        <>
-                                            <LinkIcon size={20} />
-                                            {lang === 'en' ? 'Generate Permanent Link' : '立即產生永久連結'}
-                                        </>
-                                    )}
+                                <button onClick={handleGenerateShortLink} disabled={isCreatingLink} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/20 active:scale-95 disabled:opacity-50">
+                                    {isCreatingLink ? (<><div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>{lang === 'en' ? 'Saving to Cloud...' : '正在同步至雲端...'}</>) : (<><LinkIcon size={20} />{lang === 'en' ? 'Generate Permanent Link' : '立即產生永久連結'}</>)}
                                 </button>
                             )}
                         </div>
                     </div>
                 </div>
-
-                {/* 底部小提示 */}
                 <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex gap-3 items-start shrink-0">
                     <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={18} />
                     <div className="text-xs text-amber-800 leading-relaxed">
                         <p className="font-bold mb-1">{lang === 'en' ? 'Note:' : '溫馨小提示：'}</p>
-                        <p>
-                            {lang === 'en' 
-                              ? 'The shared link is a static snapshot. If you modify your deck later, you will need to generate a new link to share the updated version.' 
-                              : '分享連結是該時間點的快照。如果您之後修改了牌組，需要重新產生一個新連結才能分享最新的版本喔！'}
-                        </p>
+                        <p>{lang === 'en' ? 'The shared link is a static snapshot. If you modify your deck later, you will need to generate a new link to share the updated version.' : '分享連結是該時間點的快照。如果您之後修改了牌組，需要重新產生一個新連結才能分享最新的版本喔！'}</p>
                     </div>
                 </div>
             </div>
           )}
+
           {activeTab === "list" && (
             <div className="p-4 print:p-0">
                 <div className="print:hidden bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-6 flex justify-between items-center">
@@ -889,29 +833,15 @@ const grouped = useMemo(() => {
                         <Printer size={18} /> {lang === 'en' ? 'Print' : '列印此清單'}
                     </button>
                 </div>
-                
-                {/* 🌟 修改 1：新增 overflow-x-auto 容器，讓手機可以左右滑動查看完整版面 */}
                 <div className="overflow-x-auto w-full pb-8 print:overflow-visible print:pb-0">
-                    {/* 🌟 修改 2：將 w-full 改為 min-w-[800px]，強制撐開 A4 比例，防止手機版擠壓變形 */}
                     <div className="bg-white p-6 sm:p-8 min-w-[800px] max-w-[210mm] mx-auto border border-slate-200 print:border-none print:p-0 font-sans text-slate-900 flex flex-col">
-                        
                         <div className="text-center mb-4 sm:mb-6 border-b-2 border-slate-800 pb-3 sm:pb-4 shrink-0">
-                            <h1 className="text-xl sm:text-2xl font-black tracking-wide">
-                                {lang === 'en' ? 'Cookierun: Braverse Decklist' : '薑餅人對戰卡牌 比賽用牌表'}
-                            </h1>
+                            <h1 className="text-xl sm:text-2xl font-black tracking-wide">{lang === 'en' ? 'Cookierun: Braverse Decklist' : '薑餅人對戰卡牌 比賽用牌表'}</h1>
                         </div>
-
                         <div className="flex gap-4 mb-6 shrink-0">
-                            <div className="flex-1 flex flex-col gap-1">
-                                <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase">{lang === 'en' ? 'Player Name' : '玩家名稱'}</span>
-                                <div className="border border-slate-300 rounded h-8 sm:h-10 bg-slate-50"></div>
-                            </div>
-                            <div className="flex-1 flex flex-col gap-1">
-                                <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase">{lang === 'en' ? 'Phone No.' : '電話號碼'}</span>
-                                <div className="border border-slate-300 rounded h-8 sm:h-10 bg-slate-50"></div>
-                            </div>
+                            <div className="flex-1 flex flex-col gap-1"><span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase">{lang === 'en' ? 'Player Name' : '玩家名稱'}</span><div className="border border-slate-300 rounded h-8 sm:h-10 bg-slate-50"></div></div>
+                            <div className="flex-1 flex flex-col gap-1"><span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase">{lang === 'en' ? 'Phone No.' : '電話號碼'}</span><div className="border border-slate-300 rounded h-8 sm:h-10 bg-slate-50"></div></div>
                         </div>
-
                         <div className="grid grid-cols-2 gap-4 sm:gap-8 items-start flex-1 mb-6">
                             <div className="flex flex-col gap-3 sm:gap-4">
                                  {renderPrintSection("餅乾卡", "Cookie Cards", grouped.cookies, "border-yellow-400 bg-yellow-50 text-yellow-800")}
@@ -924,36 +854,16 @@ const grouped = useMemo(() => {
                                  {renderPrintSection("Extra卡", "Extra Cards", grouped.extras, "border-purple-400 bg-purple-50 text-purple-800")}
                             </div>
                         </div>
-
                         <div className="pt-4 sm:pt-6 border-t-2 border-slate-800 flex justify-between items-end shrink-0 break-inside-avoid">
                              <div className="flex gap-4 sm:gap-8">
-                                 <div className="flex flex-col gap-1">
-                                     <span className="font-bold text-xs sm:text-sm">
-                                         {lang === 'en' ? 'Main Deck Count' : '主牌組數量'} 
-                                         <span className="text-[8px] sm:text-[10px] font-normal text-slate-500 uppercase block">(Main Deck Total)</span>
-                                     </span>
-                                     <div className="border border-slate-400 h-10 w-20 sm:h-12 sm:w-24 rounded bg-white flex items-center justify-center font-black text-xl sm:text-2xl shadow-inner text-slate-800">
-                                         {deck.main.length}
-                                     </div>
-                                 </div>
-                                 <div className="flex flex-col gap-1">
-                                     <span className="font-bold text-xs sm:text-sm">
-                                         {lang === 'en' ? 'Extra Deck Count' : 'Extra數量'} 
-                                         <span className="text-[8px] sm:text-[10px] font-normal text-slate-500 uppercase block">(Extra Deck Total)</span>
-                                     </span>
-                                     <div className="border border-slate-400 h-10 w-20 sm:h-12 sm:w-24 rounded bg-white flex items-center justify-center font-black text-xl sm:text-2xl shadow-inner text-slate-800">
-                                         {deck.extra.length}
-                                     </div>
-                                 </div>
+                                 <div className="flex flex-col gap-1"><span className="font-bold text-xs sm:text-sm">{lang === 'en' ? 'Main Deck Count' : '主牌組數量'} <span className="text-[8px] sm:text-[10px] font-normal text-slate-500 uppercase block">(Main Deck Total)</span></span><div className="border border-slate-400 h-10 w-20 sm:h-12 sm:w-24 rounded bg-white flex items-center justify-center font-black text-xl sm:text-2xl shadow-inner text-slate-800">{deck.main.length}</div></div>
+                                 <div className="flex flex-col gap-1"><span className="font-bold text-xs sm:text-sm">{lang === 'en' ? 'Extra Deck Count' : 'Extra數量'} <span className="text-[8px] sm:text-[10px] font-normal text-slate-500 uppercase block">(Extra Deck Total)</span></span><div className="border border-slate-400 h-10 w-20 sm:h-12 sm:w-24 rounded bg-white flex items-center justify-center font-black text-xl sm:text-2xl shadow-inner text-slate-800">{deck.extra.length}</div></div>
                              </div>
-                             <div className="text-[8px] sm:text-[10px] text-slate-500 font-bold mb-1 text-right max-w-[200px] sm:max-w-[250px] leading-relaxed">
-                                 {lang === 'en' 
-                                     ? 'Created by Miday Gamecaster. Please check your decklist carefully before submission.' 
-                                     : '牌表格式由樂多綠Gamecaster製作，請繳出前確實檢查牌組正確性。'}
-                             </div>
+                             <div className="text-[8px] sm:text-[10px] text-slate-500 font-bold mb-1 text-right max-w-[200px] sm:max-w-[250px] leading-relaxed">{lang === 'en' ? 'Created by Miday Gamecaster. Please check your decklist carefully before submission.' : '牌表格式由樂多綠Gamecaster製作，請繳出前確實檢查牌組正確性。'}</div>
                         </div>
                     </div>
                 </div>
+              )}
             </div>
           )}
         </div>
