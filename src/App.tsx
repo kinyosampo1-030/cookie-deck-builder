@@ -760,7 +760,6 @@ const grouped = useMemo(() => {
                               <span className="flex items-center gap-1 text-red-600"><Zap size={14} /> Trap: {grouped.traps.reduce((acc, g) => acc + g.stackCount, 0)}</span>
                               <span className="flex items-center gap-1 text-emerald-600"><Globe size={14} /> Stage: {grouped.stages.reduce((acc, g) => acc + g.stackCount, 0)}</span>
                           </div>
-
                       </div>
 
                   {/* 2. 中間的卡片清單區塊 */}
