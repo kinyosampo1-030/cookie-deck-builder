@@ -863,7 +863,6 @@ const ExportModal = ({ deck, deckName, onClose, lang }) => {
                         </div>
                     </div>
                 </div>
-              )
             </div>
           )}
         </div>
