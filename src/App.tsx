@@ -1,9 +1,9 @@
 // @ts-nocheck
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
+  LayoutGrid, List, // 🌟 新增這兩個
   Search, Filter, Trash2, AlertCircle, Layers, Box, Zap, AlertTriangle, Palette, RotateCw, Plus, Minus, X, Image as ImageIcon, Upload, Eye, Share2, Download, Link as LinkIcon, Copy, Database, Cloud, Lock, Unlock, LogOut, RefreshCw, Pencil, Star, Youtube, FileJson, WifiOff, CheckCircle, Cookie, Ban, AlertOctagon, Menu, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, ExternalLink, Facebook, UserCog, Dices, PackageOpen, Printer, Repeat, Gem, Languages, Crown, Flame, PawPrint, Sparkles, Swords, Save, Globe, MessageCircle, Heart, Send, Clock 
 } from "lucide-react";
-
 import { initializeApp } from "firebase/app";
 import {
   getAuth, signInAnonymously, signInWithCustomToken, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, signOut, onAuthStateChanged,
@@ -1254,7 +1254,7 @@ export default function App() {
   const [showCommunityModal, setShowCommunityModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showFilters, setShowFilters] = useState(true); 
-
+  const [viewMode, setViewMode] = useState('grid');
   const hoverPreviewRef = useRef(null);
   const [hoveredCard, setHoveredCard] = useState(null);
 
@@ -2178,35 +2178,81 @@ export default function App() {
             </div>
         </div>
         
-        {/* 左側卡片列表容器 */}
+{/* 左側卡片列表容器 */}
         <div 
             ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto p-4 bg-slate-50 overscroll-contain" 
+            className="flex-1 overflow-y-auto p-3 md:p-4 bg-slate-50 overscroll-contain flex flex-col" 
             style={{ WebkitOverflowScrolling: 'touch' }}
         >
+          {/* 🌟 視圖切換與數量統計列 */}
+          <div className="flex justify-between items-center mb-3 shrink-0">
+             <div className="text-xs font-bold text-slate-500">
+                {lang === 'en' ? `Showing ${filteredCards.length} cards` : `共找到 ${filteredCards.length} 張卡片`}
+             </div>
+             <div className="flex bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden p-0.5">
+                <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'}`}><LayoutGrid size={16} /></button>
+                <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'}`}><List size={16} /></button>
+             </div>
+          </div>
+
           {!isDataLoaded ? (
             <div className="flex flex-col items-center justify-center h-64 text-slate-500 gap-3">
                <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
                <p className="font-bold text-sm">正在從雲端載入卡片資料... (可能需要一些時間)</p>
             </div>
           ) : (
-             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3 pb-20">
+             <div className={viewMode === 'grid' ? "grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3 pb-20" : "flex flex-col gap-2 pb-20"}>
                 {displayedCards.map(card => (
-                  <CardItem 
-                    key={card.id} 
-                    card={card} 
-                    onClick={addToDeck} 
-                    onView={setViewingCard} 
-                    count={getCardCount(card.id)}
-                    onEdit={isAdmin ? openEditModal : null}
-                    onDelete={isAdmin ? handleDeleteCard : null}
-                    onHoverStart={handleHoverStart}
-                    onHoverMove={handleHoverMove}
-                    onHoverEnd={handleHoverEnd}
-                    lang={lang}
-                  />
+                  viewMode === 'grid' ? (
+                      <CardItem 
+                        key={card.id} 
+                        card={card} 
+                        onClick={addToDeck} 
+                        onView={setViewingCard} 
+                        count={getCardCount(card.id)}
+                        onEdit={isAdmin ? openEditModal : null}
+                        onDelete={isAdmin ? handleDeleteCard : null}
+                        onHoverStart={handleHoverStart}
+                        onHoverMove={handleHoverMove}
+                        onHoverEnd={handleHoverEnd}
+                        lang={lang}
+                      />
+                  ) : (
+                      /* 🌟 全新的精簡版列表模式 */
+                      <div key={card.id} className={`flex items-center justify-between p-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:shadow-md transition-shadow group ${card.isForbidden ? 'bg-red-50' : ''}`}>
+                          {/* 點擊左側區域：觀看大圖 */}
+                          <div className="flex items-center gap-3 overflow-hidden cursor-pointer flex-1" onClick={() => setViewingCard(card)}>
+                              <div className="w-10 h-14 bg-slate-200 rounded overflow-hidden shrink-0 border border-slate-300">
+                                  {card.imageUrl ? <img src={card.imageUrl} className="w-full h-full object-cover" alt="" loading="lazy" /> : <div className={`w-full h-full ${getCardColorStyles(card.color)}`}></div>}
+                              </div>
+                              <div className="flex flex-col truncate">
+                                  {/* 卡片名稱：允許無限長度，手機橫向可完整顯示 */}
+                                  <span className={`font-bold text-slate-800 text-sm md:text-base truncate ${card.isForbidden || card.isLimitOne ? 'text-red-700' : ''}`} title={lang === 'en' ? card.nameEn : card.name}>
+                                      {cName(card, lang)}
+                                  </span>
+                                  <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-500 mt-0.5">
+                                      <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{t(card.type, lang)}</span>
+                                      {card.level && <span className="text-yellow-800 bg-yellow-100 px-1.5 py-0.5 rounded font-bold">{card.level}</span>}
+                                      <span className="font-mono text-slate-400 opacity-70 ml-1">{card.id}</span>
+                                      {card.isLimitOne && <span className="text-orange-500 font-bold ml-1">Limit 1</span>}
+                                  </div>
+                              </div>
+                          </div>
+                          {/* 點擊右側按鈕：加入牌組 */}
+                          <div className="flex items-center gap-2 shrink-0 ml-2 border-l border-slate-100 pl-2">
+                              {getCardCount(card.id) > 0 && <span className="bg-slate-800 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-inner">{getCardCount(card.id)}</span>}
+                              <button 
+                                  onClick={(e) => { e.stopPropagation(); addToDeck(card); }} 
+                                  className="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors active:scale-95 border border-blue-100"
+                              >
+                                  <Plus size={18} strokeWidth={3}/>
+                              </button>
+                          </div>
+                      </div>
+                  )
                 ))}
-                <div ref={loadMoreRef} className="col-span-full h-10 flex items-center justify-center text-slate-400 text-sm">
+                
+                <div ref={loadMoreRef} className="col-span-full h-10 flex items-center justify-center text-slate-400 text-sm mt-4">
                     {displayedCards.length < filteredCards.length ? "載入更多..." : "已顯示所有卡片"}
                 </div>
               </div>
