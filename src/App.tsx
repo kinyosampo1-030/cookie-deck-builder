@@ -70,7 +70,7 @@ const CARD_TYPES = { COOKIE: "餅乾卡", ITEM: "道具卡", TRAP: "陷阱卡", 
 const CARD_COLORS = { RED: "紅色", YELLOW: "黃色", GREEN: "綠色", BLUE: "藍色", PURPLE: "紫色", COLORLESS: "無色" };
 const CARD_LEVELS = { LV1: "LV.1", LV2: "LV.2", LV3: "LV.3" };
 // 包含 BS10
-const CARD_SERIES_OPTIONS = ["ST", "BS1", "BS2", "BS3", "BS4", "BS5", "BS6", "BS7", "BS8", "BS9", "BS10", "P"];
+const CARD_SERIES_OPTIONS = ["ST", "BS1", "BS2", "BS3", "BS4", "BS5", "BS6", "BS7", "BS8", "BS9", "BS10", "BS11", "P"];
 
 const CARD_RARITIES = { C: "C (Common)", R: "R (Rare)", SR: "SR (Super Rare)", UR: "UR (Ultra Rare)", EXR: "EXR (Extra Rare)" };
 
@@ -880,7 +880,7 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
   const [previewUrl, setPreviewUrl] = useState(null);
   
   // 🌟 已加上 BS10 選項
-  const editorSeriesOptions = useMemo(() => { const stSeries = Array.from({ length: 15 }, (_, i) => `ST${i + 1}`); const bsSeries = ["BS1", "BS2", "BS3", "BS4", "BS5", "BS6", "BS7", "BS8", "BS9", "BS10"]; const other = ["P"]; return [...stSeries, ...bsSeries, ...other]; }, []);
+  const editorSeriesOptions = useMemo(() => { const stSeries = Array.from({ length: 15 }, (_, i) => `ST${i + 1}`); const bsSeries = ["BS1", "BS2", "BS3", "BS4", "BS5", "BS6", "BS7", "BS8", "BS9", "BS10", "BS10"]; const other = ["P"]; return [...stSeries, ...bsSeries, ...other]; }, []);
   
   useEffect(() => {
     if (initialData) {
