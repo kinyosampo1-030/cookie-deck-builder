@@ -53,7 +53,7 @@ const t = (text, lang) => {
     // Types
     "餅乾卡": "Cookie", "道具卡": "Item", "陷阱卡": "Trap", "場景卡": "Stage",
     // Colors
-    "紅色": "Red", "黃色": "Yellow", "綠色": "Green", "藍色": "Blue", "紫色": "Purple", "無色": "Pure",
+    "紅色": "Red", "黃色": "Yellow", "綠色": "Green", "藍色": "Blue", "紫色": "Purple", "黑色": "Black", "無色": "Pure",
     // Skills (包含最新的暈倒時、無技能等)
     "登場時": "On Play", "一回合一次": "Once per turn", "啟動": "Activate", "回合結束時": "Turn ends", "阻擋": "Blocker", "被動效果": "Passive", "在自己回合中": "Your turn", "暈倒時": "Faints", "無技能": "No Skill", "純白板": "Vanilla",
     // UI & Attributes
@@ -67,7 +67,7 @@ const cName = (card, lang) => (lang === 'en' && card.nameEn) ? card.nameEn : car
 
 // --- Constants ---
 const CARD_TYPES = { COOKIE: "餅乾卡", ITEM: "道具卡", TRAP: "陷阱卡", SCENE: "場景卡" };
-const CARD_COLORS = { RED: "紅色", YELLOW: "黃色", GREEN: "綠色", BLUE: "藍色", PURPLE: "紫色", COLORLESS: "無色" };
+const CARD_COLORS = { RED: "紅色", YELLOW: "黃色", GREEN: "綠色", BLUE: "藍色", PURPLE: "紫色", BLACK: "黑色", COLORLESS: "無色" };
 const CARD_LEVELS = { LV1: "LV.1", LV2: "LV.2", LV3: "LV.3" };
 // 包含 BS10
 const CARD_SERIES_OPTIONS = ["ST", "BS1", "BS2", "BS3", "BS4", "BS5", "BS6", "BS7", "BS8", "BS9", "BS10", "BS11", "P"];
@@ -95,6 +95,7 @@ const getCardColorStyles = (color) => {
     case CARD_COLORS.GREEN: return "bg-emerald-50 border-emerald-500 text-emerald-900";
     case CARD_COLORS.BLUE: return "bg-blue-50 border-blue-500 text-blue-900";
     case CARD_COLORS.PURPLE: return "bg-purple-50 border-purple-500 text-purple-900";
+    case CARD_COLORS.BLACK: return "bg-slate-800 border-slate-900 text-slate-50";
     case CARD_COLORS.COLORLESS: return "bg-slate-100 border-slate-400 text-slate-800";
     default: return "bg-gray-100 border-gray-400 text-gray-800";
   }
@@ -449,7 +450,7 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin, lang }) 
                 <div className="bg-white p-3 border-b flex gap-2 overflow-x-auto shrink-0">
                     <button onClick={() => setFilterColor("ALL")} className={`px-4 py-1 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filterColor === "ALL" ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>{lang==='en'?'ALL':'全部'}</button>
                     {Object.values(CARD_COLORS).map(c => (
-                         <button key={c} onClick={() => setFilterColor(c)} className={`px-4 py-1 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filterColor === c ? "ring-2 ring-offset-1 ring-slate-400" : "opacity-60 hover:opacity-100"}`} style={{backgroundColor: c === '紅色' ? '#fee2e2' : c === '黃色' ? '#fef9c3' : c === '綠色' ? '#d1fae5' : c === '藍色' ? '#dbeafe' : c === '紫色' ? '#f3e8ff' : '#f1f5f9', color: '#334155'}}>{t(c, lang)}</button>
+                         <button key={c} onClick={() => setFilterColor(c)} className={`px-4 py-1 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filterColor === c ? "ring-2 ring-offset-1 ring-slate-400" : "opacity-60 hover:opacity-100"}`} style={{backgroundColor: c === '紅色' ? '#fee2e2' : c === '黃色' ? '#fef9c3' : c === '綠色' ? '#d1fae5' : c === '藍色' ? '#dbeafe' : c === '紫色' ? '#f3e8ff' : c === '黑色' ? '#1e293b' : '#f1f5f9', color: c === '黑色' ? '#ffffff' : '#334155'}}>{t(c, lang)}</button>
                     ))}
                 </div>
                 <div className="flex-1 overflow-y-auto p-4">
@@ -462,7 +463,7 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin, lang }) 
                                         <img src={getCoverImage(d)} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt="Deck Cover" />
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                                         <div className="absolute bottom-2 left-2 flex gap-1">
-                                             {d.colors && d.colors.map(c => <div key={c} className="w-3 h-3 rounded-full border border-white" style={{backgroundColor: c === '紅色' ? '#ef4444' : c === '黃色' ? '#eab308' : c === '綠色' ? '#10b981' : c === '藍色' ? '#3b82f6' : c === '紫色' ? '#a855f7' : '#94a3b8'}}></div>)}
+                                             {d.colors && d.colors.map(c => <div key={c} className="w-3 h-3 rounded-full border border-white shadow-sm" style={{backgroundColor: c === '紅色' ? '#ef4444' : c === '黃色' ? '#eab308' : c === '綠色' ? '#10b981' : c === '藍色' ? '#3b82f6' : c === '紫色' ? '#a855f7' : c === '黑色' ? '#1e293b' : '#94a3b8'}}></div>)}
                                         </div>
                                     </div>
                                     <div className="p-4 flex-1 flex flex-col">
