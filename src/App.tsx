@@ -1256,8 +1256,8 @@ export default function App() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showFilters, setShowFilters] = useState(true); 
   const [viewMode, setViewMode] = useState('grid');
-  const hoverPreviewRef = useRef(null);
-  const [hoveredCard, setHoveredCard] = useState(null);
+const hoverTimerRef = useRef(null);
+  const mousePosRef = useRef({ x: 0, y: 0 });
 
   const updateHoverPosition = useCallback((x, y) => {
     if (hoverPreviewRef.current) {
@@ -1271,16 +1271,37 @@ export default function App() {
 
   const handleHoverStart = useCallback((card, e) => {
     if (window.innerWidth >= 768) {
-        setHoveredCard(card);
-        requestAnimationFrame(() => updateHoverPosition(e.clientX, e.clientY));
+        // 1. 記錄初始位置
+        mousePosRef.current = { x: e.clientX, y: e.clientY };
+        
+        // 2. 清除之前的計時器，避免錯亂
+        if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+        
+        // 3. 🌟 設定 400 毫秒的延遲顯示
+        hoverTimerRef.current = setTimeout(() => {
+            setHoveredCard(card);
+            // 顯示時，使用「最新」的滑鼠位置
+            requestAnimationFrame(() => updateHoverPosition(mousePosRef.current.x, mousePosRef.current.y));
+        }, 400); 
     }
   }, [updateHoverPosition]);
 
   const handleHoverMove = useCallback((e) => {
-    updateHoverPosition(e.clientX, e.clientY);
-  }, [updateHoverPosition]);
+    // 隨時記錄滑鼠的最新座標
+    mousePosRef.current = { x: e.clientX, y: e.clientY };
+    
+    // 只有在「大圖已經顯示」的狀態下，才讓它跟著滑鼠移動
+    if (hoveredCard) {
+        updateHoverPosition(e.clientX, e.clientY);
+    }
+  }, [updateHoverPosition, hoveredCard]);
 
   const handleHoverEnd = useCallback(() => {
+    // 🌟 滑鼠離開時，如果還沒到 400 毫秒，就立刻取消顯示任務！
+    if (hoverTimerRef.current) {
+        clearTimeout(hoverTimerRef.current);
+        hoverTimerRef.current = null;
+    }
     setHoveredCard(null);
   }, []);
 
@@ -1847,7 +1868,7 @@ export default function App() {
             className="hidden md:block fixed top-0 left-0 z-[120] pointer-events-none will-change-transform"
             style={{ width: '260px' }}
         >
-            <div className="bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-100">
+            <div className="bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-300 ease-out">
                 {hoveredCard.imageUrl ? (
                     <img src={hoveredCard.imageUrl} alt={hoveredCard.name} className="w-full h-auto object-contain" />
                 ) : (
