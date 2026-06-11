@@ -1256,7 +1256,11 @@ export default function App() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showFilters, setShowFilters] = useState(true); 
   const [viewMode, setViewMode] = useState('grid');
-const hoverTimerRef = useRef(null);
+  const hoverPreviewRef = useRef(null);
+  const [hoveredCard, setHoveredCard] = useState(null);
+  
+  // 🌟 新增：用來控制延遲與追蹤最新滑鼠位置的 Ref
+  const hoverTimerRef = useRef(null);
   const mousePosRef = useRef({ x: 0, y: 0 });
 
   const updateHoverPosition = useCallback((x, y) => {
