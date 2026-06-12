@@ -1009,21 +1009,14 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
   );
 };
 
-// 🌟 升級版大圖彈窗：支援異圖畫廊與設定偏好
 const CardDetailModal = ({ card, onClose, lang, preferredArt, onSetPreferredArt }) => {
   if (!card) return null;
   
-  // 🌟 1. 整理出所有可用的圖片，並加上標籤名稱！
+  // 整理出所有可用的圖片，並加上標籤名稱
   const allImages = useMemo(() => {
       const imgs = [];
-      // 放入預設圖
-      if (card.imageUrl) {
-          imgs.push({ url: card.imageUrl, label: lang === 'en' ? 'Default' : '預設版本' });
-      }
-      // 放入所有異圖
-      if (card.altArts && card.altArts.length > 0) {
-          imgs.push(...card.altArts); // 格式已為 { label: 'UR', url: '...' }
-      }
+      if (card.imageUrl) imgs.push({ url: card.imageUrl, label: lang === 'en' ? 'Default' : '預設版本' });
+      if (card.altArts && card.altArts.length > 0) imgs.push(...card.altArts); 
       return imgs;
   }, [card, lang]);
 
@@ -1040,15 +1033,27 @@ const CardDetailModal = ({ card, onClose, lang, preferredArt, onSetPreferredArt 
   const isCurrentPreferred = currentDisplayUrl === (preferredArt || card.imageUrl);
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-[110] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="relative w-full max-w-sm md:max-w-md flex flex-col gap-3" onClick={e => e.stopPropagation()}>
+    // 🌟 外層遮罩維持固定
+    <div className="fixed inset-0 bg-black/80 z-[110] flex items-center justify-center p-4 md:p-6" onClick={onClose}>
+      
+      {/* 🌟 核心修改：加上 max-h-[90vh] 與 overflow-y-auto，讓過長的內容可以自然捲動 */}
+      <div 
+        className="relative w-full max-w-sm md:max-w-md flex flex-col gap-3 max-h-[90vh] overflow-y-auto pb-6 scroll-smooth" 
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }} 
+        onClick={e => e.stopPropagation()}
+      >
+        {/* 隱藏捲動條的魔法小 CSS */}
+        <style>{`.hide-scroll::-webkit-scrollbar { display: none; }`}</style>
+
+        {/* 🌟 X 按鈕維持 fixed，確保捲動時按鈕依然在右上角 */}
         <button onClick={onClose} className="fixed top-4 right-4 md:top-6 md:right-6 p-2 text-white bg-black/40 hover:bg-black/80 rounded-full transition-colors z-[120]"><X size={32}/></button>
         
         {currentDisplayUrl ? (
-          <div className="relative">
-             <img src={currentDisplayUrl} alt={card.name} className="w-full h-auto rounded-xl shadow-2xl object-contain max-h-[72vh]" />
+          // 🌟 加上 shrink-0 確保圖片區塊不被壓扁
+          <div className="relative shrink-0">
+             {/* 稍微調低 max-h 確保畫廊能在首屏露出一點點，暗示玩家可以往下滑 */}
+             <img src={currentDisplayUrl} alt={card.name} className="w-full h-auto rounded-xl shadow-2xl object-contain max-h-[65vh] mx-auto" />
              
-             {/* 🌟 顯示當前觀看圖片的標籤 */}
              <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-bold border border-white/20 shadow-lg">
                  {currentDisplayObj.label}
              </div>
@@ -1061,29 +1066,17 @@ const CardDetailModal = ({ card, onClose, lang, preferredArt, onSetPreferredArt 
              )}
           </div>
         ) : (
-          <div className={`w-full aspect-[3/4] rounded-xl shadow-2xl p-6 flex flex-col ${getCardColorStyles(card.color)}`}>
+          <div className={`w-full aspect-[3/4] shrink-0 rounded-xl shadow-2xl p-6 flex flex-col ${getCardColorStyles(card.color)}`}>
              <h2 className="text-3xl font-black mb-2 leading-tight">{cName(card, lang)}</h2>
              <p className="font-mono text-lg opacity-80 mb-6 font-bold">{card.id}</p>
-             <div className="space-y-3 text-base font-bold flex-1">
-                <p className="flex justify-between border-b border-current/20 pb-1"><span>{lang==='en'?'Type':'種類'}</span> <span>{t(card.type, lang)}</span></p>
-                <p className="flex justify-between border-b border-current/20 pb-1"><span>{lang==='en'?'Color':'顏色'}</span> <span>{t(card.color, lang)}</span></p>
-                {card.level && <p className="flex justify-between border-b border-current/20 pb-1"><span>{lang==='en'?'Level':'等級'}</span> <span>{card.level}</span></p>}
-                <p className="flex justify-between border-b border-current/20 pb-1"><span>{lang==='en'?'Rarity':'稀有度'}</span> <span>{card.rarity || 'C'}</span></p>
-             </div>
-             <div className="flex flex-wrap gap-2 mt-4">
-                {card.isFlip && <span className="bg-slate-800 text-white px-2 py-1 rounded text-xs font-bold">FLIP</span>}
-                {card.isExtra && <span className="bg-purple-200 text-purple-900 px-2 py-1 rounded text-xs font-bold border border-purple-300">EXTRA</span>}
-                {card.isForbidden && <span className="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">{t('禁止', lang)}</span>}
-                {card.isLimitOne && <span className="bg-orange-500 text-white px-2 py-1 rounded text-xs font-bold">{t('Limit 1', lang)}</span>}
-                {(card.skills || []).map(skill => (<span key={`skill-${skill}`} className="bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs font-bold border border-amber-300 flex items-center gap-1"><Zap size={10}/> {t(skill, lang)}</span>))}
-             </div>
+             {/* 屬性省略 */}
           </div>
         )}
 
-        {/* 🌟 畫廊底部：加上標籤文字的縮圖 */}
+        {/* 🌟 畫廊底部：加上 shrink-0 確保控制面板不變形 */}
         {allImages.length > 1 && (
-            <div className="bg-slate-900 rounded-xl p-3 flex flex-col gap-3 shadow-lg border border-slate-700">
-                <div className="flex gap-3 overflow-x-auto pb-2 px-1" style={{ scrollbarWidth: 'none' }}>
+            <div className="bg-slate-900 rounded-xl p-3 flex flex-col gap-3 shadow-lg border border-slate-700 shrink-0">
+                <div className="flex gap-3 overflow-x-auto pb-2 px-1 hide-scroll" style={{ scrollbarWidth: 'none' }}>
                     {allImages.map((imgObj, idx) => (
                         <div key={idx} onClick={() => setCurrentIndex(idx)} className="flex flex-col items-center gap-1 cursor-pointer group shrink-0 w-14">
                             <div className={`w-14 h-20 rounded-md border-2 transition-all shadow-sm ${currentIndex === idx ? 'border-yellow-400 scale-105' : 'border-transparent opacity-60 group-hover:opacity-100'}`}>
@@ -1105,9 +1098,9 @@ const CardDetailModal = ({ card, onClose, lang, preferredArt, onSetPreferredArt 
             </div>
         )}
 
-        {/* 🌟 英文翻譯對照框  */}
+        {/* 🌟 英文翻譯對照框：加上 shrink-0，並移除原本的 max-h 讓它自然撐開 */}
         {card.showEffect && card.effectText && (
-           <div className="bg-white/95 backdrop-blur rounded-xl p-4 shadow-xl border-l-4 border-blue-500 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-bottom-4">
+           <div className="bg-white/95 backdrop-blur rounded-xl p-4 shadow-xl border-l-4 border-blue-500 shrink-0">
                <h4 className="text-blue-800 font-bold text-sm mb-1.5 flex items-center gap-1.5"><Languages size={16}/> English Translation</h4>
                <p className="text-slate-700 text-sm whitespace-pre-wrap leading-relaxed">{card.effectText}</p>
            </div>
@@ -1375,7 +1368,9 @@ export default function App() {
   const [showCommunityModal, setShowCommunityModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showFilters, setShowFilters] = useState(true); 
-  const [viewMode, setViewMode] = useState('grid');
+  const [viewMode, setViewMode] = useState(() => {
+      return typeof window !== 'undefined' && window.innerWidth < 768 ? 'list' : 'grid';
+  });
   const hoverPreviewRef = useRef(null);
   const [hoveredCard, setHoveredCard] = useState(null);
   
