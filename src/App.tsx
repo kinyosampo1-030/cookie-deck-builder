@@ -876,12 +876,12 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
   const [formData, setFormData] = useState({
     series: "BS1", number: "", name: "", nameEn: "", color: CARD_COLORS.RED, type: CARD_TYPES.COOKIE, level: CARD_LEVELS.LV1, rarity: "C", 
     skills: [], isFlip: false, isExtra: false, isAncient: false, isDragon: false, isBeast: false, isSoulJam: false, isArena: false,
-    isForbidden: false, isLimitOne: false, effectText: "", showEffect: false, imageUrl: "",
+    isForbidden: false, isLimitOne: false, effectText: "", showEffect: false, imageUrl: "", 
+    altArts: [] // 🌟 新增：用來儲存多個異圖版本 [{ label: 'UR', url: '...' }]
   });
   const [previewUrl, setPreviewUrl] = useState(null);
   
-  // 🌟 已加上 BS10 選項
-  const editorSeriesOptions = useMemo(() => { const stSeries = Array.from({ length: 15 }, (_, i) => `ST${i + 1}`); const bsSeries = ["BS1", "BS2", "BS3", "BS4", "BS5", "BS6", "BS7", "BS8", "BS9", "BS10", "BS10"]; const other = ["P"]; return [...stSeries, ...bsSeries, ...other]; }, []);
+  const editorSeriesOptions = useMemo(() => { const stSeries = Array.from({ length: 15 }, (_, i) => `ST${i + 1}`); const bsSeries = ["BS1", "BS2", "BS3", "BS4", "BS5", "BS6", "BS7", "BS8", "BS9", "BS10", "BS11", "P"]; const other = ["P"]; return [...stSeries, ...bsSeries, ...other]; }, []);
   
   useEffect(() => {
     if (initialData) {
@@ -890,7 +890,8 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
       setFormData((prev) => ({ 
           ...prev, ...initialData, series: derivedSeries, number: derivedNumber, rarity: initialData.rarity || "C", 
           skills: initialData.skills || [], nameEn: initialData.nameEn || "", effectText: initialData.effectText || "", 
-          showEffect: initialData.showEffect || false, isArena: initialData.isArena || false 
+          showEffect: initialData.showEffect || false, isArena: initialData.isArena || false,
+          altArts: initialData.altArts || [] // 🌟 載入已有的異圖
       }));
       if (initialData.imageUrl) { setPreviewUrl(initialData.imageUrl); }
     }
@@ -898,6 +899,15 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
 
   const handleFileChange = async (e) => { const file = e.target.files[0]; if (file) { if (file.size > 1024 * 1024) { alert("圖片過大！"); } try { const compressedBase64 = await compressImage(file); setPreviewUrl(compressedBase64); setFormData({ ...formData, imageUrl: compressedBase64 }); } catch (err) { alert("圖片處理失敗"); } } };
   const handleSkillToggle = (skill) => { setFormData(prev => { const currentSkills = prev.skills || []; if (currentSkills.includes(skill)) { return { ...prev, skills: currentSkills.filter(s => s !== skill) }; } else { return { ...prev, skills: [...currentSkills, skill] }; } }); };
+
+  // 🌟 處理異圖的邏輯函數
+  const addAltArt = () => setFormData({ ...formData, altArts: [...(formData.altArts || []), { label: "", url: "" }] });
+  const removeAltArt = (index) => { const newAltArts = [...formData.altArts]; newAltArts.splice(index, 1); setFormData({ ...formData, altArts: newAltArts }); };
+  const handleAltArtLabel = (e, index) => { const newAltArts = [...formData.altArts]; newAltArts[index].label = e.target.value; setFormData({ ...formData, altArts: newAltArts }); };
+  const handleAltArtFile = async (e, index) => {
+      const file = e.target.files[0];
+      if (file) { try { const compressedBase64 = await compressImage(file); const newAltArts = [...formData.altArts]; newAltArts[index].url = compressedBase64; setFormData({ ...formData, altArts: newAltArts }); } catch (err) { alert("圖片處理失敗"); } }
+  };
 
   const handleSubmit = (e) => { 
       e.preventDefault(); 
@@ -919,15 +929,8 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
                 <label className="block text-sm font-bold text-slate-700 mb-1">卡片編號 (ID) {initialData && (<span className="text-xs text-red-500 font-normal ml-2">編輯模式下無法修改</span>)}</label>
                 <div className="flex gap-2 items-center"><input list="series-options" type="text" className="border border-slate-300 rounded p-2 bg-white flex-1 font-bold uppercase focus:ring-2 focus:ring-blue-500 outline-none" value={formData.series} onChange={(e) => setFormData({ ...formData, series: e.target.value })} placeholder="選擇系列" /><span className="font-bold text-slate-400">-</span><input type="text" placeholder="001" required={!initialData} className="border border-slate-300 rounded p-2 flex-1 font-mono focus:ring-2 focus:ring-blue-500 outline-none" value={formData.number} onChange={(e) => setFormData({ ...formData, number: e.target.value })} /></div>
               </div>
-              <div className="col-span-1">
-                  <label className="block text-sm font-bold text-slate-700 mb-1">卡片名稱 (中)</label>
-                  <input type="text" required className="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none font-bold" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-              </div>
-              <div className="col-span-1">
-                  {/* 🌟 擴充方案 B：英文卡名欄位 */}
-                  <label className="block text-sm font-bold text-slate-700 mb-1 text-blue-800">English Name (英)</label>
-                  <input type="text" className="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.nameEn} onChange={(e) => setFormData({ ...formData, nameEn: e.target.value })} placeholder="GingerBrave" />
-              </div>
+              <div className="col-span-1"><label className="block text-sm font-bold text-slate-700 mb-1">卡片名稱 (中)</label><input type="text" required className="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none font-bold" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} /></div>
+              <div className="col-span-1"><label className="block text-sm font-bold text-slate-700 mb-1 text-blue-800">English Name (英)</label><input type="text" className="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.nameEn} onChange={(e) => setFormData({ ...formData, nameEn: e.target.value })} placeholder="GingerBrave" /></div>
               <div><label className="block text-sm font-bold text-slate-700 mb-1">種類</label><select className="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })}>{Object.values(CARD_TYPES).map((t) => (<option key={t} value={t}>{t}</option>))}</select></div>
               <div><label className="block text-sm font-bold text-slate-700 mb-1">顏色</label><select className="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.color} onChange={(e) => setFormData({ ...formData, color: e.target.value })}>{Object.values(CARD_COLORS).map((c) => (<option key={c} value={c}>{c}</option>))}</select></div>
               {formData.type === CARD_TYPES.COOKIE && (<div><label className="block text-sm font-bold text-slate-700 mb-1">等級 (Level)</label><select className="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.level} onChange={(e) => setFormData({ ...formData, level: e.target.value })}>{Object.values(CARD_LEVELS).map((lvl) => (<option key={lvl} value={lvl}>{lvl}</option>))}</select></div>)}
@@ -968,12 +971,37 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
               </div>
           </div>
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">卡片預覽圖 (Image)</label>
+            <label className="block text-sm font-bold text-slate-700 mb-2">卡片預覽圖 (預設原版)</label>
             <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 relative h-64 flex items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer group">
-              {previewUrl ? (<img src={previewUrl} className="absolute inset-0 w-full h-full object-contain p-2" />) : (<div className="text-slate-400 flex flex-col items-center group-hover:text-blue-500 transition-colors"><ImageIcon size={48} className="mb-2" /><span className="text-sm font-bold">點擊或拖曳上傳圖片</span></div>)}
+              {previewUrl ? (<img src={previewUrl} className="absolute inset-0 w-full h-full object-contain p-2" />) : (<div className="text-slate-400 flex flex-col items-center group-hover:text-blue-500 transition-colors"><ImageIcon size={48} className="mb-2" /><span className="text-sm font-bold">點擊或拖曳上傳預設圖片</span></div>)}
               <input type="file" accept="image/*" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
             </div>
           </div>
+
+          {/* 🌟 全新區塊：動態新增異圖版本 */}
+          <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200 shadow-sm">
+            <div className="flex justify-between items-center mb-3 border-b border-indigo-100 pb-2">
+                <label className="text-sm font-bold text-indigo-900 flex items-center gap-1.5"><Sparkles size={16} className="text-indigo-600"/> 異圖版本 (Alt Arts)</label>
+                <button type="button" onClick={addAltArt} className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-indigo-700 shadow transition-all active:scale-95"><Plus size={14}/> 新增異圖版本</button>
+            </div>
+            <div className="space-y-3">
+                {(formData.altArts || []).map((alt, index) => (
+                    <div key={index} className="flex flex-row items-center gap-3 bg-white p-3 rounded-lg border border-indigo-100 shadow-sm relative">
+                        <button type="button" onClick={() => removeAltArt(index)} className="absolute -top-2 -right-2 bg-red-100 text-red-600 p-1.5 rounded-full hover:bg-red-200 shadow-sm transition-all"><X size={14}/></button>
+                        <div className="w-16 h-24 bg-slate-100 border-2 border-dashed border-slate-300 rounded flex items-center justify-center relative overflow-hidden shrink-0 cursor-pointer hover:bg-slate-200">
+                            {alt.url ? <img src={alt.url} className="w-full h-full object-cover" /> : <div className="text-[10px] text-slate-400 font-bold text-center">點擊<br/>上傳</div>}
+                            <input type="file" accept="image/*" onChange={(e) => handleAltArtFile(e, index)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                        </div>
+                        <div className="flex-1 flex flex-col gap-1.5">
+                            <label className="text-xs font-bold text-slate-700">版本標籤名稱 (顯示於畫廊)</label>
+                            <input type="text" value={alt.label} onChange={(e) => handleAltArtLabel(e, index)} className="border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-full" placeholder="例如: SEC, UR, 燙金版..." />
+                        </div>
+                    </div>
+                ))}
+                {(formData.altArts || []).length === 0 && <div className="text-xs text-center text-indigo-400 font-bold py-4">目前沒有任何異圖版本，點擊右上角新增。</div>}
+            </div>
+          </div>
+          
         </form>
         <div className="p-4 border-t bg-white shrink-0"><button type="submit" onClick={handleSubmit} disabled={isProcessing} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold text-lg disabled:opacity-50 shadow-lg shadow-blue-500/30 transition-all active:scale-95">{isProcessing ? "處理中..." : initialData ? "更新卡片資訊" : "確認上傳並同步至資料庫"}</button></div>
       </div>
@@ -985,39 +1013,46 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
 const CardDetailModal = ({ card, onClose, lang, preferredArt, onSetPreferredArt }) => {
   if (!card) return null;
   
-  // 1. 整理出這張卡「所有可用的圖片」(原圖 + 所有異圖)
+  // 🌟 1. 整理出所有可用的圖片，並加上標籤名稱！
   const allImages = useMemo(() => {
       const imgs = [];
-      if (card.imageUrl) imgs.push(card.imageUrl);
-      if (card.altArtUrls && card.altArtUrls.length > 0) {
-          imgs.push(...card.altArtUrls);
+      // 放入預設圖
+      if (card.imageUrl) {
+          imgs.push({ url: card.imageUrl, label: lang === 'en' ? 'Default' : '預設版本' });
+      }
+      // 放入所有異圖
+      if (card.altArts && card.altArts.length > 0) {
+          imgs.push(...card.altArts); // 格式已為 { label: 'UR', url: '...' }
       }
       return imgs;
-  }, [card]);
+  }, [card, lang]);
 
-  // 2. 控制目前畫面觀看的是哪一張圖的索引值
   const [currentIndex, setCurrentIndex] = useState(() => {
-      // 如果有設定偏好，打開時就直接停在偏好那張圖上
-      if (preferredArt && allImages.includes(preferredArt)) {
-          return allImages.indexOf(preferredArt);
+      if (preferredArt) {
+          const foundIdx = allImages.findIndex(img => img.url === preferredArt);
+          if (foundIdx !== -1) return foundIdx;
       }
       return 0;
   });
 
-  const currentDisplayUrl = allImages.length > 0 ? allImages[currentIndex] : null;
-  // 判斷目前看的這張，是不是已經被設為預設了
+  const currentDisplayObj = allImages.length > 0 ? allImages[currentIndex] : null;
+  const currentDisplayUrl = currentDisplayObj ? currentDisplayObj.url : null;
   const isCurrentPreferred = currentDisplayUrl === (preferredArt || card.imageUrl);
 
   return (
     <div className="fixed inset-0 bg-black/80 z-[110] flex items-center justify-center p-4" onClick={onClose}>
       <div className="relative w-full max-w-sm md:max-w-md flex flex-col gap-3" onClick={e => e.stopPropagation()}>
-        <button onClick={onClose} className="fixed top-4 right-4 md:top-6 md:right-6 p-2 text-white bg-black/40 hover:bg-black/80 rounded-full transition-colors z-[120]"><X size={32} /></button>
+        <button onClick={onClose} className="fixed top-4 right-4 md:top-6 md:right-6 p-2 text-white bg-black/40 hover:bg-black/80 rounded-full transition-colors z-[120]"><X size={32}/></button>
         
         {currentDisplayUrl ? (
           <div className="relative">
-             <img src={currentDisplayUrl} alt={card.name} className="w-full h-auto rounded-xl shadow-2xl object-contain max-h-[75vh]" />
+             <img src={currentDisplayUrl} alt={card.name} className="w-full h-auto rounded-xl shadow-2xl object-contain max-h-[72vh]" />
              
-             {/* 🌟 如果有超過1張圖，就顯示左右切換箭頭 */}
+             {/* 🌟 顯示當前觀看圖片的標籤 */}
+             <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-bold border border-white/20 shadow-lg">
+                 {currentDisplayObj.label}
+             </div>
+
              {allImages.length > 1 && (
                  <>
                    <button onClick={() => setCurrentIndex(prev => prev > 0 ? prev - 1 : allImages.length - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white p-2 rounded-full transition-colors"><ChevronLeft size={24}/></button>
@@ -1045,13 +1080,18 @@ const CardDetailModal = ({ card, onClose, lang, preferredArt, onSetPreferredArt 
           </div>
         )}
 
-        {/* 🌟 異圖控制面板 (下方的小縮圖與設定按鈕) */}
+        {/* 🌟 畫廊底部：加上標籤文字的縮圖 */}
         {allImages.length > 1 && (
             <div className="bg-slate-900 rounded-xl p-3 flex flex-col gap-3 shadow-lg border border-slate-700">
-                <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-                    {allImages.map((imgUrl, idx) => (
-                        <div key={idx} onClick={() => setCurrentIndex(idx)} className={`w-12 h-16 shrink-0 rounded cursor-pointer border-2 transition-all ${currentIndex === idx ? 'border-yellow-400 scale-105' : 'border-transparent opacity-50 hover:opacity-100'}`}>
-                            <img src={imgUrl} className="w-full h-full object-cover rounded-sm" />
+                <div className="flex gap-3 overflow-x-auto pb-2 px-1" style={{ scrollbarWidth: 'none' }}>
+                    {allImages.map((imgObj, idx) => (
+                        <div key={idx} onClick={() => setCurrentIndex(idx)} className="flex flex-col items-center gap-1 cursor-pointer group shrink-0 w-14">
+                            <div className={`w-14 h-20 rounded-md border-2 transition-all shadow-sm ${currentIndex === idx ? 'border-yellow-400 scale-105' : 'border-transparent opacity-60 group-hover:opacity-100'}`}>
+                                <img src={imgObj.url} className="w-full h-full object-cover rounded-[4px]" />
+                            </div>
+                            <span className={`text-[9px] font-bold text-center truncate w-full px-1 ${currentIndex === idx ? 'text-yellow-400' : 'text-slate-400 group-hover:text-slate-200'}`}>
+                                {imgObj.label || 'Ver.'}
+                            </span>
                         </div>
                     ))}
                 </div>
@@ -1065,13 +1105,14 @@ const CardDetailModal = ({ card, onClose, lang, preferredArt, onSetPreferredArt 
             </div>
         )}
 
-        {/* 英文翻譯對照框 */}
+        {/* 🌟 英文翻譯對照框  */}
         {card.showEffect && card.effectText && (
            <div className="bg-white/95 backdrop-blur rounded-xl p-4 shadow-xl border-l-4 border-blue-500 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-bottom-4">
                <h4 className="text-blue-800 font-bold text-sm mb-1.5 flex items-center gap-1.5"><Languages size={16}/> English Translation</h4>
                <p className="text-slate-700 text-sm whitespace-pre-wrap leading-relaxed">{card.effectText}</p>
            </div>
         )}
+
       </div>
     </div>
   );
@@ -1211,7 +1252,7 @@ const PackOpenerModal = ({ allCards, onClose, lang }) => {
   const CardItem = React.memo(({ card, onClick, onView, onEdit, onDelete, onIncrement, onDecrement, count = 0, compact = false, onHoverStart, onHoverMove, onHoverEnd, lang, preferredArt }) => {
   const colorClass = getCardColorStyles(card.color);
   const displayImage = preferredArt || card.imageUrl; // 🌟 決定最終顯示的圖片
-  const hasAltArt = card.altArtUrls && card.altArtUrls.length > 0; // 🌟 檢查是否有異圖
+  const hasAltArt = card.altArts && card.altArts.length > 0; // 🌟 檢查是否有異圖
   
   const longPressTimer = useRef(null);
   const isLongPress = useRef(false);
@@ -1831,7 +1872,7 @@ export default function App() {
         const matchBeast = filters.showBeast ? card.isBeast : true;
         const matchSoulJam = filters.showSoulJam ? card.isSoulJam : true;
         const matchArena = filters.showArena ? card.isArena : true; 
-        const matchAltArt = filters.showAltArt ? (card.altArtUrls && card.altArtUrls.length > 0) : true; // 🌟 新增異圖比對邏輯
+        const matchAltArt = filters.showAltArt ? (card.altArts && card.altArts.length > 0) : true; // 🌟 配合新版標籤物件陣列
 
         return (
           matchSearch &&
