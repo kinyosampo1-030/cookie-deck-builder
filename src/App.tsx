@@ -1283,7 +1283,6 @@ const PackOpenerModal = ({ allCards, onClose, lang }) => {
           </div>
           {!compact && (
             <div className="flex flex-wrap items-center gap-1.5 text-xs md:text-sm opacity-90 font-semibold">
-              <span className="text-[10px] md:text-xs font-bold border border-current px-1 rounded opacity-80 uppercase bg-white/30">{t(card.color, lang)}</span>
               <span className="bg-white/50 px-2 py-0.5 rounded text-current border border-current/20">{t(card.type, lang)}</span>
               {card.level && (<span className="text-[10px] md:text-xs font-bold bg-yellow-400 text-yellow-900 px-1 rounded shadow-sm">{card.level}</span>)}
               {card.rarity && card.rarity !== 'C' && (<span className={`text-[10px] md:text-xs font-bold px-1.5 rounded shadow-sm border ${getRarityStyle(card.rarity)}`}>{card.rarity}</span>)}
@@ -1297,7 +1296,6 @@ const PackOpenerModal = ({ allCards, onClose, lang }) => {
               {card.isArena && <span className="text-[10px] md:text-xs font-bold bg-cyan-100 text-cyan-800 px-1 rounded border border-cyan-300">{t('競技場', lang)}</span>}
               {card.isForbidden && <span className="flex items-center gap-0.5 text-[10px] bg-red-600 text-white px-1.5 rounded font-bold"><Ban size={10}/> {t('禁止', lang)}</span>}
               {card.isLimitOne && <span className="flex items-center gap-0.5 text-[10px] bg-orange-500 text-white px-1.5 rounded font-bold"><AlertOctagon size={10}/> Limit 1</span>}
-              {hasAltArt && <span className="flex items-center gap-0.5 text-[10px] bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-1.5 py-0.5 rounded font-bold shadow-sm border border-indigo-400"><Sparkles size={10}/> ALT</span>}
             </div>
           )}
         </div>
@@ -1311,6 +1309,17 @@ const PackOpenerModal = ({ allCards, onClose, lang }) => {
       </div>
       {!compact && onEdit && onDelete && (<div className="absolute top-2 right-2 flex gap-1 z-20 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={(e) => { e.stopPropagation(); onEdit(card); }} className="p-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 shadow-sm"><Pencil size={14} /></button><button onClick={(e) => { e.stopPropagation(); onDelete(card); }} className="p-1.5 bg-red-500 text-white rounded hover:bg-red-600 shadow-sm"><Trash2 size={14} /></button></div>)}
       {!compact && count > 0 && (<div className="absolute -top-2 -right-2 bg-slate-800 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-md border-2 border-white z-10">{count}</div>)}
+      
+      {/* 🌟 替換為：右下角精緻的異圖小星芒 */}
+      {!compact && hasAltArt && (
+        <div 
+          className="absolute bottom-2 right-2 z-20 text-amber-400 drop-shadow-md animate-pulse" 
+          title={lang === 'en' ? 'Has Alternate Art' : '擁有異圖版本'}
+        >
+          <Sparkles size={18} className="fill-amber-400" />
+        </div>
+      )}
+
     </div>
   );
 });
