@@ -2118,7 +2118,7 @@ export default function App() {
                             Cookierun: Braverse Deck Builder
                         </h1>
                         <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">
-                            {lang === 'en' ? 'New Features: ' : '新功能：'}<span className="text-blue-600 font-black">{lang === 'en' ? 'Community' : '社群廣場'}</span> {lang === 'en' ? ' & ' : '與 '} <span className="text-emerald-600 font-black">{lang === 'en' ? 'Mobile App' : '手機APP'}</span>
+                            {lang === 'en' ? 'New Features: ' : '新功能：'}<span className="text-blue-600 font-black">{lang === 'en' ? 'Community' : '異圖版本'}</span> {lang === 'en' ? ' & ' : '與 '} <span className="text-emerald-600 font-black">{lang === 'en' ? 'Mobile App' : '第十一彈'}</span>
                         </p>
                     </div>
                     
@@ -2339,8 +2339,11 @@ export default function App() {
             </div>
           ) : (
              <div className={viewMode === 'grid' ? "grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3 pb-20" : "flex flex-col gap-2 pb-20"}>
-                {displayedCards.map(card => (
-                  viewMode === 'grid' ? (
+                {displayedCards.map(card => {
+                  // 🌟 在這裡決定要顯示的最終圖片
+                  const displayImg = preferredArts[card.id] || card.imageUrl;
+                  
+                  return viewMode === 'grid' ? (
                       <CardItem 
                         key={card.id} 
                         card={card} 
@@ -2353,19 +2356,21 @@ export default function App() {
                         onHoverMove={handleHoverMove}
                         onHoverEnd={handleHoverEnd}
                         lang={lang}
+                        preferredArt={preferredArts[card.id]} /* 🌟 關鍵：把偏好設定傳給網格卡片 */
                       />
                   ) : (
-                      /* 🌟 全新的精簡版列表模式 */
+                      /* 🌟 精簡版列表模式：也要換上異圖衣服 */
                       <div key={card.id} className={`flex items-center justify-between p-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:shadow-md transition-shadow group ${card.isForbidden ? 'bg-red-50' : ''}`}>
-                          {/* 點擊左側區域：觀看大圖 */}
                           <div className="flex items-center gap-3 overflow-hidden cursor-pointer flex-1" onClick={() => setViewingCard(card)}>
-                              <div className="w-10 h-14 bg-slate-200 rounded overflow-hidden shrink-0 border border-slate-300">
-                                  {card.imageUrl ? <img src={card.imageUrl} className="w-full h-full object-cover" alt="" loading="lazy" /> : <div className={`w-full h-full ${getCardColorStyles(card.color)}`}></div>}
+                              <div className="w-10 h-14 bg-slate-200 rounded overflow-hidden shrink-0 border border-slate-300 relative">
+                                  {/* 🌟 替換為 displayImg */}
+                                  {displayImg ? <img src={displayImg} className="w-full h-full object-cover" alt="" loading="lazy" /> : <div className={`w-full h-full ${getCardColorStyles(card.color)}`}></div>}
                               </div>
                               <div className="flex flex-col truncate">
-                                  {/* 卡片名稱：允許無限長度，手機橫向可完整顯示 */}
                                   <span className={`font-bold text-slate-800 text-sm md:text-base truncate ${card.isForbidden || card.isLimitOne ? 'text-red-700' : ''}`} title={lang === 'en' ? card.nameEn : card.name}>
                                       {cName(card, lang)}
+                                      {/* 🌟 在列表模式的卡名旁邊也加上小小的 ALT 提示 */}
+                                      {(card.altArts && card.altArts.length > 0) && <span className="ml-1.5 text-[9px] bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-1 py-0.5 rounded font-bold relative -top-0.5 shadow-sm border border-indigo-400">ALT</span>}
                                   </span>
                                   <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-500 mt-0.5">
                                       <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{t(card.type, lang)}</span>
@@ -2375,19 +2380,13 @@ export default function App() {
                                   </div>
                               </div>
                           </div>
-                          {/* 點擊右側按鈕：加入牌組 */}
                           <div className="flex items-center gap-2 shrink-0 ml-2 border-l border-slate-100 pl-2">
                               {getCardCount(card.id) > 0 && <span className="bg-slate-800 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-inner">{getCardCount(card.id)}</span>}
-                              <button 
-                                  onClick={(e) => { e.stopPropagation(); addToDeck(card); }} 
-                                  className="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors active:scale-95 border border-blue-100"
-                              >
-                                  <Plus size={18} strokeWidth={3}/>
-                              </button>
+                              <button onClick={(e) => { e.stopPropagation(); addToDeck(card); }} className="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors active:scale-95 border border-blue-100"><Plus size={18} strokeWidth={3}/></button>
                           </div>
                       </div>
                   )
-                ))}
+                })}
                 
                 <div ref={loadMoreRef} className="col-span-full h-10 flex items-center justify-center text-slate-400 text-sm mt-4">
                     {displayedCards.length < filteredCards.length ? "載入更多..." : "已顯示所有卡片"}
@@ -2657,6 +2656,7 @@ export default function App() {
                     onHoverMove={handleHoverMove}
                     onHoverEnd={handleHoverEnd}
                     lang={lang}
+                    preferredArt={preferredArts[group.id]}
                   />
                 ))
               }
@@ -2683,6 +2683,7 @@ export default function App() {
                        onHoverMove={handleHoverMove}
                        onHoverEnd={handleHoverEnd}
                        lang={lang}
+                       preferredArt={preferredArts[group.id]}
                      />
                    ))
                  }
@@ -2709,6 +2710,7 @@ export default function App() {
                        onHoverMove={handleHoverMove}
                        onHoverEnd={handleHoverEnd}
                        lang={lang}
+                       preferredArt={preferredArts[group.id]}
                      />
                    ))
                  }
@@ -2719,7 +2721,7 @@ export default function App() {
               <h4 className="flex items-center gap-2 text-orange-800 font-bold text-sm mb-1"><AlertTriangle size={14} /> {lang==='en'?'Deck Validation':'牌組檢查'}</h4>
               <div className="text-[11px] text-orange-800/70 font-mono mb-2 border-b border-orange-200 pb-2 leading-relaxed">{lang==='en'?'Max 4 per ID. Max 16 FLIP.':'※相同編號卡最多4張 / ※FLIP卡最多16張'}</div>
               <ul className="text-xs text-orange-700 space-y-1 list-disc pl-4">
-                {nonFlipCookieCount < 20 && <li>{lang==='en'?`Recommendation: Need at least 20 Cookies (Current: ${nonFlipCookieCount})`:`主牌組建議至少 20 張餅乾卡 (目前 ${nonFlipCookieCount})`}<span className="text-[10px] opacity-75 ml-1">{lang==='en'?'(No FLIP)':'(不含 FLIP)'}</span></li>}
+                {nonFlipCookieCount < 20 && <li>{lang==='en'?`Recommendation: Need at least 20 Cookies (Current: ${nonFlipCookieCount})`:`主牌組建議至少 22 張餅乾卡 (目前 ${nonFlipCookieCount})`}<span className="text-[10px] opacity-75 ml-1">{lang==='en'?'(No FLIP)':'(不含 FLIP)'}</span></li>}
                 {deck.main.length > LIMITS.MAIN && <li className="text-red-600 font-bold">{lang==='en'?`Main deck over limit (${deck.main.length}/60)`:`主牌組已超過上限 (${deck.main.length}/60)`}</li>}
                 {deck.extra.length > LIMITS.EXTRA && <li className="text-red-600 font-bold">{lang==='en'?`Extra deck over limit (${deck.extra.length}/${LIMITS.EXTRA})`:`額外牌組已超過上限 (${deck.extra.length}/${LIMITS.EXTRA})`}</li>}
                 {flipCount > LIMITS.FLIP && <li className="text-red-600 font-bold">{lang==='en'?`FLIP cards over limit (${flipCount}/${LIMITS.FLIP})`:`Flip 卡片已超過上限 (${flipCount}/${LIMITS.FLIP})`}</li>}
