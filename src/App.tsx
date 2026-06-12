@@ -981,13 +981,51 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
   );
 };
 
-const CardDetailModal = ({ card, onClose, lang }) => {
+// 🌟 升級版大圖彈窗：支援異圖畫廊與設定偏好
+const CardDetailModal = ({ card, onClose, lang, preferredArt, onSetPreferredArt }) => {
   if (!card) return null;
+  
+  // 1. 整理出這張卡「所有可用的圖片」(原圖 + 所有異圖)
+  const allImages = useMemo(() => {
+      const imgs = [];
+      if (card.imageUrl) imgs.push(card.imageUrl);
+      if (card.altArtUrls && card.altArtUrls.length > 0) {
+          imgs.push(...card.altArtUrls);
+      }
+      return imgs;
+  }, [card]);
+
+  // 2. 控制目前畫面觀看的是哪一張圖的索引值
+  const [currentIndex, setCurrentIndex] = useState(() => {
+      // 如果有設定偏好，打開時就直接停在偏好那張圖上
+      if (preferredArt && allImages.includes(preferredArt)) {
+          return allImages.indexOf(preferredArt);
+      }
+      return 0;
+  });
+
+  const currentDisplayUrl = allImages.length > 0 ? allImages[currentIndex] : null;
+  // 判斷目前看的這張，是不是已經被設為預設了
+  const isCurrentPreferred = currentDisplayUrl === (preferredArt || card.imageUrl);
+
   return (
     <div className="fixed inset-0 bg-black/80 z-[110] flex items-center justify-center p-4" onClick={onClose}>
       <div className="relative w-full max-w-sm md:max-w-md flex flex-col gap-3" onClick={e => e.stopPropagation()}>
         <button onClick={onClose} className="fixed top-4 right-4 md:top-6 md:right-6 p-2 text-white bg-black/40 hover:bg-black/80 rounded-full transition-colors z-[120]"><X size={32} /></button>
-        {card.imageUrl ? (<img src={card.imageUrl} alt={card.name} className="w-full h-auto rounded-xl shadow-2xl object-contain max-h-[85vh]" />) : (
+        
+        {currentDisplayUrl ? (
+          <div className="relative">
+             <img src={currentDisplayUrl} alt={card.name} className="w-full h-auto rounded-xl shadow-2xl object-contain max-h-[75vh]" />
+             
+             {/* 🌟 如果有超過1張圖，就顯示左右切換箭頭 */}
+             {allImages.length > 1 && (
+                 <>
+                   <button onClick={() => setCurrentIndex(prev => prev > 0 ? prev - 1 : allImages.length - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white p-2 rounded-full transition-colors"><ChevronLeft size={24}/></button>
+                   <button onClick={() => setCurrentIndex(prev => prev < allImages.length - 1 ? prev + 1 : 0)} className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white p-2 rounded-full transition-colors"><ChevronRight size={24}/></button>
+                 </>
+             )}
+          </div>
+        ) : (
           <div className={`w-full aspect-[3/4] rounded-xl shadow-2xl p-6 flex flex-col ${getCardColorStyles(card.color)}`}>
              <h2 className="text-3xl font-black mb-2 leading-tight">{cName(card, lang)}</h2>
              <p className="font-mono text-lg opacity-80 mb-6 font-bold">{card.id}</p>
@@ -1006,6 +1044,28 @@ const CardDetailModal = ({ card, onClose, lang }) => {
              </div>
           </div>
         )}
+
+        {/* 🌟 異圖控制面板 (下方的小縮圖與設定按鈕) */}
+        {allImages.length > 1 && (
+            <div className="bg-slate-900 rounded-xl p-3 flex flex-col gap-3 shadow-lg border border-slate-700">
+                <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                    {allImages.map((imgUrl, idx) => (
+                        <div key={idx} onClick={() => setCurrentIndex(idx)} className={`w-12 h-16 shrink-0 rounded cursor-pointer border-2 transition-all ${currentIndex === idx ? 'border-yellow-400 scale-105' : 'border-transparent opacity-50 hover:opacity-100'}`}>
+                            <img src={imgUrl} className="w-full h-full object-cover rounded-sm" />
+                        </div>
+                    ))}
+                </div>
+                <button 
+                    onClick={() => onSetPreferredArt(card.id, currentDisplayUrl)}
+                    disabled={isCurrentPreferred}
+                    className={`w-full py-2.5 rounded-lg font-bold flex items-center justify-center gap-2 transition-all ${isCurrentPreferred ? 'bg-slate-700 text-slate-400' : 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-400 hover:to-purple-500 shadow-md active:scale-95'}`}
+                >
+                    <Sparkles size={18}/> {isCurrentPreferred ? (lang === 'en' ? 'Current Deck Art' : '目前為牌組預設外觀') : (lang === 'en' ? 'Set as Deck Art' : '設為牌組預設外觀')}
+                </button>
+            </div>
+        )}
+
+        {/* 英文翻譯對照框 */}
         {card.showEffect && card.effectText && (
            <div className="bg-white/95 backdrop-blur rounded-xl p-4 shadow-xl border-l-4 border-blue-500 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-bottom-4">
                <h4 className="text-blue-800 font-bold text-sm mb-1.5 flex items-center gap-1.5"><Languages size={16}/> English Translation</h4>
@@ -1148,8 +1208,11 @@ const PackOpenerModal = ({ allCards, onClose, lang }) => {
 // ==========================================
 // 🌟 核心組件：單張卡片
 // ==========================================
-const CardItem = React.memo(({ card, onClick, onView, onEdit, onDelete, onIncrement, onDecrement, count = 0, compact = false, onHoverStart, onHoverMove, onHoverEnd, lang }) => {
+  const CardItem = React.memo(({ card, onClick, onView, onEdit, onDelete, onIncrement, onDecrement, count = 0, compact = false, onHoverStart, onHoverMove, onHoverEnd, lang, preferredArt }) => {
   const colorClass = getCardColorStyles(card.color);
+  const displayImage = preferredArt || card.imageUrl; // 🌟 決定最終顯示的圖片
+  const hasAltArt = card.altArtUrls && card.altArtUrls.length > 0; // 🌟 檢查是否有異圖
+  
   const longPressTimer = useRef(null);
   const isLongPress = useRef(false);
   const handleTouchStart = () => { isLongPress.current = false; longPressTimer.current = setTimeout(() => { isLongPress.current = true; if (navigator.vibrate) navigator.vibrate(50); onView(card); }, 500); };
@@ -1163,10 +1226,11 @@ const CardItem = React.memo(({ card, onClick, onView, onEdit, onDelete, onIncrem
         onMouseEnter={(e) => onHoverStart && onHoverStart(card, e)} onMouseMove={(e) => onHoverMove && onHoverMove(e)} onMouseLeave={() => onHoverEnd && onHoverEnd()}
         className={`relative cursor-pointer transition-all duration-200 border-2 rounded-lg shadow-sm hover:shadow-md hover:scale-[1.02] select-none overflow-hidden group ${colorClass} ${compact ? "p-2 pr-1 flex items-center justify-between text-sm min-h-[4rem]" : "p-3 flex flex-col gap-1"}`}
     >
-      {card.imageUrl && !compact && (<div className="absolute inset-0 opacity-30 pointer-events-none group-hover:opacity-40 transition-opacity"><img src={card.imageUrl} alt="" className="w-full h-full object-cover" loading="lazy" /></div>)}
+      {/* 🌟 替換為 displayImage */}
+      {displayImage && !compact && (<div className="absolute inset-0 opacity-30 pointer-events-none group-hover:opacity-40 transition-opacity"><img src={displayImage} alt="" className="w-full h-full object-cover" loading="lazy" /></div>)}
       {!compact && card.isForbidden && (<div className="absolute inset-0 bg-red-900/10 pointer-events-none z-0"></div>)}
       <div className={`relative z-10 w-full ${compact ? "flex items-center gap-3" : ""}`}>
-        {compact && card.imageUrl && (<div className="shrink-0 w-10 h-14 rounded border border-slate-300 overflow-hidden bg-white shadow-sm"><img src={card.imageUrl} className="w-full h-full object-cover" alt="" loading="lazy" /></div>)}
+        {compact && displayImage && (<div className="shrink-0 w-10 h-14 rounded border border-slate-300 overflow-hidden bg-white shadow-sm"><img src={displayImage} className="w-full h-full object-cover" alt="" loading="lazy" /></div>)}
         <div className={`flex-1 min-w-0 ${compact ? "" : ""}`}>
           <div className={`flex justify-between items-start ${compact ? "flex-col justify-center" : "mb-1"}`}>
             {/* 🌟 根據語言顯示名稱 */}
@@ -1192,6 +1256,7 @@ const CardItem = React.memo(({ card, onClick, onView, onEdit, onDelete, onIncrem
               {card.isArena && <span className="text-[10px] md:text-xs font-bold bg-cyan-100 text-cyan-800 px-1 rounded border border-cyan-300">{t('競技場', lang)}</span>}
               {card.isForbidden && <span className="flex items-center gap-0.5 text-[10px] bg-red-600 text-white px-1.5 rounded font-bold"><Ban size={10}/> {t('禁止', lang)}</span>}
               {card.isLimitOne && <span className="flex items-center gap-0.5 text-[10px] bg-orange-500 text-white px-1.5 rounded font-bold"><AlertOctagon size={10}/> Limit 1</span>}
+              {hasAltArt && <span className="flex items-center gap-0.5 text-[10px] bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-1.5 py-0.5 rounded font-bold shadow-sm border border-indigo-400"><Sparkles size={10}/> ALT</span>}
             </div>
           )}
         </div>
@@ -1226,10 +1291,15 @@ export default function App() {
   const [lang, setLang] = useState('zh'); // 'zh' or 'en'
   const [showGlobalBanner, setShowGlobalBanner] = useState(true);
   
+  const [preferredArts, setPreferredArts] = useState(() => {
+      try { return JSON.parse(localStorage.getItem('braverse-preferred-arts') || '{}'); } catch { return {}; }
+  });
+  useEffect(() => { localStorage.setItem('braverse-preferred-arts', JSON.stringify(preferredArts)); }, [preferredArts]);
+
   const [filters, setFilters] = useState({
     search: "", type: "ALL", color: "ALL", level: "ALL", series: "ALL", rarity: "ALL", levelOrRarity: "ALL",
     skills: [], 
-    showExtra: false, showFlip: false, showAncient: false, showDragon: false, showBeast: false, showSoulJam: false, showArena: false,
+    showExtra: false, showFlip: false, showAncient: false, showDragon: false, showBeast: false, showSoulJam: false, showArena: false, showAltArt: false // 🌟 新增 showAltArt
   });
   
   const [toastMsg, setToastMsg] = useState(null);
@@ -1761,6 +1831,7 @@ export default function App() {
         const matchBeast = filters.showBeast ? card.isBeast : true;
         const matchSoulJam = filters.showSoulJam ? card.isSoulJam : true;
         const matchArena = filters.showArena ? card.isArena : true; 
+        const matchAltArt = filters.showAltArt ? (card.altArtUrls && card.altArtUrls.length > 0) : true; // 🌟 新增異圖比對邏輯
 
         return (
           matchSearch &&
@@ -1775,7 +1846,8 @@ export default function App() {
           matchDragon &&
           matchBeast &&
           matchSoulJam &&
-          matchArena
+          matchArena &&
+          matchAltArt // 🌟 加入回傳條件
         );
       }),
     [filters, allCards]
@@ -1910,7 +1982,13 @@ export default function App() {
       )}
 
       {viewingCard && (
-        <CardDetailModal card={viewingCard} onClose={() => setViewingCard(null)} lang={lang} />
+        <CardDetailModal 
+            card={viewingCard} 
+            onClose={() => setViewingCard(null)} 
+            lang={lang} 
+            preferredArt={preferredArts[viewingCard.id]} 
+            onSetPreferredArt={(id, url) => setPreferredArts(prev => ({...prev, [id]: url}))}
+        />
       )}
       {toastMsg && (
         <Toast message={toastMsg} onClose={closeToast} />
@@ -2173,6 +2251,15 @@ export default function App() {
                                     <input type="checkbox" className="hidden peer" checked={filters.showArena} onChange={(e) => setFilters({ ...filters, showArena: e.target.checked })} />
                                     <span className="flex items-center gap-1.5 text-xs md:text-sm bg-cyan-100 text-cyan-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-cyan-300 peer-checked:bg-cyan-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-cyan-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
                                       <Swords size={16} className="w-3 h-3 md:w-4 md:h-4" /> {t('競技場', lang)}
+                                    </span>
+                                </label>
+
+                                {/* 🌟 新增：異圖專屬篩選按鈕 */}
+                                <div className="h-5 w-px bg-slate-300 mx-0.5 shrink-0"></div>
+                                <label className="flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95 shrink-0">
+                                    <input type="checkbox" className="hidden peer" checked={filters.showAltArt} onChange={(e) => setFilters({ ...filters, showAltArt: e.target.checked })} />
+                                    <span className="flex items-center gap-1.5 text-xs md:text-sm bg-indigo-100 text-indigo-900 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-indigo-300 peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:ring-2 peer-checked:ring-indigo-500 opacity-70 peer-checked:opacity-100 font-bold shadow-sm transition-all">
+                                      <Sparkles size={16} className="w-3 h-3 md:w-4 md:h-4" /> {lang === 'en' ? 'Alt Art' : '異圖版本'}
                                     </span>
                                 </label>
                                 
