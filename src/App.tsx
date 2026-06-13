@@ -299,7 +299,8 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user, lang })
 
     const handleCopyDeck = async () => {
         try { if (db) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'community_decks', deckData.id), { copyCount: increment(1) }); } catch (err) {}
-        onLoadDeck({main: rawM, extra: rawE}, deckData.name);
+        // 🌟 複製時連同 pArts 一起帶走
+        onLoadDeck({main: rawM, extra: rawE}, deckData.name, deckData.pArts);
         onClose();
     };
 
@@ -328,12 +329,16 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user, lang })
     };
     const { cookies, others, flips, extras, rawM, rawE } = getDeckCards();
 
-    const renderMiniCard = (group) => (
-        <div key={group.id} className="relative aspect-[3/4] bg-slate-200 rounded border border-slate-300 overflow-hidden group shadow-sm">
-             {group.imageUrl ? <img src={group.imageUrl} alt={group.name} className="w-full h-full object-cover"/> : <div className={`w-full h-full p-1 text-[8px] flex flex-col ${getCardColorStyles(group.color)}`}><span className="font-bold leading-tight line-clamp-3">{cName(group, lang)}</span></div>}
-             <div className="absolute bottom-1 right-1 bg-black text-white text-xs md:text-sm font-black w-6 h-6 md:w-8 md:h-8 rounded shadow-md border border-white/50 z-10 flex items-center justify-center leading-none pb-0.5">x{group.stackCount}</div>
-        </div>
-    );
+    const renderMiniCard = (group) => {
+        // 🌟 觀看社群牌組時，顯示作者設定的異圖 (deckData.pArts)
+        const displayImg = deckData.pArts?.[group.id] || group.imageUrl;
+        return (
+            <div key={group.id} className="relative aspect-[3/4] bg-slate-200 rounded border border-slate-300 overflow-hidden group shadow-sm">
+                 {displayImg ? <img src={displayImg} alt={group.name} className="w-full h-full object-cover"/> : <div className={`w-full h-full p-1 text-[8px] flex flex-col ${getCardColorStyles(group.color)}`}><span className="font-bold leading-tight line-clamp-3">{cName(group, lang)}</span></div>}
+                 <div className="absolute bottom-1 right-1 bg-black text-white text-xs md:text-sm font-black w-6 h-6 md:w-8 md:h-8 rounded shadow-md border border-white/50 z-10 flex items-center justify-center leading-none pb-0.5">x{group.stackCount}</div>
+            </div>
+        );
+    };
 
     return (
         <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4" onClick={onClose}>
@@ -501,7 +506,7 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin, lang }) 
     );
 };
 
-const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onClose, onLoadDeck, onPublish, lang }) => {
+const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onClose, onLoadDeck, onPublish, lang, preferredArts }) => {
   const [decks, setDecks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saveName, setSaveName] = useState(currentDeckName);
@@ -539,7 +544,14 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
     if (!saveName.trim()) return alert(lang==='en'?"Enter Name":"請輸入牌組名稱");
     setIsSaving(true);
     try {
-        const deckData = { name: saveName, m: (currentDeck?.main || []).map(c => c.id), e: (currentDeck?.extra || []).map(c => c.id), coverId: selectedCover, updatedAt: new Date().toISOString() };
+        // 🌟 儲存時，只過濾出「這副牌組有用到」的異圖設定，避免佔用無謂空間
+        const deckPArts = {};
+        [...(currentDeck?.main || []), ...(currentDeck?.extra || [])].forEach(c => {
+           if (preferredArts && preferredArts[c.id]) deckPArts[c.id] = preferredArts[c.id];
+        });
+        
+        const deckData = { name: saveName, m: (currentDeck?.main || []).map(c => c.id), e: (currentDeck?.extra || []).map(c => c.id), coverId: selectedCover, updatedAt: new Date().toISOString(), pArts: deckPArts };
+        
         const existing = decks.find(d => d.name === saveName);
         if (existing) {
             if (!confirm(lang==='en'?"Overwrite?":`確定要覆蓋 "${saveName}" 嗎？`)) { setIsSaving(false); return; }
@@ -571,7 +583,7 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
      const mainCards = []; const extraCards = [];
      (savedDeck.m || []).forEach(id => { const c = allCards.find(card => card.id === id); if (c) mainCards.push(c); });
      (savedDeck.e || []).forEach(id => { const c = allCards.find(card => card.id === id); if (c) extraCards.push(c); });
-     onLoadDeck({ main: mainCards, extra: extraCards }, savedDeck.name);
+     onLoadDeck({ main: mainCards, extra: extraCards }, savedDeck.name, savedDeck.pArts); // 🌟 載入時丟出 pArts
      onClose();
   };
 
@@ -602,7 +614,7 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
   );
 };
 
-const ExportModal = ({ deck, deckName, onClose, lang }) => {
+const ExportModal = ({ deck, deckName, onClose, lang, preferredArts }) => {
   const [activeTab, setActiveTab] = useState("image");
   const exportRef = useRef(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -621,7 +633,9 @@ const ExportModal = ({ deck, deckName, onClose, lang }) => {
 
   const generateLongUrl = () => {
     const mainIds = deck.main.map((c) => c.id); const extraIds = deck.extra.map((c) => c.id);
-    const data = JSON.stringify({ m: mainIds, e: extraIds, n: deckName });
+    const pArts = {};
+    [...deck.main, ...deck.extra].forEach(c => { if(preferredArts && preferredArts[c.id]) pArts[c.id] = preferredArts[c.id]});
+    const data = JSON.stringify({ m: mainIds, e: extraIds, n: deckName, p: pArts });
     return `${window.location.href.split("?")[0]}?d=${btoa(encodeURIComponent(data))}`;
   };
 
@@ -629,7 +643,9 @@ const ExportModal = ({ deck, deckName, onClose, lang }) => {
     if (!db) return;
     setIsCreatingLink(true);
     try {
-        const docRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'shared_decks'), { m: deck.main.map(c => c.id), e: deck.extra.map(c => c.id), n: deckName, createdAt: new Date().toISOString() });
+        const pArts = {};
+        [...deck.main, ...deck.extra].forEach(c => { if(preferredArts && preferredArts[c.id]) pArts[c.id] = preferredArts[c.id]});
+        const docRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'shared_decks'), { m: deck.main.map(c => c.id), e: deck.extra.map(c => c.id), n: deckName, p: pArts, createdAt: new Date().toISOString() });
         setShareUrl(`${window.location.href.split("?")[0]}?s=${docRef.id}`);
     } catch (error) { setShareUrl(generateLongUrl()); } finally { setIsCreatingLink(false); }
   };
@@ -682,12 +698,16 @@ const ExportModal = ({ deck, deckName, onClose, lang }) => {
     };
   }, [deck]);
 
-  const renderMiniCard = (group) => (
-    <div key={group.id} className="relative aspect-[3/4] rounded overflow-hidden border border-slate-200 shadow-sm bg-slate-50 group">
-        {group.imageUrl ? (<img src={group.imageUrl} alt={group.name} crossOrigin="anonymous" className="w-full h-full object-cover" />) : (<div className={`w-full h-full flex flex-col p-1 text-[8px] ${getCardColorStyles(group.color)}`}><span className="font-bold leading-tight line-clamp-3">{cName(group, lang)}</span></div>)}
-        <div className="absolute bottom-1 right-1 bg-black text-white text-sm font-black w-7 h-7 md:w-8 md:h-8 rounded shadow-md border border-white/50 z-10 flex items-center justify-center leading-none pb-0.5">x{group.stackCount}</div>
-    </div>
-  );
+  const renderMiniCard = (group) => {
+    // 🌟 輸出圖片時，優先使用異圖偏好
+    const displayImg = (preferredArts && preferredArts[group.id]) ? preferredArts[group.id] : group.imageUrl;
+    return (
+      <div key={group.id} className="relative aspect-[3/4] rounded overflow-hidden border border-slate-200 shadow-sm bg-slate-50 group">
+          {displayImg ? (<img src={displayImg} alt={group.name} crossOrigin="anonymous" className="w-full h-full object-cover" />) : (<div className={`w-full h-full flex flex-col p-1 text-[8px] ${getCardColorStyles(group.color)}`}><span className="font-bold leading-tight line-clamp-3">{cName(group, lang)}</span></div>)}
+          <div className="absolute bottom-1 right-1 bg-black text-white text-sm font-black w-7 h-7 md:w-8 md:h-8 rounded shadow-md border border-white/50 z-10 flex items-center justify-center leading-none pb-0.5">x{group.stackCount}</div>
+      </div>
+    );
+  };
 
   const renderPrintSection = (title, engTitle, groups, colorClass) => (
       <div className="mb-2 break-inside-avoid">
@@ -1575,22 +1595,27 @@ export default function App() {
       }
   };
 
-  const handleLoadDeckFromStorage = (loadedDeckObj, newName) => { 
-      setDeck({ main: loadedDeckObj?.main || [], extra: loadedDeckObj?.extra || [] }); 
+// 🌟 1. 載入雲端牌組時，同時載入異圖偏好 (loadedPArts)
+  const handleLoadDeckFromStorage = (loadedDeckObj, newName, loadedPArts) => { 
+      setDeck({ main: loadedDeckObj?.main || [], extra: loadedDeckObj?.extra || [] });
       setDeckName(newName || "我的餅乾牌組"); 
+      if (loadedPArts) setPreferredArts(prev => ({...prev, ...loadedPArts})); // 🌟 覆蓋/合併異圖設定
       setToastMsg("牌組載入成功！"); 
   };
 
-  const handleLoadDeckFromCommunity = (loadedDeckObj, newName) => {
+  // 🌟 2. 複製社群牌組時，繼承作者的異圖偏好
+  const handleLoadDeckFromCommunity = (loadedDeckObj, newName, loadedPArts) => {
       if (deck.main.length > 0 || deck.extra.length > 0) {
-          if (!confirm("確定要複製並載入這副牌組嗎？\n⚠️ 警告：目前的牌組將被清空覆蓋！")) return; 
+          if (!confirm("確定要複製並載入這副牌組嗎？\n⚠️ 警告：目前的牌組將被清空覆蓋！")) return;
       }
       setDeck({ main: loadedDeckObj?.main || [], extra: loadedDeckObj?.extra || [] });
       setDeckName(newName || "社群牌組");
+      if (loadedPArts) setPreferredArts(prev => ({...prev, ...loadedPArts})); // 🌟 繼承炫耀套牌！
       setToastMsg("✨ 社群牌組載入成功！");
       setShowCommunityModal(false);
   };
 
+  // 🌟 3. 發布到社群時，把牌組專屬的異圖偏好 (pArts) 一起發布
   const handlePublishDeck = async (deckToPublish) => {
       try {
           const cardIds = [...(deckToPublish.m || [])];
@@ -1607,6 +1632,7 @@ export default function App() {
               commentCount: 0,
               copyCount: 0,
               coverId: deckToPublish.coverId || null,
+              pArts: deckToPublish.pArts || {}, // 🌟 關鍵：包裝異圖偏好
               createdAt: new Date().toISOString()
           };
           await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'community_decks'), publicData);
@@ -1636,6 +1662,7 @@ export default function App() {
                         decoded.e.forEach(id => { const c = allCards.find(c => c.id === id); if (c) extraCards.push(c); });
                         setDeck({ main: mainCards, extra: extraCards });
                         if (decoded.n) setDeckName(decoded.n);
+                        if (decoded.p) setPreferredArts(prev => ({...prev, ...decoded.p})); // 🌟 讀取短網址中的異圖
                         setToastMsg('已成功載入分享的牌組！');
                     }
                 } else {
@@ -1660,6 +1687,7 @@ export default function App() {
           decoded.e.forEach(id => { const c = allCards.find(c => c.id === id); if (c) extraCards.push(c); });
           setDeck({ main: mainCards, extra: extraCards });
           if (decoded.n) setDeckName(decoded.n);
+          if (decoded.p) setPreferredArts(prev => ({...prev, ...decoded.p})); // 🌟 讀取長網址中的異圖
           setToastMsg('已成功載入分享的牌組！');
         }
       } catch (e) { console.error("牌組載入失敗", e); }
@@ -2050,7 +2078,7 @@ export default function App() {
 
       {showBulkModal && <BulkImportModal onClose={() => setShowBulkModal(false)} onImport={handleBulkImport} isProcessing={isProcessing} />}
 
-      {showExportModal && <ExportModal deck={deck} allCards={allCards} onClose={() => setShowExportModal(false)} deckName={deckName} lang={lang} />}
+      {showExportModal && <ExportModal deck={deck} allCards={allCards} onClose={() => setShowExportModal(false)} deckName={deckName} lang={lang} preferredArts={preferredArts} />}
 
       {showLoginModal && (
         <AuthModal 
@@ -2071,6 +2099,7 @@ export default function App() {
             onLoadDeck={handleLoadDeckFromStorage}
             onPublish={handlePublishDeck}
             lang={lang}
+            preferredArts={preferredArts} /* 🌟 加在這裡 */
         />
       )}
       
