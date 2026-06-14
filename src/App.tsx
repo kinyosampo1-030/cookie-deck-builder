@@ -1202,17 +1202,36 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
   );
 };
 
-  const PackOpenerModal = ({ allCards, onClose, lang }) => {
+const PackOpenerModal = ({ allCards, onClose, lang }) => {
   const [selectedSeries, setSelectedSeries] = useState("ALL");
   const [openedCards, setOpenedCards] = useState([]);
   const [flippedIndices, setFlippedIndices] = useState({});
   const [isOpening, setIsOpening] = useState(false); 
   const availableSeries = useMemo(() => Array.from(new Set(allCards.filter(c => !c.series.startsWith('ST') && c.series !== 'P').map(c => c.series))).sort(), [allCards]);
   
-  // 🌟 新增：戰績統計與結算畫面狀態
   const [packCount, setPackCount] = useState(0);
   const [sessionStats, setSessionStats] = useState({ R: 0, SR: 0, UR: 0, ALT: 0 });
   const [showSummary, setShowSummary] = useState(false);
+  
+  const [isCheatMode, setIsCheatMode] = useState(false);
+  const [usedCheat, setUsedCheat] = useState(false); 
+
+  // 🌟 隨機抽取按鈕語錄的邏輯
+  const closeButtonText = useMemo(() => {
+      const normalTexts = [
+          "謝謝提醒，我不會再欺負錢包君了",
+          "再抽我就剁手手！",
+          "夢醒了，我還是臉很黑"
+      ];
+      const cheatTexts = [
+          "我知道錯了！",
+          "連陽壽都是借來的，小丑竟是我自己 🤡",
+          "下次我會用真實的運氣面對 🥺"
+      ];
+      
+      const pool = usedCheat ? cheatTexts : normalTexts;
+      return pool[Math.floor(Math.random() * pool.length)];
+  }, [showSummary, usedCheat]); // 每次打開結算畫面時重新抽取
 
   const openPack = () => {
     let pool = allCards.filter(c => !c.series.startsWith('ST') && c.series !== 'P');
@@ -1220,6 +1239,8 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
     const cookieCards = pool.filter(c => c.type === CARD_TYPES.COOKIE); const otherCards = pool.filter(c => c.type !== CARD_TYPES.COOKIE);
     if (otherCards.length < 1 || cookieCards.length < 4) return alert("Not enough cards for this series.");
     
+    if (isCheatMode) setUsedCheat(true);
+
     setIsOpening(true); 
     setOpenedCards([]); 
     setFlippedIndices({});
@@ -1230,9 +1251,10 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
         
         const targetRarity = (() => { 
             const r = Math.random() * 100; 
-            if (r < 10) return 'UR'; 
-            if (r < 30) return 'SR'; 
-            return 'R';              
+            if (r < 6) return 'UR';       
+            if (r < 22) return 'SR';      
+            if (r < 48) return 'R';       
+            return 'C';                   
         })();
         
         let targetPool = cookieCards.filter(c => (c.rarity || 'C') === targetRarity); if (targetPool.length === 0) targetPool = cookieCards; 
@@ -1242,10 +1264,9 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
         selectedCookies.push(...fisherYatesShuffle(commonPool).slice(0, 3));
         while (selectedCookies.length < 4) selectedCookies.push(cookieCards[Math.floor(Math.random() * cookieCards.length)]);
         
-        const UPGRADE_CHANCE = 0.15; 
-        const rawOpenedCards = [...selectedCookies, selectedOther];
+        const UPGRADE_CHANCE = isCheatMode ? 0.45 : 0.15; 
         
-        // 🌟 用來暫存這包開出的高級卡數量
+        const rawOpenedCards = [...selectedCookies, selectedOther];
         let currentPackStats = { R: 0, SR: 0, UR: 0, ALT: 0 };
 
         const finalizedCards = rawOpenedCards.map(card => {
@@ -1275,7 +1296,6 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
                 }
             }
             
-            // 🌟 統計這張卡片的稀有度
             if (isUpgraded) currentPackStats.ALT += 1;
             else if (finalBadge === 'UR') currentPackStats.UR += 1;
             else if (finalBadge === 'SR') currentPackStats.SR += 1;
@@ -1284,7 +1304,6 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
             return { ...card, pulledArt: finalImg, pulledBadge: finalBadge, isUpgraded };
         });
 
-        // 🌟 更新總戰績
         setPackCount(prev => prev + 1);
         setSessionStats(prev => ({
             R: prev.R + currentPackStats.R,
@@ -1298,7 +1317,6 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
     }, 1200); 
   };
   
-  // 🌟 攔截關閉按鈕：如果有抽過卡，先顯示結算畫面
   const handleCloseModal = () => {
       if (packCount > 0 && !showSummary) {
           setShowSummary(true);
@@ -1307,34 +1325,62 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
       }
   };
 
-  const renderCard = (card, index) => {
+const renderCard = (card, index) => {
       const isFlipped = flippedIndices[index];
-      const outerGlowClass = (card.isUpgraded && isFlipped) ? "shadow-[0_0_40px_#f59e0b] scale-[1.04] z-30 md:z-30 rounded-lg transition-all duration-300" : "z-10";
-      const frontBorderClass = (card.isUpgraded && isFlipped) ? "border-4 border-amber-400" : "border-2 border-white/20 shadow-2xl";
+      
+      // 🌟 1. 異圖翻開時，卡片整體產生立體上浮放大感
+      const wrapperClass = (card.isUpgraded && isFlipped) ? "scale-[1.05] z-30" : "z-10 group-hover:scale-105";
       
       return (
-        <div key={index} onClick={() => setFlippedIndices(p => ({ ...p, [index]: true }))} className={`w-[30vw] h-[40vw] md:w-48 md:h-64 cursor-pointer perspective-1000 group relative flex-shrink-0 animate-in zoom-in duration-500 ${outerGlowClass}`}>
+        <div key={index} onClick={() => setFlippedIndices(p => ({ ...p, [index]: true }))} className={`w-[30vw] h-[40vw] md:w-48 md:h-64 cursor-pointer perspective-1000 relative flex-shrink-0 animate-in zoom-in duration-500 transition-transform ${wrapperClass}`}>
             <div className={`w-full h-full transition-all duration-500 transform-style-3d relative ${isFlipped ? 'rotate-y-180' : ''}`}>
-                <div className="absolute inset-0 backface-hidden rounded-lg overflow-hidden border-2 border-slate-600 shadow-xl group-hover:scale-105 transition-transform"><img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" /></div>
-                <div className={`absolute inset-0 backface-hidden rotate-y-180 rounded-lg overflow-hidden bg-white relative ${frontBorderClass}`}>
-                    {card.pulledArt ? (<img src={card.pulledArt} className="w-full h-full object-cover" alt={card.name} />) : (<div className={`w-full h-full p-2 flex flex-col justify-between ${getCardColorStyles(card.color)}`}><span className="font-bold text-sm leading-tight line-clamp-3">{cName(card, lang)}</span><span className="font-mono text-xs">{card.id}</span></div>)}
-                    {card.pulledBadge && card.pulledBadge !== 'C' && (<div className={`absolute top-1 right-1 text-[10px] font-bold px-1.5 py-0.5 rounded shadow border tracking-wider transition-all ${card.isUpgraded ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-600 text-white border-yellow-300 animate-pulse font-black scale-110 shadow-lg shadow-orange-500/40' : getRarityStyle(card.pulledBadge)}`}>{card.pulledBadge}</div>)}
+                
+                {/* 🎴 卡牌背面 (維持不變) */}
+                <div className="absolute inset-0 backface-hidden rounded-lg overflow-hidden border-2 border-slate-600 shadow-xl">
+                    <img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" />
+                </div>
+                
+                {/* 🎴 卡牌正面：🌟 關鍵！這裡把 overflow-hidden 拿掉了！ 🌟 */}
+                <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-lg shadow-2xl relative bg-white">
+                    
+                    {/* 🖼️ 第一層：負責裁切圓角的圖片與標籤區 */}
+                    <div className="absolute inset-0 rounded-lg overflow-hidden">
+                        {card.pulledArt ? (
+                            <img src={card.pulledArt} className="w-full h-full object-cover" alt={card.name} />
+                        ) : (
+                            <div className={`w-full h-full p-2 flex flex-col justify-between ${getCardColorStyles(card.color)}`}><span className="font-bold text-sm leading-tight line-clamp-3">{cName(card, lang)}</span><span className="font-mono text-xs">{card.id}</span></div>
+                        )}
+                        
+                        {card.pulledBadge && card.pulledBadge !== 'C' && (
+                            <div className={`absolute top-1 right-1 text-[10px] font-bold px-1.5 py-0.5 rounded shadow border tracking-wider transition-all z-10 ${card.isUpgraded ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-600 text-white border-yellow-300 font-black scale-110 shadow-lg shadow-orange-500/40' : getRarityStyle(card.pulledBadge)}`}>
+                                {card.pulledBadge}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* ✨ 第二層：超酷炫獨立發光特效層 (不受裁切影響) ✨ */}
+                    {card.isUpgraded && (
+                        <div className="absolute -inset-[3px] z-20 pointer-events-none rounded-lg border-4 border-yellow-400 shadow-[0_0_35px_#eab308,inset_0_0_15px_#eab308] animate-pulse"></div>
+                    )}
+                    
                 </div>
             </div>
         </div>
       );
   };
   
-  // 🌟 渲染結算畫面
   if (showSummary) {
-      const estimatedCost = packCount * 50; // 假設一包實體卡包 50 元
+      const estimatedCost = packCount * 50; 
       return (
           <div className="fixed inset-0 bg-black/90 z-[80] flex items-center justify-center p-4 animate-in fade-in" onClick={onClose}>
-              <div className="bg-slate-800 border-2 border-slate-600 rounded-2xl shadow-2xl w-full max-w-md p-8 flex flex-col items-center text-center relative" onClick={e => e.stopPropagation()}>
-                  <h2 className="text-3xl font-black text-white mb-2 tracking-wider">本次抽卡結算</h2>
+              <div className={`border-2 rounded-2xl shadow-2xl w-full max-w-md p-8 flex flex-col items-center text-center relative ${usedCheat ? 'bg-slate-900 border-red-600 shadow-red-900/50' : 'bg-slate-800 border-slate-600'}`} onClick={e => e.stopPropagation()}>
+                  
+                  <h2 className={`text-3xl font-black mb-2 tracking-wider ${usedCheat ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                      {usedCheat ? '🚨 你作弊了！' : '本次抽卡結算'}
+                  </h2>
                   <p className="text-slate-400 mb-6 text-sm font-bold">Session Summary</p>
                   
-                  <div className="w-full bg-slate-900 rounded-xl p-5 mb-6 shadow-inner border border-slate-700">
+                  <div className="w-full bg-slate-950/50 rounded-xl p-5 mb-6 shadow-inner border border-slate-700/50">
                       <div className="grid grid-cols-2 gap-4 text-left">
                           <div className="col-span-2 border-b border-slate-700 pb-3 mb-1">
                               <span className="block text-slate-400 text-xs font-bold mb-1">總開啟卡包</span>
@@ -1359,37 +1405,56 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
                       </div>
                   </div>
 
-                  {/* 🌟 勸世警語區塊 */}
-                  <div className="bg-red-950/40 border border-red-900/50 rounded-lg p-4 mb-8 w-full">
-                      <p className="text-red-400 font-bold mb-1 flex items-center justify-center gap-1.5">
-                          <AlertOctagon size={18} /> 溫馨防沉迷提示
+                  <div className={`border rounded-lg p-4 mb-8 w-full ${usedCheat ? 'bg-red-950 border-red-600' : 'bg-red-950/40 border-red-900/50'}`}>
+                      <p className={`font-bold mb-2 flex items-center justify-center gap-1.5 ${usedCheat ? 'text-red-500 text-lg' : 'text-red-400'}`}>
+                          <AlertOctagon size={usedCheat ? 22 : 18} /> {usedCheat ? '🛑 賭狗警告' : '溫馨防沉迷提示'}
                       </p>
                       <p className="text-slate-300 text-sm leading-relaxed">
                           您剛剛在模擬器中大約花費了 <span className="text-yellow-400 font-bold font-mono">NT$ {estimatedCost.toLocaleString()}</span> 的實體新台幣價值。<br/>
-                          抽卡一時爽，荷包火葬場。適度娛樂，請勿沉迷盲盒賭博機制！
+                          {usedCheat 
+                              ? <span className="text-red-400 font-bold mt-2 block">你開了作弊模式對吧？醒醒吧賭狗！快回歸現實！</span>
+                              : <span className="mt-2 block">抽卡一時爽，荷包火葬場。適度娛樂，請勿沉迷賭博！</span>
+                          }
                       </p>
                   </div>
 
+                  {/* 🌟 帶入隨機抽取的文案 */}
                   <button onClick={onClose} className="w-full py-3 bg-slate-200 hover:bg-white text-slate-900 font-black rounded-xl transition-colors active:scale-95 text-lg">
-                      阿彌陀佛，我關閉就是了
+                      {closeButtonText}
                   </button>
               </div>
           </div>
       );
   }
 
-  // 原本的抽卡畫面
   return (
     <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4" onClick={handleCloseModal}>
       <div className="bg-slate-800 rounded-xl shadow-2xl w-full max-w-5xl p-6 min-h-[600px] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center mb-6 text-white"><h2 className="text-2xl font-black flex items-center gap-2"><PackageOpen className="text-yellow-400" /> {lang==='en'?'Pack Opener':'開卡包模擬器'}</h2><button onClick={handleCloseModal} className="p-1 hover:bg-slate-700 rounded-full"><X size={24} /></button></div>
-        <div className="flex gap-4 mb-8 justify-center">
-          <select className="bg-slate-700 text-white border border-slate-600 rounded-lg px-4 py-2 outline-none font-bold" value={selectedSeries} onChange={(e) => setSelectedSeries(e.target.value)} disabled={isOpening}>
-            <option value="ALL">{lang==='en'?'All':'全部卡池'}</option>
-            {availableSeries.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <button onClick={openPack} disabled={isOpening} className="bg-yellow-500 hover:bg-yellow-400 disabled:bg-yellow-700 disabled:text-slate-500 text-slate-900 px-6 py-2 rounded-lg font-black flex items-center gap-2 shadow-lg transition-transform active:scale-95">{isOpening ? "..." : <><PackageOpen size={20} /> {lang==='en'?'Open Pack':'開啟卡包'}</>}</button>
+        <div className="flex justify-between items-center mb-6 text-white">
+            <h2 className="text-2xl font-black flex items-center gap-2"><PackageOpen className="text-yellow-400" /> {lang==='en'?'Pack Opener':'開卡包模擬器'}</h2>
+            <button onClick={handleCloseModal} className="p-1 hover:bg-slate-700 rounded-full"><X size={24} /></button>
         </div>
+        
+        <div className="flex flex-col items-center gap-3 mb-8">
+            <div className="flex gap-4 justify-center">
+              <select className="bg-slate-700 text-white border border-slate-600 rounded-lg px-4 py-2 outline-none font-bold" value={selectedSeries} onChange={(e) => setSelectedSeries(e.target.value)} disabled={isOpening}>
+                <option value="ALL">{lang==='en'?'All':'全部卡池'}</option>
+                {availableSeries.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <button onClick={openPack} disabled={isOpening} className="bg-yellow-500 hover:bg-yellow-400 disabled:bg-yellow-700 disabled:text-slate-500 text-slate-900 px-6 py-2 rounded-lg font-black flex items-center gap-2 shadow-lg transition-transform active:scale-95">
+                  {isOpening ? "..." : <><PackageOpen size={20} /> {lang==='en'?'Open Pack':'開啟卡包'}</>}
+              </button>
+            </div>
+            
+            <label className="flex items-center gap-2 cursor-pointer text-slate-500 hover:text-red-400 transition-colors text-xs font-bold mt-1 select-none">
+                <input type="checkbox" className="hidden peer" checked={isCheatMode} onChange={(e) => setIsCheatMode(e.target.checked)} disabled={isOpening} />
+                <div className="w-4 h-4 rounded border border-slate-600 peer-checked:bg-red-500 peer-checked:border-red-500 flex items-center justify-center transition-colors">
+                    {isCheatMode && <Check size={12} className="text-white" />}
+                </div>
+                {isCheatMode ? '🔥 作弊模式啟動 (異圖率 3 倍)' : 'Cheating Mode'}
+            </label>
+        </div>
+
         <div className="flex-1 flex items-center justify-center min-h-[400px]">
           {isOpening ? (<div className="animate-bounce"><div className="w-48 h-64 bg-gradient-to-tr from-blue-600 to-purple-600 rounded-xl border-4 border-yellow-400 shadow-2xl flex items-center justify-center animate-pulse"><img src={CARD_BACK_URL} className="w-full h-full object-cover rounded-lg opacity-80" alt="Pack" /></div></div>) : openedCards.length === 0 ? (<div className="text-slate-500 flex flex-col items-center"><PackageOpen size={64} className="mb-4 opacity-20" /></div>) : (<div className="flex flex-col items-center gap-4 md:gap-6 w-full"><div className="flex justify-center gap-2 md:gap-6">{openedCards.slice(0, 3).map((card, index) => renderCard(card, index))}</div><div className="flex justify-center gap-2 md:gap-6">{openedCards.slice(3, 5).map((card, index) => renderCard(card, index + 3))}</div></div>)}
         </div>
