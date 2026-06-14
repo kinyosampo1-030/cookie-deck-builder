@@ -1202,7 +1202,7 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
   );
 };
 
-  const PackOpenerModal = ({ allCards, onClose, lang }) => {
+const PackOpenerModal = ({ allCards, onClose, lang }) => {
   const [selectedSeries, setSelectedSeries] = useState("ALL");
   const [openedCards, setOpenedCards] = useState([]);
   const [flippedIndices, setFlippedIndices] = useState({});
@@ -1331,9 +1331,9 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
       
       const wrapperClass = (isUpgraded && isFlipped) ? "scale-[1.05] z-30" : "z-10 hover:scale-105";
 
-      // 🌟 卡面特效：翻開且是異圖時，專屬的黃金邊框與光暈
+      // 🌟 修正點：嚴格綁定 `isFlipped`。還沒翻開前，絕對不加上 `animate-pulse`！
       const frontGlowClass = isUpgraded 
-          ? "border-4 border-yellow-400 shadow-[0_0_40px_rgba(234,179,8,1)] animate-pulse" 
+          ? `border-4 border-yellow-400 shadow-[0_0_40px_rgba(234,179,8,1)] ${isFlipped ? 'animate-pulse' : ''}` 
           : "border-2 border-slate-200 shadow-xl";
 
       return (
@@ -1342,7 +1342,6 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
           onClick={() => setFlippedIndices(p => ({ ...p, [index]: true }))} 
           className={`w-[30vw] h-[40vw] md:w-48 md:h-64 relative flex-shrink-0 animate-in zoom-in duration-500 transition-transform cursor-pointer ${wrapperClass}`}
         >
-            {/* 🎴 圖層一：卡牌背面 (移除所有預兆特效，統一設定為普通卡背) */}
             <div 
                 className={`absolute inset-0 rounded-lg overflow-hidden transition-all duration-500 ease-out border-2 border-slate-600 shadow-xl
                 ${isFlipped ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}
@@ -1350,7 +1349,6 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
                 <img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" />
             </div>
             
-            {/* 🎴 圖層二：卡牌正面 */}
             <div 
                 className={`absolute inset-0 rounded-lg bg-white transition-all duration-500 ease-out
                 ${isFlipped ? 'opacity-100 scale-100' : 'opacity-0 scale-110 pointer-events-none'} 
@@ -2360,7 +2358,7 @@ export default function App() {
                             Cookierun: Braverse Deck Builder
                         </h1>
                         <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">
-                            {lang === 'en' ? 'New Features: ' : '新功能：'}<span className="text-blue-600 font-black">{lang === 'en' ? 'Community' : '異圖版本'}</span> {lang === 'en' ? ' & ' : '與 '} <span className="text-emerald-600 font-black">{lang === 'en' ? 'Mobile App' : '第十一彈'}</span>
+                            {lang === 'en' ? 'New Features: ' : '新功能：'}<span className="text-blue-600 font-black">{lang === 'en' ? 'Community' : 'BS11異圖'}</span> {lang === 'en' ? ' & ' : '與 '} <span className="text-emerald-600 font-black">{lang === 'en' ? 'Mobile App' : '開包模擬器'}</span>
                         </p>
                     </div>
                     
