@@ -68,7 +68,7 @@ const cName = (card, lang) => (lang === 'en' && card.nameEn) ? card.nameEn : car
 // --- Constants ---
 const CARD_TYPES = { COOKIE: "餅乾卡", ITEM: "道具卡", TRAP: "陷阱卡", SCENE: "場景卡" };
 const CARD_COLORS = { RED: "紅色", YELLOW: "黃色", GREEN: "綠色", BLUE: "藍色", PURPLE: "紫色", BLACK: "黑色", COLORLESS: "無色" };
-const CARD_LEVELS = { LV1: "LV.1", LV2: "LV.2", LV3: "LV.3" };
+const CARD_LEVELS = { LV1: "LV.1", LV2: "LV.2", LV3: "LV.3", LV5: "LV.5" };
 // 包含 BS10
 const CARD_SERIES_OPTIONS = ["ST", "BS1", "BS2", "BS3", "BS4", "BS5", "BS6", "BS7", "BS8", "BS9", "BS10", "BS11", "P"];
 
@@ -1202,7 +1202,7 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
   );
 };
 
-const PackOpenerModal = ({ allCards, onClose, lang }) => {
+  const PackOpenerModal = ({ allCards, onClose, lang }) => {
   const [selectedSeries, setSelectedSeries] = useState("ALL");
   const [openedCards, setOpenedCards] = useState([]);
   const [flippedIndices, setFlippedIndices] = useState({});
@@ -1214,31 +1214,108 @@ const PackOpenerModal = ({ allCards, onClose, lang }) => {
     if (selectedSeries !== "ALL") pool = pool.filter(c => c.series === selectedSeries);
     const cookieCards = pool.filter(c => c.type === CARD_TYPES.COOKIE); const otherCards = pool.filter(c => c.type !== CARD_TYPES.COOKIE);
     if (otherCards.length < 1 || cookieCards.length < 4) return alert("Not enough cards for this series.");
-    setIsOpening(true); setOpenedCards([]); 
+    
+    setIsOpening(true); 
+    setOpenedCards([]); 
+    setFlippedIndices({});
+    
     setTimeout(() => {
         const selectedOther = fisherYatesShuffle(otherCards)[0]; const selectedIDs = new Set([selectedOther.id]);
         const selectedCookies = [];
         const targetRarity = (() => { const r = Math.random() * 100; if (r < 1) return 'EXR'; if (r < 6) return 'UR'; if (r < 16) return 'SR'; if (r < 36) return 'R'; return 'C'; })();
+        
         let targetPool = cookieCards.filter(c => (c.rarity || 'C') === targetRarity); if (targetPool.length === 0) targetPool = cookieCards; 
         const rareCard = targetPool[Math.floor(Math.random() * targetPool.length)]; if (rareCard) { selectedCookies.push(rareCard); selectedIDs.add(rareCard.id); }
+        
         let commonPool = cookieCards.filter(c => (c.rarity || 'C') === 'C' && !selectedIDs.has(c.id)); if (commonPool.length < 3) commonPool = cookieCards.filter(c => !selectedIDs.has(c.id));
         selectedCookies.push(...fisherYatesShuffle(commonPool).slice(0, 3));
         while (selectedCookies.length < 4) selectedCookies.push(cookieCards[Math.floor(Math.random() * cookieCards.length)]);
-        setOpenedCards(fisherYatesShuffle([...selectedCookies, selectedOther])); setFlippedIndices({}); setIsOpening(false); 
+        
+        // 🌟 第一關：異圖覺醒率成功上調至 10%！
+        const UPGRADE_CHANCE = 0.10; 
+        
+        const rawOpenedCards = [...selectedCookies, selectedOther];
+        const finalizedCards = rawOpenedCards.map(card => {
+            let finalImg = card.imageUrl;
+            let finalBadge = card.rarity || 'C';
+            let isUpgraded = false;
+
+            // 檢查卡片有沒有被賦予異圖
+            if (card.altArts && card.altArts.length > 0) {
+                // 判定是否觸發 10% 的異圖升格
+                if (Math.random() < UPGRADE_CHANCE) {
+                    isUpgraded = true;
+                    
+                    // 🌟 第二關：全新設計的精準機率分佈 (累積區間計算法)
+                    const altRoll = Math.random() * 100;
+                    let targetLabel = 'SEC';
+                    
+                    if (altRoll < 1.0) {
+                        targetLabel = 'GXR';     // 🎯 1% 機率  (區間: 0 到 1.0)
+                    } else if (altRoll < 5.0) {
+                        targetLabel = 'EXR';     // 🎯 4% 機率  (區間: 1.0 到 5.0)
+                    } else if (altRoll < 15.0) {
+                        targetLabel = 'SUR';     // 🎯 10% 機率 (區間: 5.0 到 15.0)
+                    } else if (altRoll < 40.0) {
+                        targetLabel = 'SSR';     // 🎯 25% 機率 (區間: 15.0 到 40.0)
+                    } else {
+                        targetLabel = 'SEC';     // 🎯 60% 機率 (區間: 40.0 到 100.0)
+                    }
+
+                    // 去這張卡片的背包裡尋找有沒有符合這個特定稀有度的標籤
+                    const matchedAlts = card.altArts.filter(alt => alt.label?.toUpperCase() === targetLabel);
+                    
+                    if (matchedAlts.length > 0) {
+                        const selectedAlt = matchedAlts[Math.floor(Math.random() * matchedAlts.length)];
+                        finalImg = selectedAlt.url;
+                        finalBadge = selectedAlt.label;
+                    } else {
+                        // 🛡️ 安全備用防禦機制
+                        const defaultAlt = card.altArts[Math.floor(Math.random() * card.altArts.length)];
+                        finalImg = defaultAlt.url;
+                        finalBadge = defaultAlt.label;
+                    }
+                }
+            }
+            return { ...card, pulledArt: finalImg, pulledBadge: finalBadge, isUpgraded };
+        });
+
+        setOpenedCards(fisherYatesShuffle(finalizedCards)); 
+        setIsOpening(false); 
     }, 1200); 
   };
   
-  const renderCard = (card, index) => (
-    <div key={index} onClick={() => setFlippedIndices(p => ({ ...p, [index]: true }))} className="w-[30vw] h-[40vw] md:w-48 md:h-64 cursor-pointer perspective-1000 group relative flex-shrink-0 animate-in zoom-in duration-500">
-        <div className={`w-full h-full transition-all duration-500 transform-style-3d relative ${flippedIndices[index] ? 'rotate-y-180' : ''}`}>
-            <div className="absolute inset-0 backface-hidden rounded-lg overflow-hidden border-2 border-slate-600 shadow-xl group-hover:scale-105 transition-transform"><img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" /></div>
-            <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-lg overflow-hidden border-2 border-white/20 shadow-2xl bg-white relative">
-                {card.imageUrl ? (<img src={card.imageUrl} className="w-full h-full object-cover" alt={card.name} />) : (<div className={`w-full h-full p-2 flex flex-col justify-between ${getCardColorStyles(card.color)}`}><span className="font-bold text-sm leading-tight line-clamp-3">{cName(card, lang)}</span><span className="font-mono text-xs">{card.id}</span></div>)}
-                {card.rarity && card.rarity !== 'C' && (<div className={`absolute top-1 right-1 text-[10px] font-bold px-1.5 py-0.5 rounded shadow border ${getRarityStyle(card.rarity)}`}>{card.rarity}</div>)}
+  const renderCard = (card, index) => {
+      const upgradeGlowClass = card.isUpgraded && flippedIndices[index] 
+        ? "ring-4 ring-amber-400 shadow-[0_0_35px_rgba(245,158,11,0.9)] scale-[1.03] border-amber-300" 
+        : "border-2 border-white/20 shadow-2xl";
+      
+      return (
+        <div key={index} onClick={() => setFlippedIndices(p => ({ ...p, [index]: true }))} className="w-[30vw] h-[40vw] md:w-48 md:h-64 cursor-pointer perspective-1000 group relative flex-shrink-0 animate-in zoom-in duration-500">
+            <div className={`w-full h-full transition-all duration-500 transform-style-3d relative ${flippedIndices[index] ? 'rotate-y-180' : ''}`}>
+                <div className="absolute inset-0 backface-hidden rounded-lg overflow-hidden border-2 border-slate-600 shadow-xl group-hover:scale-105 transition-transform"><img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" /></div>
+                
+                <div className={`absolute inset-0 backface-hidden rotate-y-180 rounded-lg overflow-hidden bg-white relative transition-all duration-300 ${upgradeGlowClass}`}>
+                    {card.pulledArt ? (
+                        <img src={card.pulledArt} className="w-full h-full object-cover" alt={card.name} />
+                    ) : (
+                        <div className={`w-full h-full p-2 flex flex-col justify-between ${getCardColorStyles(card.color)}`}><span className="font-bold text-sm leading-tight line-clamp-3">{cName(card, lang)}</span><span className="font-mono text-xs">{card.id}</span></div>
+                    )}
+                    
+                    {card.pulledBadge && card.pulledBadge !== 'C' && (
+                        <div className={`absolute top-1 right-1 text-[10px] font-bold px-1.5 py-0.5 rounded shadow border tracking-wider transition-all ${
+                            card.isUpgraded 
+                              ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-600 text-white border-yellow-300 animate-pulse font-black scale-110 shadow-orange-500/50' 
+                              : getRarityStyle(card.pulledBadge)
+                        }`}>
+                            {card.pulledBadge}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
-    </div>
-  );
+      );
+  };
   
   return (
     <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4" onClick={onClose}>
