@@ -1202,7 +1202,7 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
   );
 };
 
-const PackOpenerModal = ({ allCards, onClose, lang }) => {
+  const PackOpenerModal = ({ allCards, onClose, lang }) => {
   const [selectedSeries, setSelectedSeries] = useState("ALL");
   const [openedCards, setOpenedCards] = useState([]);
   const [flippedIndices, setFlippedIndices] = useState({});
@@ -1227,13 +1227,11 @@ const PackOpenerModal = ({ allCards, onClose, lang }) => {
           "連陽壽都是借來的，小丑竟是我自己 🤡",
           "下次我會用真實的運氣面對 🥺"
       ];
-      
       const pool = usedCheat ? cheatTexts : normalTexts;
       return pool[Math.floor(Math.random() * pool.length)];
   }, [showSummary, usedCheat]); 
 
-  // 🌟 關鍵偵測：是否有任何一張「已翻開」的卡片是異圖？
-  // 如果有，這個變數會變成 true，觸發全畫面爆氣特效！
+  // 🌟 偵測：如果有任何一張異圖「被翻開」了，整個模擬器背景才會爆發金光
   const isAltRevealed = openedCards.some((card, index) => card.isUpgraded && flippedIndices[index]);
 
   const openPack = () => {
@@ -1246,6 +1244,7 @@ const PackOpenerModal = ({ allCards, onClose, lang }) => {
 
     setIsOpening(true); 
     setOpenedCards([]); 
+    // 開新包時，把翻牌紀錄清空，讓卡片都蓋著！
     setFlippedIndices({});
     
     setTimeout(() => {
@@ -1267,7 +1266,6 @@ const PackOpenerModal = ({ allCards, onClose, lang }) => {
         selectedCookies.push(...fisherYatesShuffle(commonPool).slice(0, 3));
         while (selectedCookies.length < 4) selectedCookies.push(cookieCards[Math.floor(Math.random() * cookieCards.length)]);
         
-        // 🌟 作弊模式 5 倍率！ (15% * 5 = 75%)
         const UPGRADE_CHANCE = isCheatMode ? 0.75 : 0.15; 
         
         const rawOpenedCards = [...selectedCookies, selectedOther];
@@ -1329,50 +1327,60 @@ const PackOpenerModal = ({ allCards, onClose, lang }) => {
       }
   };
 
-const renderCard = (card, index) => {
+  const renderCard = (card, index) => {
       const isFlipped = flippedIndices[index];
+      const isUpgraded = card.isUpgraded;
       
-      // 🌟 1. 翻開後的立體放大
-      const wrapperClass = (card.isUpgraded && isFlipped) ? "scale-[1.05] z-30" : "z-10 group-hover:scale-105";
-      
-      // 🌟 2. 靈魂修正：還沒翻開前的「卡背預兆發光」！
-      // 如果這張卡是異圖，且還沒被翻開，卡背直接炸出強烈的金黃脈衝光暈
-      const backTeaserClass = (card.isUpgraded && !isFlipped) 
-          ? "border-4 border-amber-400 shadow-[0_0_40px_rgba(245,158,11,0.9)] animate-pulse scale-[1.02]" 
+      // 容器：點擊時翻牌，如果是異圖被翻開會放大突出
+      const wrapperClass = (isUpgraded && isFlipped) ? "scale-[1.05] z-30" : "z-10 hover:scale-105";
+
+      // 🌟 卡背預兆特效：還沒翻開且是異圖時，卡背發出黃金脈衝預告大獎
+      const backTeaserClass = (isUpgraded && !isFlipped)
+          ? "border-4 border-amber-400 shadow-[0_0_40px_rgba(245,158,11,0.8)] animate-pulse scale-[1.02]"
           : "border-2 border-slate-600 shadow-xl";
 
-      // 🌟 3. 正面的發光特效 (解開 isFlipped 的條件綁定，讓它永遠發光，只要翻過來就看得到)
-      const frontGlowClass = card.isUpgraded 
-          ? "border-4 border-yellow-400 shadow-[0_0_35px_rgba(234,179,8,1)] animate-pulse" 
-          : "border-2 border-white/20 shadow-2xl";
-      
+      // 🌟 卡面特效：異圖專屬的黃金邊框與光暈
+      const frontGlowClass = isUpgraded 
+          ? "border-4 border-yellow-400 shadow-[0_0_40px_rgba(234,179,8,1)] animate-pulse" 
+          : "border-2 border-slate-200 shadow-xl";
+
       return (
-        <div key={index} onClick={() => setFlippedIndices(p => ({ ...p, [index]: true }))} className={`w-[30vw] h-[40vw] md:w-48 md:h-64 cursor-pointer perspective-1000 relative flex-shrink-0 animate-in zoom-in duration-500 transition-transform ${wrapperClass}`}>
-            <div className={`w-full h-full transition-all duration-500 transform-style-3d relative ${isFlipped ? 'rotate-y-180' : ''}`}>
+        <div 
+          key={index} 
+          onClick={() => setFlippedIndices(p => ({ ...p, [index]: true }))} 
+          className={`w-[30vw] h-[40vw] md:w-48 md:h-64 relative flex-shrink-0 animate-in zoom-in duration-500 transition-transform cursor-pointer ${wrapperClass}`}
+        >
+            {/* 🌟 完美的「透明度淡入淡出」雙圖層設計 🌟 */}
+            
+            {/* 🎴 圖層一：卡牌背面 */}
+            <div 
+                className={`absolute inset-0 rounded-lg overflow-hidden transition-all duration-500 ease-out
+                ${isFlipped ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'} 
+                ${backTeaserClass}`}
+            >
+                <img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" />
+            </div>
+            
+            {/* 🎴 圖層二：卡牌正面 */}
+            <div 
+                className={`absolute inset-0 rounded-lg bg-white transition-all duration-500 ease-out
+                ${isFlipped ? 'opacity-100 scale-100' : 'opacity-0 scale-110 pointer-events-none'} 
+                ${frontGlowClass}`}
+            >
+                {card.pulledArt ? (
+                    <img src={card.pulledArt} className="w-full h-full object-cover rounded-lg" alt={card.name} />
+                ) : (
+                    <div className={`w-full h-full p-2 flex flex-col justify-between rounded-lg ${getCardColorStyles(card.color)}`}>
+                        <span className="font-bold text-sm leading-tight line-clamp-3">{cName(card, lang)}</span>
+                        <span className="font-mono text-xs">{card.id}</span>
+                    </div>
+                )}
                 
-                {/* 🎴 卡牌背面：套用 backTeaserClass，一出場就閃瞎玩家 */}
-                <div className={`absolute inset-0 backface-hidden rounded-lg overflow-hidden transition-all duration-300 ${backTeaserClass}`}>
-                    <img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" />
-                </div>
-                
-                {/* 🎴 卡牌正面：維持完美的金框與呼吸燈 */}
-                <div className={`absolute inset-0 backface-hidden rotate-y-180 rounded-lg bg-white relative transition-all duration-300 ${frontGlowClass}`}>
-                    {card.pulledArt ? (
-                        <img src={card.pulledArt} className="w-full h-full object-cover rounded-lg" alt={card.name} />
-                    ) : (
-                        <div className={`w-full h-full p-2 flex flex-col justify-between rounded-lg ${getCardColorStyles(card.color)}`}>
-                            <span className="font-bold text-sm leading-tight line-clamp-3">{cName(card, lang)}</span>
-                            <span className="font-mono text-xs">{card.id}</span>
-                        </div>
-                    )}
-                    
-                    {/* 右上角尊爵標籤 */}
-                    {card.pulledBadge && card.pulledBadge !== 'C' && (
-                        <div className={`absolute top-1 right-1 text-[10px] font-bold px-1.5 py-0.5 rounded shadow border tracking-wider transition-all z-10 ${card.isUpgraded ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-600 text-white border-yellow-300 font-black scale-110 shadow-lg shadow-orange-500/40' : getRarityStyle(card.pulledBadge)}`}>
-                            {card.pulledBadge}
-                        </div>
-                    )}
-                </div>
+                {card.pulledBadge && card.pulledBadge !== 'C' && (
+                    <div className={`absolute top-1 right-1 text-[10px] font-bold px-1.5 py-0.5 rounded shadow border tracking-wider transition-all z-10 ${isUpgraded ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-600 text-white border-yellow-300 font-black scale-110 shadow-lg shadow-orange-500/40' : getRarityStyle(card.pulledBadge)}`}>
+                        {card.pulledBadge}
+                    </div>
+                )}
             </div>
         </div>
       );
@@ -1435,14 +1443,12 @@ const renderCard = (card, index) => {
       );
   }
 
-  // 🌟 這裡控制整個模擬器大外框的顏色特效
   const modalGlowClass = isAltRevealed 
       ? "bg-slate-900 border-2 border-amber-400 shadow-[0_0_80px_rgba(245,158,11,0.3)]" 
       : "bg-slate-800 border-2 border-transparent shadow-2xl";
 
   return (
     <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4 transition-colors duration-700" onClick={handleCloseModal}>
-      {/* 🌟 套用 modalGlowClass，讓整個背景平滑過渡成尊爵金 */}
       <div className={`rounded-xl w-full max-w-5xl p-6 min-h-[600px] flex flex-col transition-all duration-700 ${modalGlowClass}`} onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-6 text-white">
             <h2 className="text-2xl font-black flex items-center gap-2"><PackageOpen className="text-yellow-400" /> {lang==='en'?'Pack Opener':'開卡包模擬器'}</h2>
@@ -1465,7 +1471,7 @@ const renderCard = (card, index) => {
                 <div className="w-4 h-4 rounded border border-slate-600 peer-checked:bg-red-500 peer-checked:border-red-500 flex items-center justify-center transition-colors">
                     {isCheatMode && <span className="text-white text-[10px] font-black leading-none pb-[1px]">✔</span>}
                 </div>
-                {isCheatMode ? '🔥 作弊模式啟動 (異圖率 5 倍)' : '開啟作弊模式 (Cheating Mode On!)'}
+                {isCheatMode ? '🔥 作弊模式啟動 (異圖率 5 倍)' : '開啟作弊模式 (風險自負)'}
             </label>
         </div>
 
