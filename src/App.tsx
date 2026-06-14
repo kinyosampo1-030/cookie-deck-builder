@@ -1329,22 +1329,34 @@ const PackOpenerModal = ({ allCards, onClose, lang }) => {
       }
   };
 
-  const renderCard = (card, index) => {
+const renderCard = (card, index) => {
       const isFlipped = flippedIndices[index];
+      
+      // 🌟 1. 翻開後的立體放大
       const wrapperClass = (card.isUpgraded && isFlipped) ? "scale-[1.05] z-30" : "z-10 group-hover:scale-105";
+      
+      // 🌟 2. 靈魂修正：還沒翻開前的「卡背預兆發光」！
+      // 如果這張卡是異圖，且還沒被翻開，卡背直接炸出強烈的金黃脈衝光暈
+      const backTeaserClass = (card.isUpgraded && !isFlipped) 
+          ? "border-4 border-amber-400 shadow-[0_0_40px_rgba(245,158,11,0.9)] animate-pulse scale-[1.02]" 
+          : "border-2 border-slate-600 shadow-xl";
+
+      // 🌟 3. 正面的發光特效 (解開 isFlipped 的條件綁定，讓它永遠發光，只要翻過來就看得到)
+      const frontGlowClass = card.isUpgraded 
+          ? "border-4 border-yellow-400 shadow-[0_0_35px_rgba(234,179,8,1)] animate-pulse" 
+          : "border-2 border-white/20 shadow-2xl";
       
       return (
         <div key={index} onClick={() => setFlippedIndices(p => ({ ...p, [index]: true }))} className={`w-[30vw] h-[40vw] md:w-48 md:h-64 cursor-pointer perspective-1000 relative flex-shrink-0 animate-in zoom-in duration-500 transition-transform ${wrapperClass}`}>
             <div className={`w-full h-full transition-all duration-500 transform-style-3d relative ${isFlipped ? 'rotate-y-180' : ''}`}>
-                <div className="absolute inset-0 backface-hidden rounded-lg overflow-hidden border-2 border-slate-600 shadow-xl">
+                
+                {/* 🎴 卡牌背面：套用 backTeaserClass，一出場就閃瞎玩家 */}
+                <div className={`absolute inset-0 backface-hidden rounded-lg overflow-hidden transition-all duration-300 ${backTeaserClass}`}>
                     <img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" />
                 </div>
                 
-                <div className={`absolute inset-0 backface-hidden rotate-y-180 rounded-lg bg-white relative ${
-                    (card.isUpgraded && isFlipped) 
-                        ? 'border-4 border-yellow-400 shadow-[0_0_35px_rgba(234,179,8,1)] animate-pulse' 
-                        : 'border-2 border-white/20 shadow-2xl'
-                }`}>
+                {/* 🎴 卡牌正面：維持完美的金框與呼吸燈 */}
+                <div className={`absolute inset-0 backface-hidden rotate-y-180 rounded-lg bg-white relative transition-all duration-300 ${frontGlowClass}`}>
                     {card.pulledArt ? (
                         <img src={card.pulledArt} className="w-full h-full object-cover rounded-lg" alt={card.name} />
                     ) : (
@@ -1354,6 +1366,7 @@ const PackOpenerModal = ({ allCards, onClose, lang }) => {
                         </div>
                     )}
                     
+                    {/* 右上角尊爵標籤 */}
                     {card.pulledBadge && card.pulledBadge !== 'C' && (
                         <div className={`absolute top-1 right-1 text-[10px] font-bold px-1.5 py-0.5 rounded shadow border tracking-wider transition-all z-10 ${card.isUpgraded ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-600 text-white border-yellow-300 font-black scale-110 shadow-lg shadow-orange-500/40' : getRarityStyle(card.pulledBadge)}`}>
                             {card.pulledBadge}
@@ -1408,7 +1421,7 @@ const PackOpenerModal = ({ allCards, onClose, lang }) => {
                       <p className="text-slate-300 text-sm leading-relaxed">
                           您剛剛在模擬器中大約花費了 <span className="text-yellow-400 font-bold font-mono">NT$ {estimatedCost.toLocaleString()}</span> 的實體新台幣價值。<br/>
                           {usedCheat 
-                              ? <span className="text-red-400 font-bold mt-2 block">你作弊了對吧？！醒醒吧！賭狗！你以為你真的很歐嗎？</span>
+                              ? <span className="text-red-400 font-bold mt-2 block">你作弊了對吧？！醒醒吧賭狗！</span>
                               : <span className="mt-2 block">抽卡一時爽，荷包火葬場。適度娛樂，請勿沉迷賭博！</span>
                           }
                       </p>
