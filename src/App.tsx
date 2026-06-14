@@ -1224,7 +1224,7 @@ const PackOpenerModal = ({ allCards, onClose, lang }) => {
           "夢醒了，我還是臉很黑"
       ];
       const cheatTexts = [
-          "我知道錯了！",
+          "我不會再作弊了QQ！",
           "連陽壽都是借來的，小丑竟是我自己 🤡",
           "下次我會用真實的運氣面對 🥺"
       ];
@@ -1325,44 +1325,18 @@ const PackOpenerModal = ({ allCards, onClose, lang }) => {
       }
   };
 
-const renderCard = (card, index) => {
+  const renderCard = (card, index) => {
       const isFlipped = flippedIndices[index];
-      
-      // 🌟 1. 異圖翻開時，卡片整體產生立體上浮放大感
-      const wrapperClass = (card.isUpgraded && isFlipped) ? "scale-[1.05] z-30" : "z-10 group-hover:scale-105";
+      const outerGlowClass = (card.isUpgraded && isFlipped) ? "shadow-[0_0_40px_#f59e0b] scale-[1.04] z-30 md:z-30 rounded-lg transition-all duration-300" : "z-10";
+      const frontBorderClass = (card.isUpgraded && isFlipped) ? "border-4 border-amber-400" : "border-2 border-white/20 shadow-2xl";
       
       return (
-        <div key={index} onClick={() => setFlippedIndices(p => ({ ...p, [index]: true }))} className={`w-[30vw] h-[40vw] md:w-48 md:h-64 cursor-pointer perspective-1000 relative flex-shrink-0 animate-in zoom-in duration-500 transition-transform ${wrapperClass}`}>
+        <div key={index} onClick={() => setFlippedIndices(p => ({ ...p, [index]: true }))} className={`w-[30vw] h-[40vw] md:w-48 md:h-64 cursor-pointer perspective-1000 group relative flex-shrink-0 animate-in zoom-in duration-500 ${outerGlowClass}`}>
             <div className={`w-full h-full transition-all duration-500 transform-style-3d relative ${isFlipped ? 'rotate-y-180' : ''}`}>
-                
-                {/* 🎴 卡牌背面 (維持不變) */}
-                <div className="absolute inset-0 backface-hidden rounded-lg overflow-hidden border-2 border-slate-600 shadow-xl">
-                    <img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" />
-                </div>
-                
-                {/* 🎴 卡牌正面：🌟 關鍵！這裡把 overflow-hidden 拿掉了！ 🌟 */}
-                <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-lg shadow-2xl relative bg-white">
-                    
-                    {/* 🖼️ 第一層：負責裁切圓角的圖片與標籤區 */}
-                    <div className="absolute inset-0 rounded-lg overflow-hidden">
-                        {card.pulledArt ? (
-                            <img src={card.pulledArt} className="w-full h-full object-cover" alt={card.name} />
-                        ) : (
-                            <div className={`w-full h-full p-2 flex flex-col justify-between ${getCardColorStyles(card.color)}`}><span className="font-bold text-sm leading-tight line-clamp-3">{cName(card, lang)}</span><span className="font-mono text-xs">{card.id}</span></div>
-                        )}
-                        
-                        {card.pulledBadge && card.pulledBadge !== 'C' && (
-                            <div className={`absolute top-1 right-1 text-[10px] font-bold px-1.5 py-0.5 rounded shadow border tracking-wider transition-all z-10 ${card.isUpgraded ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-600 text-white border-yellow-300 font-black scale-110 shadow-lg shadow-orange-500/40' : getRarityStyle(card.pulledBadge)}`}>
-                                {card.pulledBadge}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* ✨ 第二層：超酷炫獨立發光特效層 (不受裁切影響) ✨ */}
-                    {card.isUpgraded && (
-                        <div className="absolute -inset-[3px] z-20 pointer-events-none rounded-lg border-4 border-yellow-400 shadow-[0_0_35px_#eab308,inset_0_0_15px_#eab308] animate-pulse"></div>
-                    )}
-                    
+                <div className="absolute inset-0 backface-hidden rounded-lg overflow-hidden border-2 border-slate-600 shadow-xl group-hover:scale-105 transition-transform"><img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" /></div>
+                <div className={`absolute inset-0 backface-hidden rotate-y-180 rounded-lg overflow-hidden bg-white relative ${frontBorderClass}`}>
+                    {card.pulledArt ? (<img src={card.pulledArt} className="w-full h-full object-cover" alt={card.name} />) : (<div className={`w-full h-full p-2 flex flex-col justify-between ${getCardColorStyles(card.color)}`}><span className="font-bold text-sm leading-tight line-clamp-3">{cName(card, lang)}</span><span className="font-mono text-xs">{card.id}</span></div>)}
+                    {card.pulledBadge && card.pulledBadge !== 'C' && (<div className={`absolute top-1 right-1 text-[10px] font-bold px-1.5 py-0.5 rounded shadow border tracking-wider transition-all ${card.isUpgraded ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-600 text-white border-yellow-300 animate-pulse font-black scale-110 shadow-lg shadow-orange-500/40' : getRarityStyle(card.pulledBadge)}`}>{card.pulledBadge}</div>)}
                 </div>
             </div>
         </div>
@@ -1412,7 +1386,7 @@ const renderCard = (card, index) => {
                       <p className="text-slate-300 text-sm leading-relaxed">
                           您剛剛在模擬器中大約花費了 <span className="text-yellow-400 font-bold font-mono">NT$ {estimatedCost.toLocaleString()}</span> 的實體新台幣價值。<br/>
                           {usedCheat 
-                              ? <span className="text-red-400 font-bold mt-2 block">你開了作弊模式對吧？醒醒吧賭狗！快回歸現實！</span>
+                              ? <span className="text-red-400 font-bold mt-2 block">你作弊了對吧？！醒醒吧！賭狗！</span>
                               : <span className="mt-2 block">抽卡一時爽，荷包火葬場。適度娛樂，請勿沉迷賭博！</span>
                           }
                       </p>
@@ -1449,9 +1423,9 @@ const renderCard = (card, index) => {
             <label className="flex items-center gap-2 cursor-pointer text-slate-500 hover:text-red-400 transition-colors text-xs font-bold mt-1 select-none">
                 <input type="checkbox" className="hidden peer" checked={isCheatMode} onChange={(e) => setIsCheatMode(e.target.checked)} disabled={isOpening} />
                 <div className="w-4 h-4 rounded border border-slate-600 peer-checked:bg-red-500 peer-checked:border-red-500 flex items-center justify-center transition-colors">
-                    {isCheatMode && <Check size={12} className="text-white" />}
+                    {isCheatMode && <span className="text-white text-[10px] font-black leading-none pb-[1px]">✔</span>}
                 </div>
-                {isCheatMode ? '🔥 作弊模式啟動 (異圖率 3 倍)' : 'Cheating Mode'}
+                {isCheatMode ? '🔥 作弊模式啟動 (異圖率 3 倍)' : '開啟作弊模式(Cheating Mode On)'}
             </label>
         </div>
 
