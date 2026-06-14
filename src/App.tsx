@@ -1231,7 +1231,6 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
       return pool[Math.floor(Math.random() * pool.length)];
   }, [showSummary, usedCheat]); 
 
-  // 🌟 偵測：如果有任何一張異圖「被翻開」了，整個模擬器背景才會爆發金光
   const isAltRevealed = openedCards.some((card, index) => card.isUpgraded && flippedIndices[index]);
 
   const openPack = () => {
@@ -1244,7 +1243,6 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
 
     setIsOpening(true); 
     setOpenedCards([]); 
-    // 開新包時，把翻牌紀錄清空，讓卡片都蓋著！
     setFlippedIndices({});
     
     setTimeout(() => {
@@ -1331,15 +1329,9 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
       const isFlipped = flippedIndices[index];
       const isUpgraded = card.isUpgraded;
       
-      // 容器：點擊時翻牌，如果是異圖被翻開會放大突出
       const wrapperClass = (isUpgraded && isFlipped) ? "scale-[1.05] z-30" : "z-10 hover:scale-105";
 
-      // 🌟 卡背預兆特效：還沒翻開且是異圖時，卡背發出黃金脈衝預告大獎
-      const backTeaserClass = (isUpgraded && !isFlipped)
-          ? "border-4 border-amber-400 shadow-[0_0_40px_rgba(245,158,11,0.8)] animate-pulse scale-[1.02]"
-          : "border-2 border-slate-600 shadow-xl";
-
-      // 🌟 卡面特效：異圖專屬的黃金邊框與光暈
+      // 🌟 卡面特效：翻開且是異圖時，專屬的黃金邊框與光暈
       const frontGlowClass = isUpgraded 
           ? "border-4 border-yellow-400 shadow-[0_0_40px_rgba(234,179,8,1)] animate-pulse" 
           : "border-2 border-slate-200 shadow-xl";
@@ -1350,13 +1342,10 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
           onClick={() => setFlippedIndices(p => ({ ...p, [index]: true }))} 
           className={`w-[30vw] h-[40vw] md:w-48 md:h-64 relative flex-shrink-0 animate-in zoom-in duration-500 transition-transform cursor-pointer ${wrapperClass}`}
         >
-            {/* 🌟 完美的「透明度淡入淡出」雙圖層設計 🌟 */}
-            
-            {/* 🎴 圖層一：卡牌背面 */}
+            {/* 🎴 圖層一：卡牌背面 (移除所有預兆特效，統一設定為普通卡背) */}
             <div 
-                className={`absolute inset-0 rounded-lg overflow-hidden transition-all duration-500 ease-out
-                ${isFlipped ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'} 
-                ${backTeaserClass}`}
+                className={`absolute inset-0 rounded-lg overflow-hidden transition-all duration-500 ease-out border-2 border-slate-600 shadow-xl
+                ${isFlipped ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}
             >
                 <img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" />
             </div>
