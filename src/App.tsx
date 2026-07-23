@@ -2044,23 +2044,64 @@ export default function App() {
     }
   };
 
-  const handleExportCardData = () => {
-      // 只挑出 ID、中文名、英文名，避免檔案太大
-      const exportData = allCards.map(c => ({
-          id: c.id,
-          name: c.name,
-          nameEn: c.nameEn || ""
-      }));
-      
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+const handleExportCardData = () => {
+      if (!allCards || allCards.length === 0) {
+          setToastMsg("目前沒有資料可以匯出！");
+          return;
+      }
+
+      // 1. 動態收集所有卡片中出現過的所有欄位 (確保完整輸出)
+      const headersSet = new Set();
+      allCards.forEach(card => Object.keys(card).forEach(key => headersSet.add(key)));
+      const headers = Array.from(headersSet);
+
+      // 2. 處理資料並轉換為 CSV 格式
+      const csvRows = [
+          headers.join(','), // CSV 第一行：標題
+          ...allCards.map(card =>
+              headers.map(fieldName => {
+                  let cellData = card[fieldName];
+
+                  // 處理空值
+                  if (cellData === null || cellData === undefined) {
+                      return '';
+                  }
+
+                  // 處理陣列或物件 (例如 skills, altArts)，將其轉為字串以保留內容
+                  if (typeof cellData === 'object') {
+                      cellData = JSON.stringify(cellData);
+                  }
+
+                  let cellString = String(cellData);
+
+                  // CSV 核心跳脫規則：若內容包含逗號、雙引號或換行，需將雙引號替換為兩個雙引號，並用雙引號將整個字串包覆
+                  if (cellString.includes(',') || cellString.includes('"') || cellString.includes('\n')) {
+                      cellString = `"${cellString.replace(/"/g, '""')}"`;
+                  }
+
+                  return cellString;
+              }).join(',')
+          )
+      ];
+
+      // 3. 加入 UTF-8 BOM (\uFEFF) 確保 Excel 打開時繁體中文不會變成亂碼
+      const csvContent = '\uFEFF' + csvRows.join('\n');
+
+      // 4. 建立下載檔案與觸發下載
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `cookie_cards_translation_${new Date().toISOString().slice(0,10)}.json`;
+      
+      const dateStr = new Date().toISOString().slice(0, 10);
+      link.download = `cookie_cards_full_export_${dateStr}.csv`; // 更改檔名與副檔名
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      setToastMsg("已下載待翻譯清單！");
+      
+      URL.revokeObjectURL(url); // 釋放記憶體
+      setToastMsg("已下載完整 CSV 卡片清單！");
   };
   
   const handleDeleteCard = async (card) => {
