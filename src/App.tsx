@@ -2050,31 +2050,48 @@ const handleExportCardData = () => {
           return;
       }
 
-      // 1. 動態收集所有卡片中出現過的所有欄位 (確保完整輸出)
+      // 1. 動態收集所有欄位
       const headersSet = new Set();
       allCards.forEach(card => Object.keys(card).forEach(key => headersSet.add(key)));
       const headers = Array.from(headersSet);
 
-      // 2. 處理資料並轉換為 CSV 格式
+      // 2. 處理資料並過濾 Base64 圖片
       const csvRows = [
-          headers.join(','), // CSV 第一行：標題
+          headers.join(','),
           ...allCards.map(card =>
               headers.map(fieldName => {
                   let cellData = card[fieldName];
 
-                  // 處理空值
                   if (cellData === null || cellData === undefined) {
                       return '';
                   }
 
-                  // 處理陣列或物件 (例如 skills, altArts)，將其轉為字串以保留內容
+                  // 🛡️ 防爆機制 1：攔截主圖片的 Base64 字串
+                  if (fieldName === 'imageUrl' && typeof cellData === 'string' && cellData.startsWith('data:image')) {
+                      return '"[圖片資料]"';
+                  }
+
+                  // 🛡️ 防爆機制 2：攔截異圖陣列中的 Base64 字串
+                  if (fieldName === 'altArts' && Array.isArray(cellData)) {
+                      // 只保留標籤名稱，將落落長的圖片編碼替換掉
+                      cellData = cellData.map(alt => ({
+                          label: alt.label,
+                          url: alt.url ? "[圖片資料]" : ""
+                      }));
+                  }
+
                   if (typeof cellData === 'object') {
                       cellData = JSON.stringify(cellData);
                   }
 
                   let cellString = String(cellData);
 
-                  // CSV 核心跳脫規則：若內容包含逗號、雙引號或換行，需將雙引號替換為兩個雙引號，並用雙引號將整個字串包覆
+                  // 🛡️ 防爆機制 3：終極防護，如果還是有超過 3 萬字的異常欄位，強制截斷
+                  if (cellString.length > 30000) {
+                      cellString = cellString.substring(0, 30000) + '...[字數過長已自動截斷]';
+                  }
+
+                  // CSV 跳脫處理
                   if (cellString.includes(',') || cellString.includes('"') || cellString.includes('\n')) {
                       cellString = `"${cellString.replace(/"/g, '""')}"`;
                   }
@@ -2084,23 +2101,21 @@ const handleExportCardData = () => {
           )
       ];
 
-      // 3. 加入 UTF-8 BOM (\uFEFF) 確保 Excel 打開時繁體中文不會變成亂碼
       const csvContent = '\uFEFF' + csvRows.join('\n');
 
-      // 4. 建立下載檔案與觸發下載
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       
       const dateStr = new Date().toISOString().slice(0, 10);
-      link.download = `cookie_cards_full_export_${dateStr}.csv`; // 更改檔名與副檔名
+      link.download = `cookie_cards_full_export_${dateStr}.csv`;
       
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
-      URL.revokeObjectURL(url); // 釋放記憶體
+      URL.revokeObjectURL(url);
       setToastMsg("已下載完整 CSV 卡片清單！");
   };
   
