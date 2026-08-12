@@ -731,6 +731,7 @@ const ExportModal = ({ deck, deckName, onClose, lang, preferredArts }) => {
           <button onClick={() => setActiveTab("image")} className={`flex-1 py-3 font-bold text-sm ${activeTab === "image" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-500 hover:bg-slate-50"}`}>Image</button>
           <button onClick={() => setActiveTab("link")} className={`flex-1 py-3 font-bold text-sm ${activeTab === "link" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-500 hover:bg-slate-50"}`}>Link</button>
           <button onClick={() => setActiveTab("list")} className={`flex-1 py-3 font-bold text-sm ${activeTab === "list" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-500 hover:bg-slate-50"}`}>Print List</button>
+          <button onClick={() => setActiveTab("text")} className={`flex-1 py-3 font-bold text-sm ${activeTab === "text" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-500 hover:bg-slate-50"}`}>{lang === 'en' ? 'Text Code' : '文字代碼'}</button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 bg-slate-100 print:bg-white print:p-0 print:overflow-visible">
@@ -884,6 +885,54 @@ const ExportModal = ({ deck, deckName, onClose, lang, preferredArts }) => {
                         </div>
                     </div>
                 </div>
+            </div>
+          )}
+          {activeTab === "text" && (
+            <div className="flex flex-col gap-4 max-w-2xl mx-auto mt-6 px-4 print:p-0">
+                {/* 🌟 提示與免責聲明區塊 */}
+                <div className="bg-red-50 border border-red-200 p-4 rounded-lg flex gap-3 items-start shrink-0 shadow-sm">
+                    <AlertTriangle className="text-red-600 shrink-0 mt-0.5" size={20} />
+                    <div className="text-xs md:text-sm text-red-800 leading-relaxed">
+                        <p className="font-bold mb-1">請注意：</p>
+                        <p>因卡片列表皆由我一人進行維護，卡片編號、名稱或排序可能出現錯誤，請各位餅友輸出與上傳卡表時，<span className="font-bold underline decoration-red-400 underline-offset-2">一定要再三檢查是否正確。</span></p>
+                        <p className="mt-1 font-bold">如有錯誤之處，本網站一概不負責，懇請餅友及早私訊我進行修改唷！</p>
+                    </div>
+                </div>
+
+                {/* 🌟 格式化文字產生區塊 */}
+                {(() => {
+                    // 1. 整理主牌組並依 ID 排序
+                    const mainGrouped = groupCards(deck.main).sort((a, b) => a.id.localeCompare(b.id));
+                    // 2. 整理 Extra 牌組並依 ID 排序
+                    const extraGrouped = groupCards(deck.extra).sort((a, b) => a.id.localeCompare(b.id));
+                    
+                    // 3. 組合文字 (優先使用英文名稱，若無則使用中文)
+                    let textExport = mainGrouped.map(c => `${c.stackCount} ${c.id} ${c.nameEn || c.name}`).join('\n');
+                    
+                    // 4. 若有 Extra 牌組，加上 ~Extra 標籤
+                    if (extraGrouped.length > 0) {
+                        textExport += '\n\n~Extra\n' + extraGrouped.map(c => `${c.stackCount} ${c.id} ${c.nameEn || c.name}`).join('\n');
+                    }
+
+                    return (
+                        <div className="flex flex-col gap-3">
+                            <textarea 
+                                readOnly 
+                                value={textExport} 
+                                className="w-full h-80 bg-slate-900 text-green-400 font-mono text-sm p-4 rounded-xl outline-none resize-none shadow-inner border-2 border-slate-700 focus:border-blue-500 transition-colors"
+                            />
+                            <button 
+                                onClick={() => { 
+                                    navigator.clipboard.writeText(textExport); 
+                                    alert(lang === 'en' ? 'Deck code copied to clipboard!' : '已複製牌組代碼！'); 
+                                }}
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                            >
+                                <Copy size={20} /> {lang === 'en' ? 'Copy Text Code' : '一鍵複製文字代碼'}
+                            </button>
+                        </div>
+                    );
+                })()}
             </div>
           )}
         </div>
