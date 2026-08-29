@@ -1268,6 +1268,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
 
   // 💰 動態計算卡包價格
   const packCost = useMemo(() => {
+    // 這裡控制 BS11 與全部卡池的價格，把 50 改成您想要的數字
       if (selectedSeries === "ALL" || selectedSeries === "BS11") return 50;
       if (["BS6", "BS7", "BS8", "BS9", "BS10"].includes(selectedSeries)) return 40;
       return 25; // 經典卡包 BS1-BS5, ST 等等
@@ -1292,7 +1293,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
     const isValidPlayer = user && !user.isAnonymous;
     if (!isCheatMode && isValidPlayer) {
         if ((userProfile?.tokens || 0) < packCost) {
-            alert(`💎 代幣不足！需要 ${packCost} 枚代幣才能開啟這個卡包。\n(每日登入可領取 50 代幣唷)`);
+            alert(`💎 餅乾幣不足！需要 ${packCost} 枚餅乾幣才能開啟這個卡包。\n(每日登入可領取 50 餅乾幣唷)`);
             return;
         }
         // 先在前端樂觀扣款，避免連點
@@ -1301,7 +1302,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                 tokens: increment(-packCost)
             });
         } catch (e) {
-            alert("扣除代幣失敗，請檢查網路狀態。"); return;
+            alert("扣除餅乾幣失敗，請檢查網路狀態。"); return;
         }
     }
 
@@ -1448,7 +1449,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                           {(!usedCheat && !isGuest) && (
                               <div className="col-span-2 mt-2 pt-3 border-t border-slate-700/50 bg-cyan-950/20 -mx-2 px-2 rounded">
                                   <span className="block text-cyan-400 text-xs font-bold mb-1">♻️ 重複卡化灰總計</span>
-                                  <span className="text-2xl font-black text-cyan-300 flex items-center gap-1"><Gem size={18}/> +{sessionStats.DUST} <span className="text-sm text-cyan-600 font-normal">代幣</span></span>
+                                  <span className="text-2xl font-black text-cyan-300 flex items-center gap-1"><Gem size={18}/> +{sessionStats.DUST} <span className="text-sm text-cyan-600 font-normal">餅乾幣</span></span>
                               </div>
                           )}
                       </div>
@@ -1458,7 +1459,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                       <p className={`font-bold mb-2 flex items-center justify-center gap-1.5 ${usedCheat ? 'text-red-500 text-lg' : 'text-slate-300'}`}><AlertOctagon size={usedCheat ? 22 : 18} /> {usedCheat ? '🛑 賭狗警告' : '消費統計'}</p>
                       <p className="text-slate-300 text-sm leading-relaxed">
                           {(!usedCheat && !isGuest) ? (
-                              <span>您本次總共花費了 <span className="text-yellow-400 font-bold">💎 {packCount * packCost} 枚代幣</span>。圖鑑已經自動更新，重複卡片已化為代幣回饋給您！</span>
+                              <span>您本次總共花費了 <span className="text-yellow-400 font-bold">💎 {packCount * packCost} 枚餅乾幣</span>。圖鑑已經自動更新，重複卡片已化為餅乾幣回饋給您！</span>
                           ) : (
                               <span>您剛剛在模擬器中大約花費了 <span className="text-yellow-400 font-bold font-mono">NT$ {estimatedCost.toLocaleString()}</span> 的實體新台幣價值。<br/>
                               {usedCheat ? <span className="text-red-400 font-bold mt-2 block">你作弊了對吧？！醒醒吧賭狗！</span> : <span className="mt-2 block">抽卡一時爽，荷包火葬場。適度娛樂，請勿沉迷賭博！</span>}</span>
@@ -1484,7 +1485,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
             <div className="flex items-center gap-3">
                 {(user && !user.isAnonymous && userProfile) ? (
                     <>
-                        <div className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-1.5 flex items-center gap-2 shadow-inner" title="目前擁有的代幣數量">
+                        <div className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-1.5 flex items-center gap-2 shadow-inner" title="目前擁有的餅乾幣數量">
                             <Gem size={18} className="text-cyan-400" />
                             <span className="font-black text-cyan-100 text-lg leading-none">{userProfile.tokens}</span>
                         </div>
@@ -1493,18 +1494,28 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                         </button>
                     </>
                 ) : (
-                    <div className="text-xs text-slate-400 font-bold bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-700">訪客模式 (無法儲存圖鑑與代幣)</div>
+                    <div className="text-xs text-slate-400 font-bold bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-700">訪客模式 (無法儲存圖鑑與餅乾幣)</div>
                 )}
                 <button onClick={handleCloseModal} className="p-1 hover:bg-slate-700 rounded-full ml-2"><X size={24} /></button>
             </div>
         </div>
         
         {/* 🌟 操作區：選擇卡包與作弊開關 */}
-        <div className="flex flex-col items-center gap-3 mb-8">
-            <div className="flex flex-wrap gap-4 justify-center items-center">
-              <select className="bg-slate-700 text-white border border-slate-600 rounded-lg px-4 py-2.5 outline-none font-bold shadow-sm focus:ring-2 focus:ring-blue-500" value={selectedSeries} onChange={(e) => setSelectedSeries(e.target.value)} disabled={isOpening}>
-                <option value="ALL">{lang==='en'?'All':'全部卡池 (50代幣)'}</option>
-                {availableSeries.map(s => <option key={s} value={s}>{s} ({s === 'BS11' ? '50代幣' : ['BS6', 'BS7', 'BS8', 'BS9', 'BS10'].includes(s) ? '40代幣' : '25代幣'})</option>)}
+<select className="bg-slate-700 text-white border border-slate-600 rounded-lg px-4 py-2.5 outline-none font-bold shadow-sm focus:ring-2 focus:ring-blue-500" value={selectedSeries} onChange={(e) => setSelectedSeries(e.target.value)} disabled={isOpening}>
+                {/* 預設並唯一開放 BS11，修改這裡括號內的文字 */}
+                <option value="BS11">BS11 (50餅乾幣)</option>
+                
+                {/* 將其他系列設為 disabled (不可選)，並加上提示 */}
+                {availableSeries.filter(s => s !== 'BS11').map(s => (
+                    <option key={s} value={s} disabled className="text-slate-400">
+                        {s} (異圖建檔中，暫未開放)
+                    </option>
+                ))}
+                
+                {/* 封鎖「全部卡池」，避免抽到未建檔的舊卡 */}
+                <option value="ALL" disabled className="text-slate-400">
+                    {lang==='en'?'All (Coming Soon)':'全部卡池 (施工中)'}
+                </option>
               </select>
               
               <button onClick={openPack} disabled={isOpening} className="bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 disabled:from-slate-600 disabled:to-slate-700 disabled:text-slate-400 text-slate-900 px-6 py-2.5 rounded-lg font-black flex items-center gap-2 shadow-lg transition-transform active:scale-95">
@@ -1524,7 +1535,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                 <div className="w-4 h-4 rounded border border-slate-600 peer-checked:bg-red-500 peer-checked:border-red-500 flex items-center justify-center transition-colors">
                     {isCheatMode && <span className="text-white text-[10px] font-black leading-none pb-[1px]">✔</span>}
                 </div>
-                {isCheatMode ? '🔥 沙盒作弊模式 (異圖率大增，但無法獲得代幣與存入圖鑑)' : '開啟沙盒作弊模式 (風險自負)'}
+                {isCheatMode ? '🔥 作弊模式 (異圖率大增，但無法獲得餅乾幣與存入圖鑑)' : '開啟作弊模式 (風險自負)'}
             </label>
         </div>
 
@@ -1536,7 +1547,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
               <div className="absolute top-0 z-50 animate-in slide-in-from-top-10 fade-in duration-500">
                   <div className="bg-slate-900/90 backdrop-blur-sm border-2 border-cyan-400 text-cyan-300 px-6 py-2.5 rounded-full font-black flex items-center gap-2 shadow-[0_0_20px_rgba(34,211,238,0.5)]">
                       <Gem size={20} className="text-cyan-400" />
-                      重複卡片自動化灰：+{earnedDust} 代幣
+                      重複卡片自動化灰：+{earnedDust} 餅乾幣
                   </div>
               </div>
           )}
@@ -1566,6 +1577,137 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
   );
 };
 
+const CollectionModal = ({ allCards, onClose, lang, userProfile }) => {
+  const [selectedSeries, setSelectedSeries] = useState("BS11");
+  const availableSeries = useMemo(() => Array.from(new Set(allCards.filter(c => !c.series.startsWith('ST') && c.series !== 'P').map(c => c.series))).sort(), [allCards]);
+
+  const seriesCards = useMemo(() => allCards.filter(c => c.series === selectedSeries), [allCards, selectedSeries]);
+
+  const collectionStats = useMemo(() => {
+      if (!userProfile?.collection) return { owned: 0, total: seriesCards.length, percentage: 0 };
+      let ownedUnique = 0;
+      seriesCards.forEach(card => {
+          const keys = Object.keys(userProfile.collection).filter(k => k.startsWith(card.id + '_'));
+          const totalCount = keys.reduce((sum, k) => sum + userProfile.collection[k], 0);
+          if (totalCount > 0) ownedUnique++;
+      });
+      return {
+          owned: ownedUnique,
+          total: seriesCards.length,
+          percentage: seriesCards.length ? Math.round((ownedUnique / seriesCards.length) * 100) : 0
+      };
+  }, [seriesCards, userProfile]);
+
+  const renderCollectionCard = (card) => {
+      const collection = userProfile?.collection || {};
+      const keys = Object.keys(collection).filter(k => k.startsWith(card.id + '_') && collection[k] > 0);
+      const isOwned = keys.length > 0;
+      const totalOwnedCount = keys.reduce((sum, k) => sum + collection[k], 0);
+      
+      let displayUrl = card.imageUrl;
+      let displayBadge = null;
+      let isAlt = false;
+
+      const altKeys = keys.filter(k => k.includes('_ALT_'));
+      if (altKeys.length > 0) {
+          isAlt = true;
+          const badgeMatch = altKeys[0].match(/_ALT_(.+)$/);
+          displayBadge = badgeMatch ? badgeMatch[1] : 'ALT';
+          
+          if (card.altArts && card.altArts.length > 0) {
+              const matchedAlt = card.altArts.find(a => a.label === displayBadge);
+              if (matchedAlt) displayUrl = matchedAlt.url;
+              else displayUrl = card.altArts[0].url;
+          }
+      }
+
+      return (
+          <div key={card.id} className="relative aspect-[3/4] flex-shrink-0 perspective-1000 group">
+              <div className={`w-full h-full rounded-lg overflow-hidden border-2 transition-all duration-300 ${isOwned ? (isAlt ? 'border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.5)]' : 'border-slate-300 shadow-md') : 'border-slate-200/50 opacity-40 grayscale'} bg-slate-100`}>
+                  {displayUrl ? (
+                      <img src={displayUrl} className="w-full h-full object-cover" alt={card.name} />
+                  ) : (
+                      <div className={`w-full h-full p-2 flex flex-col justify-between ${getCardColorStyles(card.color)}`}>
+                          <span className="font-bold text-[10px] leading-tight line-clamp-3">{cName(card, lang)}</span>
+                      </div>
+                  )}
+                  
+                  {isOwned && (
+                      <div className="absolute -top-2 -right-2 bg-slate-800 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center shadow-md border-2 border-white z-10">
+                          {totalOwnedCount}
+                      </div>
+                  )}
+
+                  {(isOwned && isAlt && displayBadge) && (
+                      <div className="absolute bottom-1 left-1 bg-gradient-to-r from-amber-500 to-yellow-600 text-white text-[9px] px-1.5 py-0.5 rounded font-black shadow-lg border border-yellow-300">
+                          {displayBadge}
+                      </div>
+                  )}
+              </div>
+              <div className="text-center mt-1 text-[10px] font-mono font-bold text-slate-500">{card.id}</div>
+          </div>
+      );
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/95 z-[90] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in" onClick={onClose}>
+      <div className="bg-slate-50 rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden border border-slate-700" onClick={e => e.stopPropagation()}>
+        
+        <div className="bg-slate-800 p-4 md:p-6 shrink-0 border-b border-slate-700">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-black text-white flex items-center gap-2">
+                    <Star className="text-yellow-400 fill-yellow-400" /> {lang==='en'?'My Collection':'我的餅乾圖鑑'}
+                </h2>
+                <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors bg-slate-700/50 hover:bg-slate-600 p-1.5 rounded-full"><X size={24} /></button>
+            </div>
+            
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                    {availableSeries.map(s => (
+                        <button 
+                            key={s} 
+                            onClick={() => setSelectedSeries(s)}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${selectedSeries === s ? 'bg-blue-600 text-white shadow-lg scale-105' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+                        >
+                            {s}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="w-full md:w-64 flex flex-col gap-1.5">
+                    <div className="flex justify-between text-xs font-bold text-slate-300">
+                        <span>{lang==='en'?'Completion':'收集進度'}</span>
+                        <span className="text-yellow-400">{collectionStats.owned} / {collectionStats.total} ({collectionStats.percentage}%)</span>
+                    </div>
+                    <div className="h-2.5 w-full bg-slate-700 rounded-full overflow-hidden shadow-inner">
+                        <div 
+                            className="h-full bg-gradient-to-r from-yellow-500 to-amber-400 transition-all duration-1000 ease-out relative"
+                            style={{ width: `${collectionStats.percentage}%` }}
+                        >
+                            <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 md:p-8">
+            {seriesCards.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                    <Database size={48} className="mb-3 opacity-20" />
+                    <p>該系列目前沒有卡片資料</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 md:gap-4 pb-12">
+                    {seriesCards.map(renderCollectionCard)}
+                </div>
+            )}
+        </div>
+
+      </div>
+    </div>
+  );
+};
 // ==========================================
 // 🌟 核心組件：單張卡片
 // ==========================================
@@ -1707,10 +1849,10 @@ export default function App() {
     try {
         const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'main');
         await updateDoc(profileRef, { 
-            tokens: increment(50), // 每日登入送 50 代幣
+            tokens: increment(50), // 每日登入送 50 餅乾幣
             lastDailyClaim: taipeiDate 
         });
-        setToastMsg("🎉 成功領取每日獎勵：獲得 50 代幣！");
+        setToastMsg("🎉 成功領取每日獎勵：獲得 50 餅乾幣！");
     } catch (err) {
         console.error("每日領取失敗:", err);
     }
@@ -1781,6 +1923,7 @@ export default function App() {
   const [showLoginModal, setShowLoginModal] = useState(false); 
   const [showDrawTestModal, setShowDrawTestModal] = useState(false); 
   const [showPackOpenerModal, setShowPackOpenerModal] = useState(false); 
+  const [showCollectionModal, setShowCollectionModal] = useState(false);
   const [viewingCard, setViewingCard] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -2582,6 +2725,8 @@ const handleExportCardData = () => {
       {showDrawTestModal && <DrawTestModal deck={deck} onClose={() => setShowDrawTestModal(false)} lang={lang} />}
       
       {showPackOpenerModal && <PackOpenerModal allCards={allCards} onClose={() => setShowPackOpenerModal(false)} lang={lang} user={user} userProfile={userProfile} handleClaimDaily={handleClaimDaily} processPackToCollection={processPackToCollection} />}
+
+{showCollectionModal && <CollectionModal allCards={allCards} onClose={() => setShowCollectionModal(false)} lang={lang} userProfile={userProfile} />}
       
       {showProfileModal && (
         <ProfileModal 
@@ -2644,6 +2789,16 @@ const handleExportCardData = () => {
                             <span className="absolute -top-2.5 -right-2 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-bounce shadow-md">HOT</span>
                         </button>
 
+{user && !user.isAnonymous && (
+    <button 
+        onClick={() => setShowCollectionModal(true)} 
+        className="relative bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-4 py-2 md:py-2.5 rounded-xl text-sm font-bold flex items-center gap-1.5 shadow-lg shadow-indigo-500/30 transition-transform active:scale-95 border border-indigo-400"
+    >
+        <Star size={18} className="text-yellow-300" /> 
+        <span className="tracking-wide">{lang==='en'?'Collection':'我的圖鑑'}</span>
+    </button>
+)}
+                      
                         {user && !user.isAnonymous ? (
                             <button 
                                 onClick={() => setShowProfileModal(true)} 
