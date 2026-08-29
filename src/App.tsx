@@ -279,7 +279,7 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user, lang })
         if (!newComment.trim()) return;
         setIsSending(true);
         try {
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'community_comments'), { deckId: deckData.id, userId: user.uid, userName: user.displayName || "Player", content: newComment.trim(), createdAt: new Date().toISOString() });
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'community_comments'), { deckId: deckData.id, userId: user.uid, userName: user.displayName || "Player", userAvatar: userProfile?.avatar || null, content: newComment.trim(), createdAt: new Date().toISOString() });
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'community_decks', deckData.id), { commentCount: increment(1) });
             setNewComment("");
         } catch (err) { alert("Error"); } finally { setIsSending(false); }
@@ -373,7 +373,23 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user, lang })
                                 const isAuthor = c.userId === deckData.authorId;
                                 return (
                                 <div key={c.id} className={`text-sm border-b border-slate-100 pb-3 last:border-0 ${isAuthor ? 'bg-blue-50/50 p-2 rounded-lg border-blue-100' : ''}`}>
-                                    <div className="flex justify-between items-baseline mb-1">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <div className="flex items-center gap-2">
+                                            {/* 🌟 留言者大頭貼 */}
+                                            <div className="w-6 h-6 rounded-full overflow-hidden border border-slate-300 bg-slate-800 shrink-0 mt-0.5 flex items-center justify-center">
+                                                {c.userAvatar ? (
+                                                    <img src={c.userAvatar} alt="Avatar" className="w-full h-full object-cover scale-[1.3] object-top" />
+                                                ) : (
+                                                    <UserCog size={14} className="text-slate-400"/>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className={`font-bold ${isAuthor ? 'text-blue-700' : 'text-slate-800'}`}>{c.userName}</span>
+                                                {isAuthor && <span className="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full font-bold tracking-wider">Author</span>}
+                                            </div>
+                                        </div>
+                                        <span className="text-[10px] text-slate-400 font-mono pt-1">{new Date(c.createdAt).toLocaleString()}</span>
+                                    </div>
                                         <div className="flex items-center gap-1.5"><span className={`font-bold ${isAuthor ? 'text-blue-700' : 'text-slate-800'}`}>{c.userName}</span>{isAuthor && <span className="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full font-bold tracking-wider">Author</span>}</div>
                                         <span className="text-[10px] text-slate-400 font-mono">{new Date(c.createdAt).toLocaleString()}</span>
                                     </div>
@@ -473,7 +489,19 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin, lang }) 
                                     </div>
                                     <div className="p-4 flex-1 flex flex-col">
                                         <h3 className="font-bold text-lg text-slate-800 line-clamp-1 mb-1 group-hover:text-blue-600">{d.name}</h3>
-                                        <div className="text-xs text-slate-400 mb-4 flex items-center gap-2"><span className="font-bold text-slate-500">{d.authorName}</span><span>•</span><span>{new Date(d.createdAt).toLocaleDateString()}</span></div>
+                                        <div className="text-xs text-slate-400 mb-4 flex items-center gap-2">
+                                            {/* 🌟 牌組作者大頭貼 */}
+                                            <div className="w-5 h-5 rounded-full overflow-hidden border border-slate-300 bg-slate-800 shrink-0 flex items-center justify-center">
+                                                {d.authorAvatar ? (
+                                                    <img src={d.authorAvatar} alt="Avatar" className="w-full h-full object-cover scale-[1.3] object-top" />
+                                                ) : (
+                                                    <UserCog size={12} className="text-slate-400"/>
+                                                )}
+                                            </div>
+                                            <span className="font-bold text-slate-500">{d.authorName}</span>
+                                            <span>•</span>
+                                            <span>{new Date(d.createdAt).toLocaleDateString()}</span>
+                                        </div>
                                         <div className="mt-auto flex justify-between items-center text-sm text-slate-500">
                                             <span className="flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded font-bold text-xs"><Layers size={12}/> {d.m?.length || 0}</span>
                                             <div className="flex gap-3 items-center">
@@ -1671,14 +1699,13 @@ const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard
                         目前擁有: <span className={selectedCard.isMaxed ? 'text-yellow-400 font-black' : 'text-white font-bold'}>{selectedCard.ownedCount} / 4</span>
                     </p>
                     
-                    <div className="flex flex-col gap-3 w-full">
-                        {/* 如果擁有該卡，顯示炫耀按鈕 */}
-                        {selectedCard.ownedCount > 0 && (
+                    {selectedCard.ownedCount > 0 && (
                             <button 
                                 onClick={() => { handleSetAvatar(selectedCard.displayUrl); setSelectedCard(null); }} 
                                 className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white py-2.5 rounded-xl font-black shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
                             >
-                                <User size={18} /> 設定為專屬大頭貼
+                                {/* 👇 就是這裡改成了 UserCog */}
+                                <UserCog size={18} /> 設定為專屬大頭貼
                             </button>
                         )}
 
@@ -2239,6 +2266,7 @@ export default function App() {
               name: deckToPublish.name,
               authorId: user.uid,
               authorName: user.displayName || "匿名玩家",
+              authorAvatar: userProfile?.avatar || null,
               m: deckToPublish.m,
               e: deckToPublish.e,
               colors: colors,
