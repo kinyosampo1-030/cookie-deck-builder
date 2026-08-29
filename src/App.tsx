@@ -1538,7 +1538,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                 {isCheatMode ? '🔥 作弊模式 (異圖率大增，但無法獲得餅乾幣與存入圖鑑)' : '開啟作弊模式 (風險自負)'}
             </label>
         </div>
-
+);
         {/* 🌟 抽卡動畫展示區 */}
         <div className="flex-1 flex flex-col items-center justify-center min-h-[400px] relative">
           
