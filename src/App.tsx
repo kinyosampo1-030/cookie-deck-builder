@@ -1251,7 +1251,7 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
   );
 };
 
-const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleClaimDaily, processPackToCollection }) => {
+const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleClaimDaily, processPackToCollection, isAdmin }) => {
   const [selectedSeries, setSelectedSeries] = useState("BS11");
   const [openedCards, setOpenedCards] = useState([]);
   const [flippedIndices, setFlippedIndices] = useState({});
@@ -1265,6 +1265,10 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
   
   const [isCheatMode, setIsCheatMode] = useState(false);
   const [usedCheat, setUsedCheat] = useState(false); 
+
+  // 🌟 新增：兌換碼專用狀態
+  const [redeemCode, setRedeemCode] = useState("");
+  const [isRedeeming, setIsRedeeming] = useState(false);
 
   const packCost = useMemo(() => {
       if (selectedSeries === "ALL" || selectedSeries === "BS11") return 50;
@@ -1280,6 +1284,73 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
 
   const isAltRevealed = openedCards.some((card, index) => card.isUpgraded && flippedIndices[index]);
 
+  // 🎁 玩家兌換代碼邏輯 (Transaction 防連點與防重複)
+  const handleRedeemCode = async () => {
+      if (!redeemCode.trim()) return;
+      if (!user || user.isAnonymous || !db) {
+          alert("請先登入註冊才能使用兌換碼喔！"); return;
+      }
+
+      const codeStr = redeemCode.trim().toUpperCase();
+      setIsRedeeming(true);
+
+      try {
+          const codeRef = doc(db, 'artifacts', appId, 'public', 'data', 'redeem_codes', codeStr);
+          const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'main');
+
+          const rewardAmount = await runTransaction(db, async (transaction) => {
+              const codeDoc = await transaction.get(codeRef);
+              if (!codeDoc.exists()) throw new Error("無效的兌換碼，請確認是否輸入正確！");
+
+              const codeData = codeDoc.data();
+              if (codeData.isActive === false) throw new Error("此兌換碼已經失效或過期囉！");
+
+              const claimedBy = codeData.claimedBy || [];
+              if (claimedBy.includes(user.uid)) throw new Error("您已經兌換過此代碼囉，把機會留給別人吧！");
+
+              if (codeData.maxUses && claimedBy.length >= codeData.maxUses) {
+                  throw new Error("手腳太慢啦！此兌換碼的領取次數已達上限。");
+              }
+
+              // 1. 寫入兌換紀錄
+              transaction.update(codeRef, { claimedBy: [...claimedBy, user.uid] });
+              // 2. 發放餅乾幣
+              transaction.update(profileRef, { tokens: increment(codeData.reward) });
+
+              return codeData.reward;
+          });
+
+          alert(`🎉 兌換成功！恭喜獲得 ${rewardAmount} 枚餅乾幣！`);
+          setRedeemCode("");
+      } catch (err) {
+          alert(`兌換失敗：${err.message}`);
+      } finally {
+          setIsRedeeming(false);
+      }
+  };
+
+  // 👑 管理員專屬：一鍵發行新兌換碼
+  const handleAdminCreateCode = async () => {
+      const code = prompt("請輸入要建立的自訂兌換碼\n(例如: MIDAY2026，建議大寫英文與數字):");
+      if (!code) return;
+      const reward = prompt(`兌換碼「${code.toUpperCase()}」要送多少餅乾幣？\n(例如: 100):`);
+      if (!reward || isNaN(reward)) return;
+      const max = prompt("請輸入最大兌換次數限制\n(填 0 代表無限次，適合放在 YouTube 資訊欄):", "0");
+
+      try {
+          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'redeem_codes', code.toUpperCase().trim()), {
+              reward: Number(reward),
+              claimedBy: [],
+              isActive: true,
+              maxUses: Number(max) > 0 ? Number(max) : null,
+              createdAt: new Date().toISOString()
+          });
+          alert(`✅ 兌換碼建立成功！\n代碼：${code.toUpperCase()}\n獎勵：${reward} 餅乾幣`);
+      } catch (e) {
+          alert("建立失敗: " + e.message);
+      }
+  };
+
   const openPack = async () => {
     let pool = allCards.filter(c => !c.series.startsWith('ST') && c.series !== 'P');
     if (selectedSeries !== "ALL") pool = pool.filter(c => c.series === selectedSeries);
@@ -1294,9 +1365,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
             return;
         }
         try {
-            await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'main'), {
-                tokens: increment(-packCost)
-            });
+            await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'main'), { tokens: increment(-packCost) });
         } catch (e) {
             alert("扣除餅乾幣失敗，請檢查網路狀態。"); return;
         }
@@ -1304,10 +1373,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
 
     if (isCheatMode) setUsedCheat(true);
 
-    setIsOpening(true); 
-    setOpenedCards([]); 
-    setFlippedIndices({});
-    setEarnedDust(0);
+    setIsOpening(true); setOpenedCards([]); setFlippedIndices({}); setEarnedDust(0);
     
     setTimeout(async () => {
         const selectedOther = fisherYatesShuffle(otherCards)[0]; 
@@ -1316,10 +1382,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
         
         const targetRarity = (() => { 
             const r = Math.random() * 100; 
-            if (r < 6) return 'UR';       
-            if (r < 22) return 'SR';      
-            if (r < 48) return 'R';       
-            return 'C';                   
+            if (r < 6) return 'UR'; if (r < 22) return 'SR'; if (r < 48) return 'R'; return 'C';                   
         })();
         
         let targetPool = cookieCards.filter(c => (c.rarity || 'C') === targetRarity); 
@@ -1337,20 +1400,12 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
         let currentPackStats = { R: 0, SR: 0, UR: 0, ALT: 0 };
 
         const finalizedCards = rawOpenedCards.map(card => {
-            let finalImg = card.imageUrl;
-            let finalBadge = card.rarity || 'C';
-            let isUpgraded = false;
-
+            let finalImg = card.imageUrl; let finalBadge = card.rarity || 'C'; let isUpgraded = false;
             if (card.altArts && card.altArts.length > 0) {
                 if (Math.random() < UPGRADE_CHANCE) {
-                    isUpgraded = true;
-                    const altRoll = Math.random() * 100;
+                    isUpgraded = true; const altRoll = Math.random() * 100;
                     let targetLabel = 'SEC';
-                    if (altRoll < 1.0) targetLabel = 'GXR';     
-                    else if (altRoll < 5.0) targetLabel = 'EXR';     
-                    else if (altRoll < 15.0) targetLabel = 'SUR';     
-                    else if (altRoll < 40.0) targetLabel = 'SSR';     
-                    else targetLabel = 'SEC';     
+                    if (altRoll < 1.0) targetLabel = 'GXR'; else if (altRoll < 5.0) targetLabel = 'EXR'; else if (altRoll < 15.0) targetLabel = 'SUR'; else if (altRoll < 40.0) targetLabel = 'SSR'; else targetLabel = 'SEC';     
 
                     const matchedAlts = card.altArts.filter(alt => alt.label?.toUpperCase() === targetLabel);
                     if (matchedAlts.length > 0) {
@@ -1362,12 +1417,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                     }
                 }
             }
-            
-            if (isUpgraded) currentPackStats.ALT += 1;
-            else if (finalBadge === 'UR') currentPackStats.UR += 1;
-            else if (finalBadge === 'SR') currentPackStats.SR += 1;
-            else if (finalBadge === 'R') currentPackStats.R += 1;
-
+            if (isUpgraded) currentPackStats.ALT += 1; else if (finalBadge === 'UR') currentPackStats.UR += 1; else if (finalBadge === 'SR') currentPackStats.SR += 1; else if (finalBadge === 'R') currentPackStats.R += 1;
             return { ...card, pulledArt: finalImg, pulledBadge: finalBadge, isUpgraded };
         });
 
@@ -1378,37 +1428,21 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
         }
 
         setPackCount(prev => prev + 1);
-        setSessionStats(prev => ({
-            R: prev.R + currentPackStats.R,
-            SR: prev.SR + currentPackStats.SR,
-            UR: prev.UR + currentPackStats.UR,
-            ALT: prev.ALT + currentPackStats.ALT,
-            DUST: prev.DUST + dust
-        }));
-
-        setOpenedCards(fisherYatesShuffle(finalizedCards)); 
-        setIsOpening(false); 
+        setSessionStats(prev => ({ R: prev.R + currentPackStats.R, SR: prev.SR + currentPackStats.SR, UR: prev.UR + currentPackStats.UR, ALT: prev.ALT + currentPackStats.ALT, DUST: prev.DUST + dust }));
+        setOpenedCards(fisherYatesShuffle(finalizedCards)); setIsOpening(false); 
     }, 1200); 
   };
   
-  const handleCloseModal = () => {
-      if (packCount > 0 && !showSummary) setShowSummary(true);
-      else onClose();
-  };
+  const handleCloseModal = () => { if (packCount > 0 && !showSummary) setShowSummary(true); else onClose(); };
 
   const renderCard = (card, index) => {
-      const isFlipped = flippedIndices[index];
-      const isUpgraded = card.isUpgraded;
+      const isFlipped = flippedIndices[index]; const isUpgraded = card.isUpgraded;
       const wrapperClass = (isUpgraded && isFlipped) ? "scale-[1.05] z-30" : "z-10 hover:scale-105";
-      const frontGlowClass = isUpgraded 
-          ? `border-4 border-yellow-400 shadow-[0_0_40px_rgba(234,179,8,1)] ${isFlipped ? 'animate-pulse' : ''}` 
-          : "border-2 border-slate-200 shadow-xl";
+      const frontGlowClass = isUpgraded ? `border-4 border-yellow-400 shadow-[0_0_40px_rgba(234,179,8,1)] ${isFlipped ? 'animate-pulse' : ''}` : "border-2 border-slate-200 shadow-xl";
 
       return (
         <div key={index} onClick={() => setFlippedIndices(p => ({ ...p, [index]: true }))} className={`w-[30vw] h-[40vw] md:w-48 md:h-64 relative flex-shrink-0 animate-in zoom-in duration-500 transition-transform cursor-pointer ${wrapperClass}`}>
-            <div className={`absolute inset-0 rounded-lg overflow-hidden transition-all duration-500 ease-out border-2 border-slate-600 shadow-xl ${isFlipped ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}>
-                <img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" />
-            </div>
+            <div className={`absolute inset-0 rounded-lg overflow-hidden transition-all duration-500 ease-out border-2 border-slate-600 shadow-xl ${isFlipped ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}><img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" /></div>
             <div className={`absolute inset-0 rounded-lg bg-white transition-all duration-500 ease-out ${isFlipped ? 'opacity-100 scale-100' : 'opacity-0 scale-110 pointer-events-none'} ${frontGlowClass}`}>
                 {card.pulledArt ? (<img src={card.pulledArt} className="w-full h-full object-cover rounded-lg" alt={card.name} />) : (<div className={`w-full h-full p-2 flex flex-col justify-between rounded-lg ${getCardColorStyles(card.color)}`}><span className="font-bold text-sm leading-tight line-clamp-3">{cName(card, lang)}</span><span className="font-mono text-xs">{card.id}</span></div>)}
                 {card.pulledBadge && card.pulledBadge !== 'C' && (<div className={`absolute top-1 right-1 text-[10px] font-bold px-1.5 py-0.5 rounded shadow border tracking-wider transition-all z-10 ${isUpgraded ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-600 text-white border-yellow-300 font-black scale-110 shadow-lg shadow-orange-500/40' : getRarityStyle(card.pulledBadge)}`}>{card.pulledBadge}</div>)}
@@ -1418,8 +1452,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
   };
   
   if (showSummary) {
-      const estimatedCost = packCount * packCost; 
-      const isGuest = !user || user.isAnonymous;
+      const estimatedCost = packCount * packCost; const isGuest = !user || user.isAnonymous;
       return (
           <div className="fixed inset-0 bg-black/90 z-[80] flex items-center justify-center p-4 animate-in fade-in" onClick={onClose}>
               <div className={`border-2 rounded-2xl shadow-2xl w-full max-w-md p-8 flex flex-col items-center text-center relative ${usedCheat ? 'bg-slate-900 border-red-600 shadow-red-900/50' : 'bg-slate-800 border-slate-600'}`} onClick={e => e.stopPropagation()}>
@@ -1428,18 +1461,9 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                   
                   <div className="w-full bg-slate-950/50 rounded-xl p-5 mb-6 shadow-inner border border-slate-700/50">
                       <div className="grid grid-cols-2 gap-4 text-left">
-                          <div className="col-span-2 border-b border-slate-700 pb-3 mb-1">
-                              <span className="block text-slate-400 text-xs font-bold mb-1">總開啟卡包</span>
-                              <span className="text-3xl font-black text-white">{packCount} <span className="text-lg text-slate-500 font-normal">包</span></span>
-                          </div>
-                          <div>
-                              <span className="block text-slate-400 text-xs font-bold mb-1">獲得異圖 (ALT)</span>
-                              <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-600">{sessionStats.ALT}</span>
-                          </div>
-                          <div>
-                              <span className="block text-slate-400 text-xs font-bold mb-1">獲得 UR</span>
-                              <span className="text-2xl font-black text-purple-400">{sessionStats.UR}</span>
-                          </div>
+                          <div className="col-span-2 border-b border-slate-700 pb-3 mb-1"><span className="block text-slate-400 text-xs font-bold mb-1">總開啟卡包</span><span className="text-3xl font-black text-white">{packCount} <span className="text-lg text-slate-500 font-normal">包</span></span></div>
+                          <div><span className="block text-slate-400 text-xs font-bold mb-1">獲得異圖 (ALT)</span><span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-600">{sessionStats.ALT}</span></div>
+                          <div><span className="block text-slate-400 text-xs font-bold mb-1">獲得 UR</span><span className="text-2xl font-black text-purple-400">{sessionStats.UR}</span></div>
                           {(!usedCheat && !isGuest) && (
                               <div className="col-span-2 mt-2 pt-3 border-t border-slate-700/50 bg-cyan-950/20 -mx-2 px-2 rounded">
                                   <span className="block text-cyan-400 text-xs font-bold mb-1">♻️ 重複卡化灰總計</span>
@@ -1452,12 +1476,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                   <div className={`border rounded-lg p-4 mb-8 w-full ${usedCheat ? 'bg-red-950 border-red-600' : 'bg-slate-700 border-slate-600'}`}>
                       <p className={`font-bold mb-2 flex items-center justify-center gap-1.5 ${usedCheat ? 'text-red-500 text-lg' : 'text-slate-300'}`}><AlertOctagon size={usedCheat ? 22 : 18} /> {usedCheat ? '🛑 賭狗警告' : '消費統計'}</p>
                       <p className="text-slate-300 text-sm leading-relaxed">
-                          {(!usedCheat && !isGuest) ? (
-                              <span>您本次總共花費了 <span className="text-yellow-400 font-bold">💎 {packCount * packCost} 枚餅乾幣</span>。圖鑑已經自動更新，重複卡片已化為餅乾幣回饋給您！</span>
-                          ) : (
-                              <span>您剛剛在模擬器中大約花費了 <span className="text-yellow-400 font-bold font-mono">NT$ {estimatedCost.toLocaleString()}</span> 的實體新台幣價值。<br/>
-                              {usedCheat ? <span className="text-red-400 font-bold mt-2 block">你作弊了對吧？！醒醒吧賭狗！</span> : <span className="mt-2 block">抽卡一時爽，荷包火葬場。適度娛樂，請勿沉迷賭博！</span>}</span>
-                          )}
+                          {(!usedCheat && !isGuest) ? (<span>您本次總共花費了 <span className="text-yellow-400 font-bold">💎 {packCount * packCost} 枚餅乾幣</span>。圖鑑已經自動更新，重複卡片已化為餅乾幣回饋給您！</span>) : (<span>您剛剛在模擬器中大約花費了 <span className="text-yellow-400 font-bold font-mono">NT$ {estimatedCost.toLocaleString()}</span> 的實體新台幣價值。<br/>{usedCheat ? <span className="text-red-400 font-bold mt-2 block">你作弊了對吧？！醒醒吧賭狗！</span> : <span className="mt-2 block">抽卡一時爽，荷包火葬場。適度娛樂，請勿沉迷賭博！</span>}</span>)}
                       </p>
                   </div>
                   <button onClick={onClose} className="w-full py-3 bg-slate-200 hover:bg-white text-slate-900 font-black rounded-xl transition-colors active:scale-95 text-lg">{closeButtonText}</button>
@@ -1472,7 +1491,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
     <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4 transition-colors duration-700" onClick={handleCloseModal}>
       <div className={`rounded-xl w-full max-w-5xl p-6 min-h-[600px] flex flex-col transition-all duration-700 ${modalGlowClass}`} onClick={e => e.stopPropagation()}>
         
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 text-white border-b border-slate-700 pb-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 text-white border-b border-slate-700 pb-4">
             <h2 className="text-2xl font-black flex items-center gap-2"><PackageOpen className="text-yellow-400" /> {lang==='en'?'Pack Opener':'卡包商城與模擬器'}</h2>
             
             <div className="flex items-center gap-3">
@@ -1492,44 +1511,58 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                 <button onClick={handleCloseModal} className="p-1 hover:bg-slate-700 rounded-full ml-2"><X size={24} /></button>
             </div>
         </div>
+
+        {/* 🌟 新增：兌換碼專區 */}
+        {(user && !user.isAnonymous) && (
+            <div className="flex flex-col md:flex-row items-center justify-between gap-3 mb-6 bg-slate-800/80 p-3 rounded-xl border border-slate-600 shadow-inner">
+                <div className="flex items-center gap-2 w-full md:w-auto flex-1">
+                    <Gem size={20} className="text-cyan-400 shrink-0 ml-1" />
+                    <input 
+                        type="text" 
+                        placeholder="輸入 YouTube 影片專屬兌換碼..." 
+                        className="flex-1 max-w-sm bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-600 focus:border-cyan-500 outline-none uppercase font-mono text-sm shadow-inner"
+                        value={redeemCode}
+                        onChange={(e) => setRedeemCode(e.target.value)}
+                    />
+                    <button 
+                        onClick={handleRedeemCode}
+                        disabled={isRedeeming || !redeemCode.trim()}
+                        className="bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors whitespace-nowrap shadow-md active:scale-95"
+                    >
+                        {isRedeeming ? "連線中..." : "確認兌換"}
+                    </button>
+                </div>
+                
+                {/* 管理員按鈕：一鍵生成代碼 */}
+                {isAdmin && (
+                    <button onClick={handleAdminCreateCode} className="text-xs bg-slate-700 text-yellow-400 hover:bg-slate-600 px-3 py-2 rounded-lg border border-yellow-600/50 font-bold whitespace-nowrap shadow-sm active:scale-95 transition-colors">
+                        + 發行新兌換碼 (管理員專屬)
+                    </button>
+                )}
+            </div>
+        )}
         
         <div className="flex flex-col items-center gap-3 mb-8">
             <div className="flex flex-wrap gap-4 justify-center items-center">
               <select className="bg-slate-700 text-white border border-slate-600 rounded-lg px-4 py-2.5 outline-none font-bold shadow-sm focus:ring-2 focus:ring-blue-500" value={selectedSeries} onChange={(e) => setSelectedSeries(e.target.value)} disabled={isOpening}>
                 <option value="BS11">BS11 (50餅乾幣)</option>
-                {availableSeries.filter(s => s !== 'BS11').map(s => (
-                    <option key={s} value={s} disabled className="text-slate-400">
-                        {s} (異圖建檔中，暫未開放)
-                    </option>
-                ))}
-                <option value="ALL" disabled className="text-slate-400">
-                    {lang==='en'?'All (Coming Soon)':'全部卡池 (暫未開放)'}
-                </option>
+                {availableSeries.filter(s => s !== 'BS11').map(s => (<option key={s} value={s} disabled className="text-slate-400">{s} (異圖建檔中，暫未開放)</option>))}
+                <option value="ALL" disabled className="text-slate-400">{lang==='en'?'All (Coming Soon)':'全部卡池 (暫未開放)'}</option>
               </select>
               
               <button onClick={openPack} disabled={isOpening} className="bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 disabled:from-slate-600 disabled:to-slate-700 disabled:text-slate-400 text-slate-900 px-6 py-2.5 rounded-lg font-black flex items-center gap-2 shadow-lg transition-transform active:scale-95">
-                  {isOpening ? "..." : (
-                      <>
-                        <PackageOpen size={20} /> {lang==='en'?'Open Pack':'購買並開啟卡包'}
-                        {(!isCheatMode && user && !user.isAnonymous) && (
-                            <span className="ml-1 bg-yellow-600 text-yellow-50 px-2 py-0.5 rounded text-xs font-black flex items-center gap-0.5 shadow-inner"><Gem size={12}/> {packCost}</span>
-                        )}
-                      </>
-                  )}
+                  {isOpening ? "..." : (<><PackageOpen size={20} /> {lang==='en'?'Open Pack':'購買並開啟卡包'} {(!isCheatMode && user && !user.isAnonymous) && (<span className="ml-1 bg-yellow-600 text-yellow-50 px-2 py-0.5 rounded text-xs font-black flex items-center gap-0.5 shadow-inner"><Gem size={12}/> {packCost}</span>)}</>)}
               </button>
             </div>
             
             <label className="flex items-center gap-2 cursor-pointer text-slate-500 hover:text-red-400 transition-colors text-xs font-bold mt-1 select-none">
                 <input type="checkbox" className="hidden peer" checked={isCheatMode} onChange={(e) => setIsCheatMode(e.target.checked)} disabled={isOpening} />
-                <div className="w-4 h-4 rounded border border-slate-600 peer-checked:bg-red-500 peer-checked:border-red-500 flex items-center justify-center transition-colors">
-                    {isCheatMode && <span className="text-white text-[10px] font-black leading-none pb-[1px]">✔</span>}
-                </div>
-                {isCheatMode ? '🔥 沙盒作弊模式 (異圖率大增，但無法獲得餅乾幣與存入圖鑑)' : '開啟沙盒作弊模式 (風險自負)'}
+                <div className="w-4 h-4 rounded border border-slate-600 peer-checked:bg-red-500 peer-checked:border-red-500 flex items-center justify-center transition-colors">{isCheatMode && <span className="text-white text-[10px] font-black leading-none pb-[1px]">✔</span>}</div>
+                {isCheatMode ? '🔥 沙盒作弊模式 (異圖率大增，無法獲得餅乾幣與存入圖鑑)' : '開啟沙盒作弊模式 (風險自負)'}
             </label>
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center min-h-[400px] relative">
-          
           {earnedDust > 0 && openedCards.length > 0 && !isOpening && (
               <div className="absolute top-0 z-50 animate-in slide-in-from-top-10 fade-in duration-500">
                   <div className="bg-slate-900/90 backdrop-blur-sm border-2 border-cyan-400 text-cyan-300 px-6 py-2.5 rounded-full font-black flex items-center gap-2 shadow-[0_0_20px_rgba(34,211,238,0.5)]">
@@ -1558,7 +1591,6 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
               </div>
           )}
         </div>
-
       </div>
     </div>
   );
