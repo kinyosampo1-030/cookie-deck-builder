@@ -1539,6 +1539,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
             </label>
         </div>
 );
+};
         {/* 🌟 抽卡動畫展示區 */}
         <div className="flex-1 flex flex-col items-center justify-center min-h-[400px] relative">
           
