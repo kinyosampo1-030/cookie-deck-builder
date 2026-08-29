@@ -1609,12 +1609,25 @@ export default function App() {
   const [allCards, setAllCards] = useState([]);
   const [deck, setDeck] = useState({ main: [], extra: [] });
   const [deckName, setDeckName] = useState("我的餅乾牌組");
+
+  // 🌟 全域語言狀態
+  const [lang, setLang] = useState('zh'); // 'zh' or 'en'
+  const [showGlobalBanner, setShowGlobalBanner] = useState(true);
+  
+  const [preferredArts, setPreferredArts] = useState(() => {
+      try { return JSON.parse(localStorage.getItem('braverse-preferred-arts') || '{}'); } catch { return {}; }
+  });
+  useEffect(() => { localStorage.setItem('braverse-preferred-arts', JSON.stringify(preferredArts)); }, [preferredArts]);
+
   const [userProfile, setUserProfile] = useState({ tokens: 0, collection: {}, lastDailyClaim: null });
 
+  // 🌟 [新增] 即時監聽使用者的圖鑑與代幣資料
   useEffect(() => {
     if (!user || user.isAnonymous || !db) return;
     
+    // 建立專屬於使用者的 profile 文件路徑
     const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile');
+    
     const unsubscribe = onSnapshot(profileRef, (snap) => {
       if (snap.exists()) {
         setUserProfile(snap.data());
@@ -1627,6 +1640,7 @@ export default function App() {
     return () => unsubscribe();
   }, [user, db]);
 
+  // 🌟 [新增 API 1] 領取每日登入獎勵 (嚴格綁定台灣時間)
   const handleClaimDaily = async () => {
     if (!user || user.isAnonymous || !db) {
         setToastMsg("請先登入註冊，才能領取每日獎勵！");
@@ -1646,7 +1660,7 @@ export default function App() {
     try {
         const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile');
         await updateDoc(profileRef, { 
-            tokens: increment(50), // 每日登入送 50 代幣 (剛好可抽一包最新 BS11 系列)
+            tokens: increment(50), // 每日登入送 50 代幣
             lastDailyClaim: taipeiDate 
         });
         setToastMsg("🎉 成功領取每日獎勵：獲得 50 代幣！");
@@ -1656,7 +1670,6 @@ export default function App() {
   };
 
   // 🌟 [新增 API 2] 卡包結算與自動分解引擎 (Transaction)
-  // 此函式會在模擬器「開包動畫結束」時被呼叫，並回傳分解獲得的代幣數量給前端顯示
   const processPackToCollection = async (pulledCards, isCheatMode) => {
     // 🛡️ 核心防護：作弊模式或未登入玩家，絕對不寫入資料庫！
     if (isCheatMode || !user || user.isAnonymous || !db) return 0; 
@@ -1676,7 +1689,6 @@ export default function App() {
             // 逐張結算抽到的卡片
             pulledCards.forEach(card => {
                 // 🔑 建立複合鍵：讓「正常版」與「異圖版」各自獨立計算上限！
-                // 格式範例：BS1-001_NORMAL 或 BS1-001_ALT_SEC
                 const versionLabel = card.isUpgraded ? `ALT_${card.pulledBadge}` : "NORMAL";
                 const cardKey = `${card.id}_${versionLabel}`;
                 
@@ -1701,7 +1713,7 @@ export default function App() {
                 tokens: increment(newTokens) // 安全疊加代幣
             });
             
-            return newTokens; // 回傳本次分解獲得的總代幣，讓前端做華麗的 +50 特效
+            return newTokens; // 回傳本次分解獲得的總代幣
         });
     } catch (err) {
         console.error("卡包結算失敗:", err);
@@ -1709,15 +1721,6 @@ export default function App() {
     }
   };
   
-  // 🌟 全域語言狀態
-  const [lang, setLang] = useState('zh'); // 'zh' or 'en'
-  const [showGlobalBanner, setShowGlobalBanner] = useState(true);
-  
-  const [preferredArts, setPreferredArts] = useState(() => {
-      try { return JSON.parse(localStorage.getItem('braverse-preferred-arts') || '{}'); } catch { return {}; }
-  });
-  useEffect(() => { localStorage.setItem('braverse-preferred-arts', JSON.stringify(preferredArts)); }, [preferredArts]);
-
   const [filters, setFilters] = useState({
     search: "", type: "ALL", color: "ALL", level: "ALL", series: "ALL", rarity: "ALL", levelOrRarity: "ALL",
     skills: [], 
