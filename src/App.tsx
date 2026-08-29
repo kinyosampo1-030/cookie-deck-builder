@@ -1252,7 +1252,7 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
 };
 
 const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleClaimDaily, processPackToCollection }) => {
-  const [selectedSeries, setSelectedSeries] = useState("BS11"); // 預設改為最新的 BS11
+  const [selectedSeries, setSelectedSeries] = useState("BS11");
   const [openedCards, setOpenedCards] = useState([]);
   const [flippedIndices, setFlippedIndices] = useState({});
   const [isOpening, setIsOpening] = useState(false); 
@@ -1261,17 +1261,15 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
   const [packCount, setPackCount] = useState(0);
   const [sessionStats, setSessionStats] = useState({ R: 0, SR: 0, UR: 0, ALT: 0, DUST: 0 });
   const [showSummary, setShowSummary] = useState(false);
-  const [earnedDust, setEarnedDust] = useState(0); // 單次開包獲得的代幣
+  const [earnedDust, setEarnedDust] = useState(0); 
   
   const [isCheatMode, setIsCheatMode] = useState(false);
   const [usedCheat, setUsedCheat] = useState(false); 
 
-  // 💰 動態計算卡包價格
   const packCost = useMemo(() => {
-    // 這裡控制 BS11 與全部卡池的價格，把 50 改成您想要的數字
       if (selectedSeries === "ALL" || selectedSeries === "BS11") return 50;
       if (["BS6", "BS7", "BS8", "BS9", "BS10"].includes(selectedSeries)) return 40;
-      return 25; // 經典卡包 BS1-BS5, ST 等等
+      return 25; 
   }, [selectedSeries]);
 
   const closeButtonText = useMemo(() => {
@@ -1289,14 +1287,12 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
     const otherCards = pool.filter(c => c.type !== CARD_TYPES.COOKIE);
     if (otherCards.length < 1 || cookieCards.length < 4) return alert("Not enough cards for this series.");
     
-    // 🛡️ 檢查餘額與扣款 (登入且非作弊模式)
     const isValidPlayer = user && !user.isAnonymous;
     if (!isCheatMode && isValidPlayer) {
         if ((userProfile?.tokens || 0) < packCost) {
             alert(`💎 餅乾幣不足！需要 ${packCost} 枚餅乾幣才能開啟這個卡包。\n(每日登入可領取 50 餅乾幣唷)`);
             return;
         }
-        // 先在前端樂觀扣款，避免連點
         try {
             await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'main'), {
                 tokens: increment(-packCost)
@@ -1313,7 +1309,6 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
     setFlippedIndices({});
     setEarnedDust(0);
     
-    // 🌟 將 setTimeout 改為 async 以便處理化灰結算
     setTimeout(async () => {
         const selectedOther = fisherYatesShuffle(otherCards)[0]; 
         const selectedIDs = new Set([selectedOther.id]);
@@ -1376,7 +1371,6 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
             return { ...card, pulledArt: finalImg, pulledBadge: finalBadge, isUpgraded };
         });
 
-        // ♻️ 呼叫自動化灰引擎 (如果是正常玩家)
         let dust = 0;
         if (!isCheatMode && isValidPlayer) {
             dust = await processPackToCollection(finalizedCards, isCheatMode);
@@ -1424,7 +1418,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
   };
   
   if (showSummary) {
-      const estimatedCost = packCount * 50; 
+      const estimatedCost = packCount * packCost; 
       const isGuest = !user || user.isAnonymous;
       return (
           <div className="fixed inset-0 bg-black/90 z-[80] flex items-center justify-center p-4 animate-in fade-in" onClick={onClose}>
@@ -1478,7 +1472,6 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
     <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4 transition-colors duration-700" onClick={handleCloseModal}>
       <div className={`rounded-xl w-full max-w-5xl p-6 min-h-[600px] flex flex-col transition-all duration-700 ${modalGlowClass}`} onClick={e => e.stopPropagation()}>
         
-        {/* 🌟 頂部：標題與代幣面板 */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 text-white border-b border-slate-700 pb-4">
             <h2 className="text-2xl font-black flex items-center gap-2"><PackageOpen className="text-yellow-400" /> {lang==='en'?'Pack Opener':'卡包商城與模擬器'}</h2>
             
@@ -1494,27 +1487,23 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                         </button>
                     </>
                 ) : (
-                    <div className="text-xs text-slate-400 font-bold bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-700">訪客模式 (無法儲存圖鑑與餅乾幣)</div>
+                    <div className="text-xs text-slate-400 font-bold bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-700">訪客模式 (無法儲存圖鑑與代幣)</div>
                 )}
                 <button onClick={handleCloseModal} className="p-1 hover:bg-slate-700 rounded-full ml-2"><X size={24} /></button>
             </div>
         </div>
         
-        {/* 🌟 操作區：選擇卡包與作弊開關 */}
-<select className="bg-slate-700 text-white border border-slate-600 rounded-lg px-4 py-2.5 outline-none font-bold shadow-sm focus:ring-2 focus:ring-blue-500" value={selectedSeries} onChange={(e) => setSelectedSeries(e.target.value)} disabled={isOpening}>
-                {/* 預設並唯一開放 BS11，修改這裡括號內的文字 */}
+        <div className="flex flex-col items-center gap-3 mb-8">
+            <div className="flex flex-wrap gap-4 justify-center items-center">
+              <select className="bg-slate-700 text-white border border-slate-600 rounded-lg px-4 py-2.5 outline-none font-bold shadow-sm focus:ring-2 focus:ring-blue-500" value={selectedSeries} onChange={(e) => setSelectedSeries(e.target.value)} disabled={isOpening}>
                 <option value="BS11">BS11 (50餅乾幣)</option>
-                
-                {/* 將其他系列設為 disabled (不可選)，並加上提示 */}
                 {availableSeries.filter(s => s !== 'BS11').map(s => (
                     <option key={s} value={s} disabled className="text-slate-400">
                         {s} (異圖建檔中，暫未開放)
                     </option>
                 ))}
-                
-                {/* 封鎖「全部卡池」，避免抽到未建檔的舊卡 */}
                 <option value="ALL" disabled className="text-slate-400">
-                    {lang==='en'?'All (Coming Soon)':'全部卡池 (施工中)'}
+                    {lang==='en'?'All (Coming Soon)':'全部卡池 (暫未開放)'}
                 </option>
               </select>
               
@@ -1535,15 +1524,12 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                 <div className="w-4 h-4 rounded border border-slate-600 peer-checked:bg-red-500 peer-checked:border-red-500 flex items-center justify-center transition-colors">
                     {isCheatMode && <span className="text-white text-[10px] font-black leading-none pb-[1px]">✔</span>}
                 </div>
-                {isCheatMode ? '🔥 作弊模式 (異圖率大增，但無法獲得餅乾幣與存入圖鑑)' : '開啟作弊模式 (風險自負)'}
+                {isCheatMode ? '🔥 沙盒作弊模式 (異圖率大增，但無法獲得餅乾幣與存入圖鑑)' : '開啟沙盒作弊模式 (風險自負)'}
             </label>
         </div>
-);
-};
-        {/* 🌟 抽卡動畫展示區 */}
+
         <div className="flex-1 flex flex-col items-center justify-center min-h-[400px] relative">
           
-          {/* 化灰特效橫幅 */}
           {earnedDust > 0 && openedCards.length > 0 && !isOpening && (
               <div className="absolute top-0 z-50 animate-in slide-in-from-top-10 fade-in duration-500">
                   <div className="bg-slate-900/90 backdrop-blur-sm border-2 border-cyan-400 text-cyan-300 px-6 py-2.5 rounded-full font-black flex items-center gap-2 shadow-[0_0_20px_rgba(34,211,238,0.5)]">
