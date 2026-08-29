@@ -246,7 +246,7 @@ const AuthModal = ({ onClose, onLogin, onRegister, lang }) => {
   );
 };
 
-const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user, lang }) => {
+const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user, lang, userProfile }) => {
     const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState("");
     const [isSending, setIsSending] = useState(false);
@@ -279,7 +279,14 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user, lang })
         if (!newComment.trim()) return;
         setIsSending(true);
         try {
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'community_comments'), { deckId: deckData.id, userId: user.uid, userName: user.displayName || "Player", userAvatar: userProfile?.avatar || null, content: newComment.trim(), createdAt: new Date().toISOString() });
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'community_comments'), { 
+                deckId: deckData.id, 
+                userId: user.uid, 
+                userName: user.displayName || "Player", 
+                userAvatar: userProfile?.avatar || null, // 🌟 抓取玩家頭像
+                content: newComment.trim(), 
+                createdAt: new Date().toISOString() 
+            });
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'community_decks', deckData.id), { commentCount: increment(1) });
             setNewComment("");
         } catch (err) { alert("Error"); } finally { setIsSending(false); }
@@ -299,7 +306,6 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user, lang })
 
     const handleCopyDeck = async () => {
         try { if (db) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'community_decks', deckData.id), { copyCount: increment(1) }); } catch (err) {}
-        // 🌟 複製時連同 pArts 一起帶走
         onLoadDeck({main: rawM, extra: rawE}, deckData.name, deckData.pArts);
         onClose();
     };
@@ -330,7 +336,6 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user, lang })
     const { cookies, others, flips, extras, rawM, rawE } = getDeckCards();
 
     const renderMiniCard = (group) => {
-        // 🌟 觀看社群牌組時，顯示作者設定的異圖 (deckData.pArts)
         const displayImg = deckData.pArts?.[group.id] || group.imageUrl;
         return (
             <div key={group.id} className="relative aspect-[3/4] bg-slate-200 rounded border border-slate-300 overflow-hidden group shadow-sm">
@@ -368,14 +373,15 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user, lang })
                     </div>
                     <div className="flex flex-col h-full bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden min-h-[400px]">
                         <div className="p-3 border-b bg-slate-50 font-bold text-slate-700 flex items-center gap-2"><MessageCircle size={16}/> {lang==='en'?'Comments':'留言板'}</div>
+                        
                         <div className="flex-1 overflow-y-auto p-3 space-y-3">
                             {comments.length === 0 ? <div className="text-center text-slate-400 text-sm py-4">{lang==='en'?'No comments yet!':'還沒有留言，搶頭香！'}</div> : comments.map(c => {
                                 const isAuthor = c.userId === deckData.authorId;
                                 return (
                                 <div key={c.id} className={`text-sm border-b border-slate-100 pb-3 last:border-0 ${isAuthor ? 'bg-blue-50/50 p-2 rounded-lg border-blue-100' : ''}`}>
+                                    {/* 🌟 修正後的留言版大頭貼區塊 */}
                                     <div className="flex justify-between items-start mb-1">
                                         <div className="flex items-center gap-2">
-                                            {/* 🌟 留言者大頭貼 */}
                                             <div className="w-6 h-6 rounded-full overflow-hidden border border-slate-300 bg-slate-800 shrink-0 mt-0.5 flex items-center justify-center">
                                                 {c.userAvatar ? (
                                                     <img src={c.userAvatar} alt="Avatar" className="w-full h-full object-cover scale-[1.3] object-top" />
@@ -390,13 +396,11 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user, lang })
                                         </div>
                                         <span className="text-[10px] text-slate-400 font-mono pt-1">{new Date(c.createdAt).toLocaleString()}</span>
                                     </div>
-                                        <div className="flex items-center gap-1.5"><span className={`font-bold ${isAuthor ? 'text-blue-700' : 'text-slate-800'}`}>{c.userName}</span>{isAuthor && <span className="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full font-bold tracking-wider">Author</span>}</div>
-                                        <span className="text-[10px] text-slate-400 font-mono">{new Date(c.createdAt).toLocaleString()}</span>
-                                    </div>
-                                    <p className={`break-words leading-relaxed ${isAuthor ? 'text-blue-900' : 'text-slate-600'}`}>{c.content}</p>
+                                    <p className={`break-words leading-relaxed mt-1 ${isAuthor ? 'text-blue-900' : 'text-slate-600'}`}>{c.content}</p>
                                 </div>
                             )})}
                         </div>
+
                         <form onSubmit={handleAddComment} className="p-3 border-t bg-slate-50 flex gap-2">
                             <input className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all" placeholder={user && !user.isAnonymous ? "..." : (lang==='en'?'Please login...':'請先登入...')} value={newComment} onChange={e => setNewComment(e.target.value)} disabled={!user || user.isAnonymous || isSending} />
                             <button type="submit" disabled={!user || user.isAnonymous || isSending} className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"><Send size={18}/></button>
@@ -408,7 +412,7 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user, lang })
     );
 };
 
-const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin, lang }) => {
+const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin, lang, userProfile }) => {
     const [decks, setDecks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filterColor, setFilterColor] = useState("ALL");
@@ -529,7 +533,7 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin, lang }) 
                     )}
                 </div>
             </div>
-            {selectedDeck && <DeckDetailView deckData={selectedDeck} allCards={allCards} onClose={() => setSelectedDeck(null)} onLoadDeck={onLoadDeck} user={user} lang={lang} />}
+            {selectedDeck && <DeckDetailView deckData={selectedDeck} allCards={allCards} onClose={() => setSelectedDeck(null)} onLoadDeck={onLoadDeck} user={user} lang={lang} userProfile={userProfile} />}
         </div>
     );
 };
@@ -1559,7 +1563,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
 
 const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard, handleSetAvatar }) => {
   const [selectedSeries, setSelectedSeries] = useState("BS11");
-  const [selectedCard, setSelectedCard] = useState(null); // 🌟 改名為 selectedCard，負責顯示卡片詳情
+  const [selectedCard, setSelectedCard] = useState(null); 
   const [isCrafting, setIsCrafting] = useState(false);
 
   const availableSeries = useMemo(() => Array.from(new Set(allCards.filter(c => !c.series.startsWith('ST') && c.series !== 'P').map(c => c.series))).sort(), [allCards]);
@@ -1605,10 +1609,9 @@ const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard
   const renderCollectionCard = (slot) => {
       const ownedCount = userProfile?.collection?.[slot.collectionKey] || 0;
       const isOwned = ownedCount > 0;
-      const isMaxed = ownedCount >= 4; // 🌟 滿編判定
+      const isMaxed = ownedCount >= 4; 
       const cost = getCraftCost(slot);
       
-      // 🌟 4/4 滿編專屬特效樣式
       const badgeStyle = isMaxed 
           ? "absolute -top-2 -right-2 bg-gradient-to-r from-yellow-300 via-yellow-500 to-amber-600 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(234,179,8,0.8)] border-2 border-yellow-200 z-10 animate-pulse" 
           : "absolute -top-2 -right-2 bg-slate-800 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center shadow-md border-2 border-white z-10";
@@ -1694,22 +1697,27 @@ const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard
                         {selectedCard.isAltSlot && (<div className="absolute bottom-1 left-1 text-[10px] bg-gradient-to-r from-amber-500 to-yellow-600 text-white px-1.5 py-0.5 rounded font-black border border-yellow-300">{selectedCard.displayBadge}</div>)}
                     </div>
                     
-                    <p className="text-slate-300 text-sm mb-6 bg-slate-900/50 p-3 rounded-lg w-full border border-slate-700">
-                        <span className="text-yellow-400 font-bold block mb-1">{selectedCard.id}</span>
-                        目前擁有: <span className={selectedCard.isMaxed ? 'text-yellow-400 font-black' : 'text-white font-bold'}>{selectedCard.ownedCount} / 4</span>
-                    </p>
+                    {/* 🌟 補上卡片名稱顯示，讓介面更完整 */}
+                    <div className="text-slate-300 text-sm mb-6 bg-slate-900/50 p-3 rounded-lg w-full border border-slate-700 flex flex-col gap-1">
+                        <span className="text-yellow-400 font-bold text-lg">{cName(selectedCard, lang)}</span>
+                        <span className="text-slate-400 font-mono text-xs">{selectedCard.id}</span>
+                        <span className="mt-2 block border-t border-slate-700 pt-2">目前擁有: <span className={selectedCard.isMaxed ? 'text-yellow-400 font-black' : 'text-white font-bold'}>{selectedCard.ownedCount} / 4</span></span>
+                    </div>
                     
-                    {selectedCard.ownedCount > 0 && (
+                    {/* 🌟 修正：確保所有的按鈕都被完整包覆在一個 div 容器中 */}
+                    <div className="flex flex-col gap-3 w-full">
+                        
+                        {/* 🌟 設定頭像按鈕 */}
+                        {selectedCard.ownedCount > 0 && (
                             <button 
                                 onClick={() => { handleSetAvatar(selectedCard.displayUrl); setSelectedCard(null); }} 
                                 className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white py-2.5 rounded-xl font-black shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
                             >
-                                {/* 👇 就是這裡改成了 UserCog */}
                                 <UserCog size={18} /> 設定為專屬大頭貼
                             </button>
                         )}
 
-                        {/* 合成按鈕 */}
+                        {/* 🌟 合成按鈕區塊 */}
                         <div className="flex gap-3 w-full">
                             <button onClick={() => setSelectedCard(null)} disabled={isCrafting} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2.5 rounded-xl font-bold transition-colors">取消關閉</button>
                             
@@ -1732,6 +1740,7 @@ const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard
                                 </button>
                             )}
                         </div>
+                        
                     </div>
                 </div>
             </div>
@@ -2809,6 +2818,7 @@ const handleExportCardData = () => {
             user={user} 
             isAdmin={isAdmin}
             lang={lang}
+            userProfile={userProfile}
         />
       )}
 
