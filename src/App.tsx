@@ -1266,7 +1266,6 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
   const [isCheatMode, setIsCheatMode] = useState(false);
   const [usedCheat, setUsedCheat] = useState(false); 
 
-  // 🌟 新增：兌換碼專用狀態
   const [redeemCode, setRedeemCode] = useState("");
   const [isRedeeming, setIsRedeeming] = useState(false);
 
@@ -1284,71 +1283,29 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
 
   const isAltRevealed = openedCards.some((card, index) => card.isUpgraded && flippedIndices[index]);
 
-  // 🎁 玩家兌換代碼邏輯 (Transaction 防連點與防重複)
   const handleRedeemCode = async () => {
       if (!redeemCode.trim()) return;
-      if (!user || user.isAnonymous || !db) {
-          alert("請先登入註冊才能使用兌換碼喔！"); return;
-      }
-
+      if (!user || user.isAnonymous || !db) { alert("請先登入註冊才能使用兌換碼喔！"); return; }
       const codeStr = redeemCode.trim().toUpperCase();
       setIsRedeeming(true);
-
       try {
           const codeRef = doc(db, 'artifacts', appId, 'public', 'data', 'redeem_codes', codeStr);
           const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'main');
-
           const rewardAmount = await runTransaction(db, async (transaction) => {
               const codeDoc = await transaction.get(codeRef);
               if (!codeDoc.exists()) throw new Error("無效的兌換碼，請確認是否輸入正確！");
-
               const codeData = codeDoc.data();
               if (codeData.isActive === false) throw new Error("此兌換碼已經失效或過期囉！");
-
               const claimedBy = codeData.claimedBy || [];
               if (claimedBy.includes(user.uid)) throw new Error("您已經兌換過此代碼囉，把機會留給別人吧！");
-
-              if (codeData.maxUses && claimedBy.length >= codeData.maxUses) {
-                  throw new Error("手腳太慢啦！此兌換碼的領取次數已達上限。");
-              }
-
-              // 1. 寫入兌換紀錄
+              if (codeData.maxUses && claimedBy.length >= codeData.maxUses) throw new Error("手腳太慢啦！此兌換碼的領取次數已達上限。");
               transaction.update(codeRef, { claimedBy: [...claimedBy, user.uid] });
-              // 2. 發放餅乾幣
               transaction.update(profileRef, { tokens: increment(codeData.reward) });
-
               return codeData.reward;
           });
-
           alert(`🎉 兌換成功！恭喜獲得 ${rewardAmount} 枚餅乾幣！`);
           setRedeemCode("");
-      } catch (err) {
-          alert(`兌換失敗：${err.message}`);
-      } finally {
-          setIsRedeeming(false);
-      }
-  };
-
-  // 👑 管理員專屬：一鍵發行新兌換碼
-  const handleAdminCreateCode = async () => {
-      const code = prompt("請輸入要建立的自訂兌換碼\n(例如: MIDAY2026，建議大寫英文與數字):");
-      if (!code) return;
-      const reward = prompt(`兌換碼「${code.toUpperCase()}」要送多少餅乾幣？\n(例如: 100):`);
-      if (!reward || isNaN(reward)) return;
-      const max = prompt("請輸入最大兌換次數限制\n(填 0 代表無限次，適合放在 YouTube 資訊欄):", "0");
-
-      try {
-          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'redeem_codes', code.toUpperCase().trim()), {
-              reward: Number(reward),
-              claimedBy: [],
-              isActive: true,
-              maxUses: Number(max) > 0 ? Number(max) : null,
-              createdAt: new Date().toISOString()
-          });
-          alert(`✅ 兌換碼建立成功！\n代碼：${code.toUpperCase()}\n獎勵：${reward} 餅乾幣`);
-      } catch (e) {
-          alert("建立失敗: " + e.message);
-      }
+      } catch (err) { alert(`兌換失敗：${err.message}`); } finally { setIsRedeeming(false); }
   };
 
   const openPack = async () => {
@@ -1366,20 +1323,16 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
         }
         try {
             await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'main'), { tokens: increment(-packCost) });
-        } catch (e) {
-            alert("扣除餅乾幣失敗，請檢查網路狀態。"); return;
-        }
+        } catch (e) { alert("扣除餅乾幣失敗，請檢查網路狀態。"); return; }
     }
 
     if (isCheatMode) setUsedCheat(true);
-
     setIsOpening(true); setOpenedCards([]); setFlippedIndices({}); setEarnedDust(0);
     
     setTimeout(async () => {
         const selectedOther = fisherYatesShuffle(otherCards)[0]; 
         const selectedIDs = new Set([selectedOther.id]);
         const selectedCookies = [];
-        
         const targetRarity = (() => { 
             const r = Math.random() * 100; 
             if (r < 6) return 'UR'; if (r < 22) return 'SR'; if (r < 48) return 'R'; return 'C';                   
@@ -1406,7 +1359,6 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                     isUpgraded = true; const altRoll = Math.random() * 100;
                     let targetLabel = 'SEC';
                     if (altRoll < 1.0) targetLabel = 'GXR'; else if (altRoll < 5.0) targetLabel = 'EXR'; else if (altRoll < 15.0) targetLabel = 'SUR'; else if (altRoll < 40.0) targetLabel = 'SSR'; else targetLabel = 'SEC';     
-
                     const matchedAlts = card.altArts.filter(alt => alt.label?.toUpperCase() === targetLabel);
                     if (matchedAlts.length > 0) {
                         const selectedAlt = matchedAlts[Math.floor(Math.random() * matchedAlts.length)];
@@ -1426,7 +1378,6 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
             dust = await processPackToCollection(finalizedCards, isCheatMode);
             setEarnedDust(dust);
         }
-
         setPackCount(prev => prev + 1);
         setSessionStats(prev => ({ R: prev.R + currentPackStats.R, SR: prev.SR + currentPackStats.SR, UR: prev.UR + currentPackStats.UR, ALT: prev.ALT + currentPackStats.ALT, DUST: prev.DUST + dust }));
         setOpenedCards(fisherYatesShuffle(finalizedCards)); setIsOpening(false); 
@@ -1465,9 +1416,10 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                           <div><span className="block text-slate-400 text-xs font-bold mb-1">獲得異圖 (ALT)</span><span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-600">{sessionStats.ALT}</span></div>
                           <div><span className="block text-slate-400 text-xs font-bold mb-1">獲得 UR</span><span className="text-2xl font-black text-purple-400">{sessionStats.UR}</span></div>
                           {(!usedCheat && !isGuest) && (
-                              <div className="col-span-2 mt-2 pt-3 border-t border-slate-700/50 bg-cyan-950/20 -mx-2 px-2 rounded">
-                                  <span className="block text-cyan-400 text-xs font-bold mb-1">♻️ 重複卡化灰總計</span>
-                                  <span className="text-2xl font-black text-cyan-300 flex items-center gap-1"><Gem size={18}/> +{sessionStats.DUST} <span className="text-sm text-cyan-600 font-normal">餅乾幣</span></span>
+                              <div className="col-span-2 mt-2 pt-3 border-t border-slate-700/50 bg-pink-950/20 -mx-2 px-2 rounded">
+                                  {/* 🌟 結算區：改為餅乾粉末視覺 */}
+                                  <span className="block text-pink-400 text-xs font-bold mb-1">✨ 獲得餅乾粉末總計</span>
+                                  <span className="text-2xl font-black text-pink-300 flex items-center gap-1"><Sparkles size={18}/> +{sessionStats.DUST} <span className="text-sm text-pink-600 font-normal">粉末</span></span>
                               </div>
                           )}
                       </div>
@@ -1476,7 +1428,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                   <div className={`border rounded-lg p-4 mb-8 w-full ${usedCheat ? 'bg-red-950 border-red-600' : 'bg-slate-700 border-slate-600'}`}>
                       <p className={`font-bold mb-2 flex items-center justify-center gap-1.5 ${usedCheat ? 'text-red-500 text-lg' : 'text-slate-300'}`}><AlertOctagon size={usedCheat ? 22 : 18} /> {usedCheat ? '🛑 賭狗警告' : '消費統計'}</p>
                       <p className="text-slate-300 text-sm leading-relaxed">
-                          {(!usedCheat && !isGuest) ? (<span>您本次總共花費了 <span className="text-yellow-400 font-bold">💎 {packCount * packCost} 枚餅乾幣</span>。圖鑑已經自動更新，重複卡片已化為餅乾幣回饋給您！</span>) : (<span>您剛剛在模擬器中大約花費了 <span className="text-yellow-400 font-bold font-mono">NT$ {estimatedCost.toLocaleString()}</span> 的實體新台幣價值。<br/>{usedCheat ? <span className="text-red-400 font-bold mt-2 block">你作弊了對吧？！醒醒吧賭狗！</span> : <span className="mt-2 block">抽卡一時爽，荷包火葬場。適度娛樂，請勿沉迷賭博！</span>}</span>)}
+                          {(!usedCheat && !isGuest) ? (<span>您本次總共花費了 <span className="text-yellow-400 font-bold">💎 {packCount * packCost} 枚餅乾幣</span>。<br/>多餘的卡片已自動分解為「餅乾粉末」回饋給您！</span>) : (<span>您剛剛在模擬器中大約花費了 <span className="text-yellow-400 font-bold font-mono">NT$ {estimatedCost.toLocaleString()}</span> 的實體新台幣價值。<br/>{usedCheat ? <span className="text-red-400 font-bold mt-2 block">你作弊了對吧？！醒醒吧賭狗！</span> : <span className="mt-2 block">抽卡一時爽，荷包火葬場。適度娛樂，請勿沉迷賭博！</span>}</span>)}
                       </p>
                   </div>
                   <button onClick={onClose} className="w-full py-3 bg-slate-200 hover:bg-white text-slate-900 font-black rounded-xl transition-colors active:scale-95 text-lg">{closeButtonText}</button>
@@ -1512,27 +1464,13 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
             </div>
         </div>
 
-        {/* 🌟 新增：兌換碼專區 */}
         {(user && !user.isAnonymous) && (
             <div className="flex flex-col md:flex-row items-center justify-between gap-3 mb-6 bg-slate-800/80 p-3 rounded-xl border border-slate-600 shadow-inner">
                 <div className="flex items-center gap-2 w-full md:w-auto flex-1">
                     <Gem size={20} className="text-cyan-400 shrink-0 ml-1" />
-                    <input 
-                        type="text" 
-                        placeholder="輸入 YouTube 影片專屬兌換碼..." 
-                        className="flex-1 max-w-sm bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-600 focus:border-cyan-500 outline-none uppercase font-mono text-sm shadow-inner"
-                        value={redeemCode}
-                        onChange={(e) => setRedeemCode(e.target.value)}
-                    />
-                    <button 
-                        onClick={handleRedeemCode}
-                        disabled={isRedeeming || !redeemCode.trim()}
-                        className="bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors whitespace-nowrap shadow-md active:scale-95"
-                    >
-                        {isRedeeming ? "連線中..." : "確認兌換"}
-                    </button>
+                    <input type="text" placeholder="輸入 YouTube 影片專屬兌換碼..." className="flex-1 max-w-sm bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-600 focus:border-cyan-500 outline-none uppercase font-mono text-sm shadow-inner" value={redeemCode} onChange={(e) => setRedeemCode(e.target.value)} />
+                    <button onClick={handleRedeemCode} disabled={isRedeeming || !redeemCode.trim()} className="bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors whitespace-nowrap shadow-md active:scale-95">{isRedeeming ? "連線中..." : "確認兌換"}</button>
                 </div>
-
             </div>
         )}
         
@@ -1548,20 +1486,21 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                   {isOpening ? "..." : (<><PackageOpen size={20} /> {lang==='en'?'Open Pack':'購買並開啟卡包'} {(!isCheatMode && user && !user.isAnonymous) && (<span className="ml-1 bg-yellow-600 text-yellow-50 px-2 py-0.5 rounded text-xs font-black flex items-center gap-0.5 shadow-inner"><Gem size={12}/> {packCost}</span>)}</>)}
               </button>
             </div>
-            
             <label className="flex items-center gap-2 cursor-pointer text-slate-500 hover:text-red-400 transition-colors text-xs font-bold mt-1 select-none">
                 <input type="checkbox" className="hidden peer" checked={isCheatMode} onChange={(e) => setIsCheatMode(e.target.checked)} disabled={isOpening} />
                 <div className="w-4 h-4 rounded border border-slate-600 peer-checked:bg-red-500 peer-checked:border-red-500 flex items-center justify-center transition-colors">{isCheatMode && <span className="text-white text-[10px] font-black leading-none pb-[1px]">✔</span>}</div>
-                {isCheatMode ? '🔥 沙盒作弊模式 (異圖率大增，無法獲得餅乾幣與存入圖鑑)' : '開啟沙盒作弊模式 (風險自負)'}
+                {isCheatMode ? '🔥 沙盒作弊模式 (無粉末/圖鑑紀錄)' : '開啟沙盒作弊模式 (風險自負)'}
             </label>
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center min-h-[400px] relative">
+          
+          {/* 🌟 抽卡特效區：改為粉紅色粉末視覺 */}
           {earnedDust > 0 && openedCards.length > 0 && !isOpening && (
               <div className="absolute top-0 z-50 animate-in slide-in-from-top-10 fade-in duration-500">
-                  <div className="bg-slate-900/90 backdrop-blur-sm border-2 border-cyan-400 text-cyan-300 px-6 py-2.5 rounded-full font-black flex items-center gap-2 shadow-[0_0_20px_rgba(34,211,238,0.5)]">
-                      <Gem size={20} className="text-cyan-400" />
-                      重複卡片自動化灰：+{earnedDust} 餅乾幣
+                  <div className="bg-slate-900/90 backdrop-blur-sm border-2 border-pink-400 text-pink-300 px-6 py-2.5 rounded-full font-black flex items-center gap-2 shadow-[0_0_20px_rgba(244,114,182,0.5)]">
+                      <Sparkles size={20} className="text-pink-400" />
+                      重複卡片分解：+{earnedDust} 粉末
                   </div>
               </div>
           )}
@@ -1590,154 +1529,192 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
   );
 };
 
-const CollectionModal = ({ allCards, onClose, lang, userProfile }) => {
+const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard, handleSetAvatar }) => {
   const [selectedSeries, setSelectedSeries] = useState("BS11");
+  const [selectedCard, setSelectedCard] = useState(null); // 🌟 改名為 selectedCard，負責顯示卡片詳情
+  const [isCrafting, setIsCrafting] = useState(false);
+
   const availableSeries = useMemo(() => Array.from(new Set(allCards.filter(c => !c.series.startsWith('ST') && c.series !== 'P').map(c => c.series))).sort(), [allCards]);
 
-  // 🌟 核心修改：將卡片展開！如果一張卡有 2 張異圖，就把它變成 3 個獨立的展示格
   const expandedSeriesCards = useMemo(() => {
       const expanded = [];
       const baseCards = allCards.filter(c => c.series === selectedSeries);
-      
       baseCards.forEach(card => {
-          // 1. 放入普通版 (對應後台的 _NORMAL 標籤)
-          expanded.push({
-              ...card,
-              collectionKey: `${card.id}_NORMAL`,
-              displayUrl: card.imageUrl,
-              displayBadge: null,
-              isAltSlot: false
-          });
-
-          // 2. 如果這張卡有異圖，把每一個異圖都獨立抽出來變成一個新格子
+          expanded.push({ ...card, collectionKey: `${card.id}_NORMAL`, displayUrl: card.imageUrl, displayBadge: null, isAltSlot: false });
           if (card.altArts && card.altArts.length > 0) {
               card.altArts.forEach(alt => {
                   const altLabel = alt.label ? alt.label.toUpperCase() : 'ALT';
-                  expanded.push({
-                      ...card,
-                      collectionKey: `${card.id}_ALT_${altLabel}`,
-                      displayUrl: alt.url,
-                      displayBadge: altLabel,
-                      isAltSlot: true
-                  });
+                  expanded.push({ ...card, collectionKey: `${card.id}_ALT_${altLabel}`, displayUrl: alt.url, displayBadge: altLabel, isAltSlot: true });
               });
           }
       });
       return expanded;
   }, [allCards, selectedSeries]);
 
-  // 🌟 進度條改為計算「所有卡片 + 所有異圖」的總收集率
   const collectionStats = useMemo(() => {
       if (!userProfile?.collection) return { owned: 0, total: expandedSeriesCards.length, percentage: 0 };
       let ownedUnique = 0;
-      expandedSeriesCards.forEach(slot => {
-          if ((userProfile.collection[slot.collectionKey] || 0) > 0) {
-              ownedUnique++;
-          }
-      });
-      return {
-          owned: ownedUnique,
-          total: expandedSeriesCards.length,
-          percentage: expandedSeriesCards.length ? Math.round((ownedUnique / expandedSeriesCards.length) * 100) : 0
-      };
+      expandedSeriesCards.forEach(slot => { if ((userProfile.collection[slot.collectionKey] || 0) > 0) ownedUnique++; });
+      return { owned: ownedUnique, total: expandedSeriesCards.length, percentage: expandedSeriesCards.length ? Math.round((ownedUnique / expandedSeriesCards.length) * 100) : 0 };
   }, [expandedSeriesCards, userProfile]);
 
+  const getCraftCost = (slot) => {
+      if (slot.isAltSlot) {
+          const b = slot.displayBadge;
+          if (b === 'EXR' || b === 'GXR') return 300;
+          if (b === 'SUR') return 160;
+          if (b === 'SSR') return 80;
+          return 60; 
+      } else {
+          const r = slot.rarity || 'C';
+          if (r === 'UR') return 80;
+          if (r === 'SR') return 40;
+          if (r === 'R') return 30;
+          return 20; 
+      }
+  };
+
   const renderCollectionCard = (slot) => {
-      // 透過精準的 collectionKey (例如 BS1-001_NORMAL 或 BS1-001_ALT_SEC) 來核對是否擁有
       const ownedCount = userProfile?.collection?.[slot.collectionKey] || 0;
       const isOwned = ownedCount > 0;
+      const isMaxed = ownedCount >= 4; // 🌟 滿編判定
+      const cost = getCraftCost(slot);
       
-      return (
-          <div key={slot.collectionKey} className="relative aspect-[3/4] flex-shrink-0 perspective-1000 group">
-              <div className={`w-full h-full rounded-lg overflow-hidden border-2 transition-all duration-300 ${isOwned ? (slot.isAltSlot ? 'border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.5)]' : 'border-slate-300 shadow-md') : 'border-slate-200/50 opacity-40 grayscale'} bg-slate-100`}>
-                  {slot.displayUrl ? (
-                      <img src={slot.displayUrl} className="w-full h-full object-cover" alt={slot.name} />
-                  ) : (
-                      <div className={`w-full h-full p-2 flex flex-col justify-between ${getCardColorStyles(slot.color)}`}>
-                          <span className="font-bold text-[10px] leading-tight line-clamp-3">{cName(slot, lang)}</span>
-                      </div>
-                  )}
-                  
-                  {isOwned && (
-                      <div className="absolute -top-2 -right-2 bg-slate-800 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center shadow-md border-2 border-white z-10">
-                          {ownedCount}
-                      </div>
-                  )}
+      // 🌟 4/4 滿編專屬特效樣式
+      const badgeStyle = isMaxed 
+          ? "absolute -top-2 -right-2 bg-gradient-to-r from-yellow-300 via-yellow-500 to-amber-600 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(234,179,8,0.8)] border-2 border-yellow-200 z-10 animate-pulse" 
+          : "absolute -top-2 -right-2 bg-slate-800 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center shadow-md border-2 border-white z-10";
 
-                  {/* 異圖無論是否擁有，都顯示標籤，未擁有時用灰色標籤提示玩家這裡有個異圖坑 */}
-                  {slot.isAltSlot && (
-                      <div className={`absolute bottom-1 left-1 text-[9px] px-1.5 py-0.5 rounded font-black shadow-lg border ${isOwned ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-white border-yellow-300' : 'bg-slate-600 text-slate-300 border-slate-400'}`}>
-                          {slot.displayBadge}
-                      </div>
-                  )}
+      const cardGlowStyle = (isOwned && slot.isAltSlot) 
+          ? 'border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.5)]' 
+          : (isMaxed ? 'border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : 'border-slate-300 shadow-md');
+
+      return (
+          <div key={slot.collectionKey} 
+               onClick={() => setSelectedCard({ ...slot, cost, ownedCount, isMaxed })} 
+               className="relative aspect-[3/4] flex-shrink-0 perspective-1000 group cursor-pointer hover:scale-105 transition-transform"
+          >
+              <div className={`w-full h-full rounded-lg overflow-hidden border-2 transition-all duration-300 ${isOwned ? cardGlowStyle : 'border-slate-200/50 opacity-40 grayscale'} bg-slate-100`}>
+                  {slot.displayUrl ? (<img src={slot.displayUrl} className="w-full h-full object-cover" alt={slot.name} />) : (<div className={`w-full h-full p-2 flex flex-col justify-between ${getCardColorStyles(slot.color)}`}><span className="font-bold text-[10px] leading-tight line-clamp-3">{cName(slot, lang)}</span></div>)}
+                  
+                  {isOwned && (<div className={badgeStyle}>{ownedCount}</div>)}
+                  {isMaxed && (<div className="absolute inset-0 bg-gradient-to-tr from-yellow-400/20 to-transparent pointer-events-none"></div>)}
+                  
+                  {slot.isAltSlot && (<div className={`absolute bottom-1 left-1 text-[9px] px-1.5 py-0.5 rounded font-black shadow-lg border ${isOwned ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-white border-yellow-300' : 'bg-slate-600 text-slate-300 border-slate-400'}`}>{slot.displayBadge}</div>)}
               </div>
-              <div className="text-center mt-1 text-[10px] font-mono font-bold text-slate-500">
-                  {slot.id}
-              </div>
+              <div className="text-center mt-1 text-[10px] font-mono font-bold text-slate-500">{slot.id}</div>
           </div>
       );
   };
 
   return (
     <div className="fixed inset-0 bg-slate-900/95 z-[90] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in" onClick={onClose}>
-      <div className="bg-slate-50 rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden border border-slate-700" onClick={e => e.stopPropagation()}>
+      <div className="bg-slate-50 rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden border border-slate-700 relative" onClick={e => e.stopPropagation()}>
         
         <div className="bg-slate-800 p-4 md:p-6 shrink-0 border-b border-slate-700">
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-black text-white flex items-center gap-2">
                     <Star className="text-yellow-400 fill-yellow-400" /> {lang==='en'?'My Collection':'我的餅乾圖鑑'}
                 </h2>
-                <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors bg-slate-700/50 hover:bg-slate-600 p-1.5 rounded-full"><X size={24} /></button>
+                
+                <div className="flex items-center gap-4">
+                    <div className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-1.5 flex items-center gap-2 shadow-inner" title="餅乾粉末 (可用於合成卡片)">
+                        <Sparkles size={16} className="text-pink-400" />
+                        <span className="font-black text-pink-100 text-lg leading-none">{userProfile?.powder || 0}</span>
+                    </div>
+                    <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors bg-slate-700/50 hover:bg-slate-600 p-1.5 rounded-full"><X size={24} /></button>
+                </div>
             </div>
             
             <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                 <div className="flex flex-wrap gap-2 w-full md:w-auto">
                     {availableSeries.map(s => (
-                        <button 
-                            key={s} 
-                            onClick={() => setSelectedSeries(s)}
-                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${selectedSeries === s ? 'bg-blue-600 text-white shadow-lg scale-105' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
-                        >
-                            {s}
-                        </button>
+                        <button key={s} onClick={() => setSelectedSeries(s)} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${selectedSeries === s ? 'bg-blue-600 text-white shadow-lg scale-105' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>{s}</button>
                     ))}
                 </div>
-
                 <div className="w-full md:w-64 flex flex-col gap-1.5">
                     <div className="flex justify-between text-xs font-bold text-slate-300">
                         <span>{lang==='en'?'Completion':'收集進度'}</span>
                         <span className="text-yellow-400">{collectionStats.owned} / {collectionStats.total} ({collectionStats.percentage}%)</span>
                     </div>
-                    <div className="h-2.5 w-full bg-slate-700 rounded-full overflow-hidden shadow-inner">
-                        <div 
-                            className="h-full bg-gradient-to-r from-yellow-500 to-amber-400 transition-all duration-1000 ease-out relative"
-                            style={{ width: `${collectionStats.percentage}%` }}
-                        >
-                            <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
-                        </div>
-                    </div>
+                    <div className="h-2.5 w-full bg-slate-700 rounded-full overflow-hidden shadow-inner"><div className="h-full bg-gradient-to-r from-yellow-500 to-amber-400 transition-all duration-1000 ease-out relative" style={{ width: `${collectionStats.percentage}%` }}><div className="absolute inset-0 bg-white/20 animate-pulse"></div></div></div>
                 </div>
             </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
             {expandedSeriesCards.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                    <Database size={48} className="mb-3 opacity-20" />
-                    <p>該系列目前沒有卡片資料</p>
-                </div>
+                <div className="flex flex-col items-center justify-center h-full text-slate-400"><Database size={48} className="mb-3 opacity-20" /><p>該系列目前沒有卡片資料</p></div>
             ) : (
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 md:gap-4 pb-12">
-                    {/* 這裡改為渲染展開後的卡片 */}
                     {expandedSeriesCards.map(renderCollectionCard)}
                 </div>
             )}
         </div>
 
+        {/* 🌟 卡片功能面板 (合成 / 設定頭像) */}
+        {selectedCard && (
+            <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in zoom-in-95 rounded-2xl" onClick={() => setSelectedCard(null)}>
+                <div className="bg-slate-800 border-2 border-slate-600 rounded-2xl p-6 max-w-sm w-full flex flex-col items-center text-center shadow-2xl relative overflow-hidden" onClick={e => e.stopPropagation()}>
+                    
+                    {selectedCard.isMaxed && (<div className="absolute -top-4 -right-4 bg-gradient-to-br from-yellow-300 to-amber-600 w-16 h-16 transform rotate-45 flex items-end justify-center pb-2 shadow-lg"><Star size={12} className="text-white fill-white"/></div>)}
+
+                    <h3 className="text-xl font-black text-white mb-4 flex items-center gap-2">卡片詳細資訊</h3>
+                    
+                    <div className={`w-40 h-56 mb-4 rounded-xl overflow-hidden border-4 shadow-xl relative ${selectedCard.isMaxed ? 'border-yellow-400 shadow-[0_0_30px_rgba(234,179,8,0.4)]' : 'border-slate-600'}`}>
+                        {selectedCard.displayUrl ? (<img src={selectedCard.displayUrl} className="w-full h-full object-cover" alt="target" />) : (<div className={`w-full h-full p-2 ${getCardColorStyles(selectedCard.color)}`}></div>)}
+                        {selectedCard.isAltSlot && (<div className="absolute bottom-1 left-1 text-[10px] bg-gradient-to-r from-amber-500 to-yellow-600 text-white px-1.5 py-0.5 rounded font-black border border-yellow-300">{selectedCard.displayBadge}</div>)}
+                    </div>
+                    
+                    <p className="text-slate-300 text-sm mb-6 bg-slate-900/50 p-3 rounded-lg w-full border border-slate-700">
+                        <span className="text-yellow-400 font-bold block mb-1">{selectedCard.id}</span>
+                        目前擁有: <span className={selectedCard.isMaxed ? 'text-yellow-400 font-black' : 'text-white font-bold'}>{selectedCard.ownedCount} / 4</span>
+                    </p>
+                    
+                    <div className="flex flex-col gap-3 w-full">
+                        {/* 如果擁有該卡，顯示炫耀按鈕 */}
+                        {selectedCard.ownedCount > 0 && (
+                            <button 
+                                onClick={() => { handleSetAvatar(selectedCard.displayUrl); setSelectedCard(null); }} 
+                                className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white py-2.5 rounded-xl font-black shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+                            >
+                                <User size={18} /> 設定為專屬大頭貼
+                            </button>
+                        )}
+
+                        {/* 合成按鈕 */}
+                        <div className="flex gap-3 w-full">
+                            <button onClick={() => setSelectedCard(null)} disabled={isCrafting} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2.5 rounded-xl font-bold transition-colors">取消關閉</button>
+                            
+                            {!selectedCard.isMaxed ? (
+                                <button 
+                                    onClick={async () => {
+                                        setIsCrafting(true);
+                                        const success = await handleCraftCard(selectedCard.collectionKey, selectedCard.cost);
+                                        setIsCrafting(false);
+                                        if(success) { alert("🎉 合成成功！卡片已加入圖鑑。"); setSelectedCard(null); }
+                                    }} 
+                                    disabled={isCrafting || (userProfile?.powder || 0) < selectedCard.cost} 
+                                    className="flex-1 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 disabled:from-slate-700 disabled:text-slate-500 text-white py-2.5 rounded-xl font-black shadow-lg active:scale-95 transition-all flex flex-col items-center justify-center leading-none py-1"
+                                >
+                                    {isCrafting ? "合成中..." : (<><span className="text-xs font-normal mb-0.5">花費 {selectedCard.cost} 粉末</span><span>合成卡片</span></>)}
+                                </button>
+                            ) : (
+                                <button disabled className="flex-1 bg-yellow-600/20 text-yellow-500/50 border border-yellow-600/30 py-2.5 rounded-xl font-black flex items-center justify-center gap-1">
+                                    <Star size={16}/> 已滿編
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+
       </div>
     </div>
   );
 };
+
 // ==========================================
 // 🌟 核心組件：單張卡片
 // ==========================================
@@ -1889,57 +1866,91 @@ export default function App() {
   };
 
   // 🌟 [新增 API 2] 卡包結算與自動分解引擎 (Transaction)
-  const processPackToCollection = async (pulledCards, isCheatMode) => {
-    // 🛡️ 核心防護：作弊模式或未登入玩家，絕對不寫入資料庫！
+ const processPackToCollection = async (pulledCards, isCheatMode) => {
     if (isCheatMode || !user || user.isAnonymous || !db) return 0; 
 
     const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'main');
     
     try {
-        // 使用 runTransaction 確保資料在讀寫過程中不會因為網路延遲而算錯
         return await runTransaction(db, async (transaction) => {
             const profileDoc = await transaction.get(profileRef);
             if (!profileDoc.exists()) throw new Error("Profile not found");
             
             const data = profileDoc.data();
             let currentCollection = data.collection || {};
-            let newTokens = 0;
+            let newPowder = 0; // 🌟 變更為粉末
 
-            // 逐張結算抽到的卡片
             pulledCards.forEach(card => {
-                // 🔑 建立複合鍵：讓「正常版」與「異圖版」各自獨立計算上限！
                 const versionLabel = card.isUpgraded ? `ALT_${card.pulledBadge}` : "NORMAL";
                 const cardKey = `${card.id}_${versionLabel}`;
-                
                 const ownedCount = currentCollection[cardKey] || 0;
                 
                 if (ownedCount < 4) {
-                    // 尚未滿 4 張，存入圖鑑
                     currentCollection[cardKey] = ownedCount + 1;
                 } else {
-                    // ♻️ 超過 4 張，觸發自動分解匯率
-                    if (card.isUpgraded) newTokens += 50;           // 異圖無條件 50
-                    else if (card.pulledBadge === 'UR') newTokens += 40;
-                    else if (card.pulledBadge === 'SR') newTokens += 20;
-                    else if (card.pulledBadge === 'R') newTokens += 10;
-                    else newTokens += 5;                            // C 卡保底 5
+                    // ♻️ 超過 4 張，轉換為餅乾粉末
+                    if (card.isUpgraded) newPowder += 50;           
+                    else if (card.pulledBadge === 'UR') newPowder += 40;
+                    else if (card.pulledBadge === 'SR') newPowder += 20;
+                    else if (card.pulledBadge === 'R') newPowder += 10;
+                    else newPowder += 5;                            
                 }
             });
 
-            // 一次性將更新後的圖鑑與增加的代幣寫回資料庫
             transaction.update(profileRef, {
                 collection: currentCollection,
-                tokens: increment(newTokens) // 安全疊加代幣
+                powder: increment(newPowder) // 🌟 寫入專屬的粉末欄位
             });
-            
-            return newTokens; // 回傳本次分解獲得的總代幣
+            return newPowder; 
         });
     } catch (err) {
         console.error("卡包結算失敗:", err);
         return 0;
     }
   };
-  
+
+  // 🌟 [新增 API 2] 餅乾粉末指定合成卡片
+  const handleCraftCard = async (collectionKey, cost) => {
+      if (!user || user.isAnonymous || !db) return false;
+      const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'main');
+      
+      try {
+          return await runTransaction(db, async (transaction) => {
+              const profileDoc = await transaction.get(profileRef);
+              if (!profileDoc.exists()) throw new Error("找不到玩家檔案");
+              
+              const data = profileDoc.data();
+              const currentPowder = data.powder || 0;
+              if (currentPowder < cost) throw new Error("餅乾粉末不足！");
+              
+              const currentCollection = data.collection || {};
+              const owned = currentCollection[collectionKey] || 0;
+              if (owned >= 4) throw new Error("此卡片已經滿 4 張囉！");
+
+              currentCollection[collectionKey] = owned + 1;
+              transaction.update(profileRef, {
+                  collection: currentCollection,
+                  powder: currentPowder - cost
+              });
+              return true;
+          });
+      } catch (err) {
+          alert(err.message);
+          return false;
+      }
+  };
+
+  const handleSetAvatar = async (imageUrl) => {
+      if (!user || user.isAnonymous || !db) return;
+      try {
+          await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'main'), {
+              avatar: imageUrl
+          });
+          alert("✨ 太酷了！專屬大頭貼設定成功！");
+      } catch (e) {
+          alert("頭像設定失敗：" + e.message);
+      }
+  };
   const [filters, setFilters] = useState({
     search: "", type: "ALL", color: "ALL", level: "ALL", series: "ALL", rarity: "ALL", levelOrRarity: "ALL",
     skills: [], 
@@ -1966,6 +1977,7 @@ export default function App() {
           alert("建立失敗: " + e.message);
       }
   };
+  
   const [toastMsg, setToastMsg] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -2776,7 +2788,7 @@ const handleExportCardData = () => {
       
       {showPackOpenerModal && <PackOpenerModal allCards={allCards} onClose={() => setShowPackOpenerModal(false)} lang={lang} user={user} userProfile={userProfile} handleClaimDaily={handleClaimDaily} processPackToCollection={processPackToCollection} />}
 
-{showCollectionModal && <CollectionModal allCards={allCards} onClose={() => setShowCollectionModal(false)} lang={lang} userProfile={userProfile} />}
+      {showCollectionModal && <CollectionModal allCards={allCards} onClose={() => setShowCollectionModal(false)} lang={lang} userProfile={userProfile} handleCraftCard={handleCraftCard} handleSetAvatar={handleSetAvatar} />}
       
       {showProfileModal && (
         <ProfileModal 
@@ -2849,19 +2861,28 @@ const handleExportCardData = () => {
     </button>
 )}
                       
-                        {user && !user.isAnonymous ? (
+{user && !user.isAnonymous ? (
                             <button 
                                 onClick={() => setShowProfileModal(true)} 
-                                className="flex items-center gap-2 bg-white hover:bg-slate-50 border-2 border-emerald-200 px-3 py-1.5 rounded-xl text-slate-700 transition-all shadow-sm active:scale-95" 
+                                className="flex items-center gap-2 bg-white hover:bg-slate-50 border-2 border-emerald-200 pl-1 pr-3 py-1 rounded-full text-slate-700 transition-all shadow-sm active:scale-95" 
                                 title="點擊管理會員資料與登出"
                             >
-                                <UserCog size={18} className="text-emerald-500"/>
-                                <div className="flex flex-col items-start leading-none">
+                                {/* 🌟 專屬大頭貼展示區 (替換原本的 UserCog) */}
+                                <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)] flex-shrink-0 bg-slate-800 flex items-center justify-center">
+                                    {userProfile?.avatar ? (
+                                        <img src={userProfile.avatar} alt="Avatar" className="w-full h-full object-cover scale-[1.3] object-top" />
+                                    ) : (
+                                        <UserCog size={18} className="text-emerald-500"/>
+                                    )}
+                                </div>
+                                
+                                <div className="flex flex-col items-start leading-none py-1">
                                     <span className="text-xs font-bold truncate max-w-[100px]">{user.displayName || 'Set Name'}</span>
                                     <span className="text-[9px] text-emerald-600 font-black mt-0.5">Logged In</span>
                                 </div>
                             </button>
                         ) : (
+                            // 未登入的按鈕保持不變
                             <button 
                                 onClick={() => setShowLoginModal(true)} 
                                 className="relative bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg transition-transform active:scale-95 ring-2 ring-green-300 ring-offset-1"
