@@ -1251,51 +1251,71 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
   );
 };
 
-const PackOpenerModal = ({ allCards, onClose, lang }) => {
-  const [selectedSeries, setSelectedSeries] = useState("ALL");
+const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleClaimDaily, processPackToCollection }) => {
+  const [selectedSeries, setSelectedSeries] = useState("BS11"); // 預設改為最新的 BS11
   const [openedCards, setOpenedCards] = useState([]);
   const [flippedIndices, setFlippedIndices] = useState({});
   const [isOpening, setIsOpening] = useState(false); 
   const availableSeries = useMemo(() => Array.from(new Set(allCards.filter(c => !c.series.startsWith('ST') && c.series !== 'P').map(c => c.series))).sort(), [allCards]);
   
   const [packCount, setPackCount] = useState(0);
-  const [sessionStats, setSessionStats] = useState({ R: 0, SR: 0, UR: 0, ALT: 0 });
+  const [sessionStats, setSessionStats] = useState({ R: 0, SR: 0, UR: 0, ALT: 0, DUST: 0 });
   const [showSummary, setShowSummary] = useState(false);
+  const [earnedDust, setEarnedDust] = useState(0); // 單次開包獲得的代幣
   
   const [isCheatMode, setIsCheatMode] = useState(false);
   const [usedCheat, setUsedCheat] = useState(false); 
 
+  // 💰 動態計算卡包價格
+  const packCost = useMemo(() => {
+      if (selectedSeries === "ALL" || selectedSeries === "BS11") return 50;
+      if (["BS6", "BS7", "BS8", "BS9", "BS10"].includes(selectedSeries)) return 40;
+      return 25; // 經典卡包 BS1-BS5, ST 等等
+  }, [selectedSeries]);
+
   const closeButtonText = useMemo(() => {
-      const normalTexts = [
-          "謝謝提醒，我不會再欺負錢包君了🥺",
-          "再抽我就剁手手！😋",
-          "夢醒了，我還是臉很黑。💩"
-      ];
-      const cheatTexts = [
-          "我知錯了！不會再作弊了😥",
-          "連陽壽都是借來的，小丑竟是我自己 🤡",
-          "下次我會用真實的運氣面對 🥺"
-      ];
-      const pool = usedCheat ? cheatTexts : normalTexts;
-      return pool[Math.floor(Math.random() * pool.length)];
+      const normalTexts = ["謝謝提醒，我不會再欺負錢包君了🥺", "再抽我就剁手手！😋", "夢醒了，我還是臉很黑。💩"];
+      const cheatTexts = ["我知錯了！不會再作弊了😥", "連陽壽都是借來的，小丑竟是我自己 🤡", "下次我會用真實的運氣面對 🥺"];
+      return (usedCheat ? cheatTexts : normalTexts)[Math.floor(Math.random() * 3)];
   }, [showSummary, usedCheat]); 
 
   const isAltRevealed = openedCards.some((card, index) => card.isUpgraded && flippedIndices[index]);
 
-  const openPack = () => {
+  const openPack = async () => {
     let pool = allCards.filter(c => !c.series.startsWith('ST') && c.series !== 'P');
     if (selectedSeries !== "ALL") pool = pool.filter(c => c.series === selectedSeries);
-    const cookieCards = pool.filter(c => c.type === CARD_TYPES.COOKIE); const otherCards = pool.filter(c => c.type !== CARD_TYPES.COOKIE);
+    const cookieCards = pool.filter(c => c.type === CARD_TYPES.COOKIE); 
+    const otherCards = pool.filter(c => c.type !== CARD_TYPES.COOKIE);
     if (otherCards.length < 1 || cookieCards.length < 4) return alert("Not enough cards for this series.");
     
+    // 🛡️ 檢查餘額與扣款 (登入且非作弊模式)
+    const isValidPlayer = user && !user.isAnonymous;
+    if (!isCheatMode && isValidPlayer) {
+        if ((userProfile?.tokens || 0) < packCost) {
+            alert(`💎 代幣不足！需要 ${packCost} 枚代幣才能開啟這個卡包。\n(每日登入可領取 50 代幣唷)`);
+            return;
+        }
+        // 先在前端樂觀扣款，避免連點
+        try {
+            await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'main'), {
+                tokens: increment(-packCost)
+            });
+        } catch (e) {
+            alert("扣除代幣失敗，請檢查網路狀態。"); return;
+        }
+    }
+
     if (isCheatMode) setUsedCheat(true);
 
     setIsOpening(true); 
     setOpenedCards([]); 
     setFlippedIndices({});
+    setEarnedDust(0);
     
-    setTimeout(() => {
-        const selectedOther = fisherYatesShuffle(otherCards)[0]; const selectedIDs = new Set([selectedOther.id]);
+    // 🌟 將 setTimeout 改為 async 以便處理化灰結算
+    setTimeout(async () => {
+        const selectedOther = fisherYatesShuffle(otherCards)[0]; 
+        const selectedIDs = new Set([selectedOther.id]);
         const selectedCookies = [];
         
         const targetRarity = (() => { 
@@ -1306,15 +1326,17 @@ const PackOpenerModal = ({ allCards, onClose, lang }) => {
             return 'C';                   
         })();
         
-        let targetPool = cookieCards.filter(c => (c.rarity || 'C') === targetRarity); if (targetPool.length === 0) targetPool = cookieCards; 
-        const rareCard = targetPool[Math.floor(Math.random() * targetPool.length)]; if (rareCard) { selectedCookies.push(rareCard); selectedIDs.add(rareCard.id); }
+        let targetPool = cookieCards.filter(c => (c.rarity || 'C') === targetRarity); 
+        if (targetPool.length === 0) targetPool = cookieCards; 
+        const rareCard = targetPool[Math.floor(Math.random() * targetPool.length)]; 
+        if (rareCard) { selectedCookies.push(rareCard); selectedIDs.add(rareCard.id); }
         
-        let commonPool = cookieCards.filter(c => (c.rarity || 'C') === 'C' && !selectedIDs.has(c.id)); if (commonPool.length < 3) commonPool = cookieCards.filter(c => !selectedIDs.has(c.id));
+        let commonPool = cookieCards.filter(c => (c.rarity || 'C') === 'C' && !selectedIDs.has(c.id)); 
+        if (commonPool.length < 3) commonPool = cookieCards.filter(c => !selectedIDs.has(c.id));
         selectedCookies.push(...fisherYatesShuffle(commonPool).slice(0, 3));
         while (selectedCookies.length < 4) selectedCookies.push(cookieCards[Math.floor(Math.random() * cookieCards.length)]);
         
         const UPGRADE_CHANCE = isCheatMode ? 0.75 : 0.15; 
-        
         const rawOpenedCards = [...selectedCookies, selectedOther];
         let currentPackStats = { R: 0, SR: 0, UR: 0, ALT: 0 };
 
@@ -1353,12 +1375,20 @@ const PackOpenerModal = ({ allCards, onClose, lang }) => {
             return { ...card, pulledArt: finalImg, pulledBadge: finalBadge, isUpgraded };
         });
 
+        // ♻️ 呼叫自動化灰引擎 (如果是正常玩家)
+        let dust = 0;
+        if (!isCheatMode && isValidPlayer) {
+            dust = await processPackToCollection(finalizedCards, isCheatMode);
+            setEarnedDust(dust);
+        }
+
         setPackCount(prev => prev + 1);
         setSessionStats(prev => ({
             R: prev.R + currentPackStats.R,
             SR: prev.SR + currentPackStats.SR,
             UR: prev.UR + currentPackStats.UR,
-            ALT: prev.ALT + currentPackStats.ALT
+            ALT: prev.ALT + currentPackStats.ALT,
+            DUST: prev.DUST + dust
         }));
 
         setOpenedCards(fisherYatesShuffle(finalizedCards)); 
@@ -1367,56 +1397,26 @@ const PackOpenerModal = ({ allCards, onClose, lang }) => {
   };
   
   const handleCloseModal = () => {
-      if (packCount > 0 && !showSummary) {
-          setShowSummary(true);
-      } else {
-          onClose();
-      }
+      if (packCount > 0 && !showSummary) setShowSummary(true);
+      else onClose();
   };
 
   const renderCard = (card, index) => {
       const isFlipped = flippedIndices[index];
       const isUpgraded = card.isUpgraded;
-      
       const wrapperClass = (isUpgraded && isFlipped) ? "scale-[1.05] z-30" : "z-10 hover:scale-105";
-
-      // 🌟 修正點：嚴格綁定 `isFlipped`。還沒翻開前，絕對不加上 `animate-pulse`！
       const frontGlowClass = isUpgraded 
           ? `border-4 border-yellow-400 shadow-[0_0_40px_rgba(234,179,8,1)] ${isFlipped ? 'animate-pulse' : ''}` 
           : "border-2 border-slate-200 shadow-xl";
 
       return (
-        <div 
-          key={index} 
-          onClick={() => setFlippedIndices(p => ({ ...p, [index]: true }))} 
-          className={`w-[30vw] h-[40vw] md:w-48 md:h-64 relative flex-shrink-0 animate-in zoom-in duration-500 transition-transform cursor-pointer ${wrapperClass}`}
-        >
-            <div 
-                className={`absolute inset-0 rounded-lg overflow-hidden transition-all duration-500 ease-out border-2 border-slate-600 shadow-xl
-                ${isFlipped ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}
-            >
+        <div key={index} onClick={() => setFlippedIndices(p => ({ ...p, [index]: true }))} className={`w-[30vw] h-[40vw] md:w-48 md:h-64 relative flex-shrink-0 animate-in zoom-in duration-500 transition-transform cursor-pointer ${wrapperClass}`}>
+            <div className={`absolute inset-0 rounded-lg overflow-hidden transition-all duration-500 ease-out border-2 border-slate-600 shadow-xl ${isFlipped ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}>
                 <img src={CARD_BACK_URL} className="w-full h-full object-cover" alt="Card Back" />
             </div>
-            
-            <div 
-                className={`absolute inset-0 rounded-lg bg-white transition-all duration-500 ease-out
-                ${isFlipped ? 'opacity-100 scale-100' : 'opacity-0 scale-110 pointer-events-none'} 
-                ${frontGlowClass}`}
-            >
-                {card.pulledArt ? (
-                    <img src={card.pulledArt} className="w-full h-full object-cover rounded-lg" alt={card.name} />
-                ) : (
-                    <div className={`w-full h-full p-2 flex flex-col justify-between rounded-lg ${getCardColorStyles(card.color)}`}>
-                        <span className="font-bold text-sm leading-tight line-clamp-3">{cName(card, lang)}</span>
-                        <span className="font-mono text-xs">{card.id}</span>
-                    </div>
-                )}
-                
-                {card.pulledBadge && card.pulledBadge !== 'C' && (
-                    <div className={`absolute top-1 right-1 text-[10px] font-bold px-1.5 py-0.5 rounded shadow border tracking-wider transition-all z-10 ${isUpgraded ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-600 text-white border-yellow-300 font-black scale-110 shadow-lg shadow-orange-500/40' : getRarityStyle(card.pulledBadge)}`}>
-                        {card.pulledBadge}
-                    </div>
-                )}
+            <div className={`absolute inset-0 rounded-lg bg-white transition-all duration-500 ease-out ${isFlipped ? 'opacity-100 scale-100' : 'opacity-0 scale-110 pointer-events-none'} ${frontGlowClass}`}>
+                {card.pulledArt ? (<img src={card.pulledArt} className="w-full h-full object-cover rounded-lg" alt={card.name} />) : (<div className={`w-full h-full p-2 flex flex-col justify-between rounded-lg ${getCardColorStyles(card.color)}`}><span className="font-bold text-sm leading-tight line-clamp-3">{cName(card, lang)}</span><span className="font-mono text-xs">{card.id}</span></div>)}
+                {card.pulledBadge && card.pulledBadge !== 'C' && (<div className={`absolute top-1 right-1 text-[10px] font-bold px-1.5 py-0.5 rounded shadow border tracking-wider transition-all z-10 ${isUpgraded ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-600 text-white border-yellow-300 font-black scale-110 shadow-lg shadow-orange-500/40' : getRarityStyle(card.pulledBadge)}`}>{card.pulledBadge}</div>)}
             </div>
         </div>
       );
@@ -1424,13 +1424,11 @@ const PackOpenerModal = ({ allCards, onClose, lang }) => {
   
   if (showSummary) {
       const estimatedCost = packCount * 50; 
+      const isGuest = !user || user.isAnonymous;
       return (
           <div className="fixed inset-0 bg-black/90 z-[80] flex items-center justify-center p-4 animate-in fade-in" onClick={onClose}>
               <div className={`border-2 rounded-2xl shadow-2xl w-full max-w-md p-8 flex flex-col items-center text-center relative ${usedCheat ? 'bg-slate-900 border-red-600 shadow-red-900/50' : 'bg-slate-800 border-slate-600'}`} onClick={e => e.stopPropagation()}>
-                  
-                  <h2 className={`text-3xl font-black mb-2 tracking-wider ${usedCheat ? 'text-red-500 animate-pulse' : 'text-white'}`}>
-                      {usedCheat ? '🚨 你作弊了！' : '本次抽卡結算'}
-                  </h2>
+                  <h2 className={`text-3xl font-black mb-2 tracking-wider ${usedCheat ? 'text-red-500 animate-pulse' : 'text-white'}`}>{usedCheat ? '🚨 你作弊了！' : '本次抽卡結算'}</h2>
                   <p className="text-slate-400 mb-6 text-sm font-bold">Session Summary</p>
                   
                   <div className="w-full bg-slate-950/50 rounded-xl p-5 mb-6 shadow-inner border border-slate-700/50">
@@ -1447,58 +1445,77 @@ const PackOpenerModal = ({ allCards, onClose, lang }) => {
                               <span className="block text-slate-400 text-xs font-bold mb-1">獲得 UR</span>
                               <span className="text-2xl font-black text-purple-400">{sessionStats.UR}</span>
                           </div>
-                          <div>
-                              <span className="block text-slate-400 text-xs font-bold mb-1">獲得 SR</span>
-                              <span className="text-xl font-bold text-blue-400">{sessionStats.SR}</span>
-                          </div>
-                          <div>
-                              <span className="block text-slate-400 text-xs font-bold mb-1">獲得 R</span>
-                              <span className="text-xl font-bold text-slate-300">{sessionStats.R}</span>
-                          </div>
+                          {(!usedCheat && !isGuest) && (
+                              <div className="col-span-2 mt-2 pt-3 border-t border-slate-700/50 bg-cyan-950/20 -mx-2 px-2 rounded">
+                                  <span className="block text-cyan-400 text-xs font-bold mb-1">♻️ 重複卡化灰總計</span>
+                                  <span className="text-2xl font-black text-cyan-300 flex items-center gap-1"><Gem size={18}/> +{sessionStats.DUST} <span className="text-sm text-cyan-600 font-normal">代幣</span></span>
+                              </div>
+                          )}
                       </div>
                   </div>
 
-                  <div className={`border rounded-lg p-4 mb-8 w-full ${usedCheat ? 'bg-red-950 border-red-600' : 'bg-red-950/40 border-red-900/50'}`}>
-                      <p className={`font-bold mb-2 flex items-center justify-center gap-1.5 ${usedCheat ? 'text-red-500 text-lg' : 'text-red-400'}`}>
-                          <AlertOctagon size={usedCheat ? 22 : 18} /> {usedCheat ? '🛑 賭狗警告' : '溫馨防沉迷提示'}
-                      </p>
+                  <div className={`border rounded-lg p-4 mb-8 w-full ${usedCheat ? 'bg-red-950 border-red-600' : 'bg-slate-700 border-slate-600'}`}>
+                      <p className={`font-bold mb-2 flex items-center justify-center gap-1.5 ${usedCheat ? 'text-red-500 text-lg' : 'text-slate-300'}`}><AlertOctagon size={usedCheat ? 22 : 18} /> {usedCheat ? '🛑 賭狗警告' : '消費統計'}</p>
                       <p className="text-slate-300 text-sm leading-relaxed">
-                          您剛剛在模擬器中大約花費了 <span className="text-yellow-400 font-bold font-mono">NT$ {estimatedCost.toLocaleString()}</span> 的實體新台幣價值。<br/>
-                          {usedCheat 
-                              ? <span className="text-red-400 font-bold mt-2 block">你作弊了對吧？！醒醒吧賭狗！</span>
-                              : <span className="mt-2 block">抽卡一時爽，荷包火葬場。適度娛樂，請勿沉迷賭博！</span>
-                          }
+                          {(!usedCheat && !isGuest) ? (
+                              <span>您本次總共花費了 <span className="text-yellow-400 font-bold">💎 {packCount * packCost} 枚代幣</span>。圖鑑已經自動更新，重複卡片已化為代幣回饋給您！</span>
+                          ) : (
+                              <span>您剛剛在模擬器中大約花費了 <span className="text-yellow-400 font-bold font-mono">NT$ {estimatedCost.toLocaleString()}</span> 的實體新台幣價值。<br/>
+                              {usedCheat ? <span className="text-red-400 font-bold mt-2 block">你作弊了對吧？！醒醒吧賭狗！</span> : <span className="mt-2 block">抽卡一時爽，荷包火葬場。適度娛樂，請勿沉迷賭博！</span>}</span>
+                          )}
                       </p>
                   </div>
-
-                  <button onClick={onClose} className="w-full py-3 bg-slate-200 hover:bg-white text-slate-900 font-black rounded-xl transition-colors active:scale-95 text-lg">
-                      {closeButtonText}
-                  </button>
+                  <button onClick={onClose} className="w-full py-3 bg-slate-200 hover:bg-white text-slate-900 font-black rounded-xl transition-colors active:scale-95 text-lg">{closeButtonText}</button>
               </div>
           </div>
       );
   }
 
-  const modalGlowClass = isAltRevealed 
-      ? "bg-slate-900 border-2 border-amber-400 shadow-[0_0_80px_rgba(245,158,11,0.3)]" 
-      : "bg-slate-800 border-2 border-transparent shadow-2xl";
+  const modalGlowClass = isAltRevealed ? "bg-slate-900 border-2 border-amber-400 shadow-[0_0_80px_rgba(245,158,11,0.3)]" : "bg-slate-800 border-2 border-transparent shadow-2xl";
 
   return (
     <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4 transition-colors duration-700" onClick={handleCloseModal}>
       <div className={`rounded-xl w-full max-w-5xl p-6 min-h-[600px] flex flex-col transition-all duration-700 ${modalGlowClass}`} onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center mb-6 text-white">
-            <h2 className="text-2xl font-black flex items-center gap-2"><PackageOpen className="text-yellow-400" /> {lang==='en'?'Pack Opener':'開卡包模擬器'}</h2>
-            <button onClick={handleCloseModal} className="p-1 hover:bg-slate-700 rounded-full"><X size={24} /></button>
+        
+        {/* 🌟 頂部：標題與代幣面板 */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 text-white border-b border-slate-700 pb-4">
+            <h2 className="text-2xl font-black flex items-center gap-2"><PackageOpen className="text-yellow-400" /> {lang==='en'?'Pack Opener':'卡包商城與模擬器'}</h2>
+            
+            <div className="flex items-center gap-3">
+                {(user && !user.isAnonymous && userProfile) ? (
+                    <>
+                        <div className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-1.5 flex items-center gap-2 shadow-inner" title="目前擁有的代幣數量">
+                            <Gem size={18} className="text-cyan-400" />
+                            <span className="font-black text-cyan-100 text-lg leading-none">{userProfile.tokens}</span>
+                        </div>
+                        <button onClick={handleClaimDaily} className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 transition-all">
+                            領取每日
+                        </button>
+                    </>
+                ) : (
+                    <div className="text-xs text-slate-400 font-bold bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-700">訪客模式 (無法儲存圖鑑與代幣)</div>
+                )}
+                <button onClick={handleCloseModal} className="p-1 hover:bg-slate-700 rounded-full ml-2"><X size={24} /></button>
+            </div>
         </div>
         
+        {/* 🌟 操作區：選擇卡包與作弊開關 */}
         <div className="flex flex-col items-center gap-3 mb-8">
-            <div className="flex gap-4 justify-center">
-              <select className="bg-slate-700 text-white border border-slate-600 rounded-lg px-4 py-2 outline-none font-bold" value={selectedSeries} onChange={(e) => setSelectedSeries(e.target.value)} disabled={isOpening}>
-                <option value="ALL">{lang==='en'?'All':'全部卡池'}</option>
-                {availableSeries.map(s => <option key={s} value={s}>{s}</option>)}
+            <div className="flex flex-wrap gap-4 justify-center items-center">
+              <select className="bg-slate-700 text-white border border-slate-600 rounded-lg px-4 py-2.5 outline-none font-bold shadow-sm focus:ring-2 focus:ring-blue-500" value={selectedSeries} onChange={(e) => setSelectedSeries(e.target.value)} disabled={isOpening}>
+                <option value="ALL">{lang==='en'?'All':'全部卡池 (50代幣)'}</option>
+                {availableSeries.map(s => <option key={s} value={s}>{s} ({s === 'BS11' ? '50代幣' : ['BS6', 'BS7', 'BS8', 'BS9', 'BS10'].includes(s) ? '40代幣' : '25代幣'})</option>)}
               </select>
-              <button onClick={openPack} disabled={isOpening} className="bg-yellow-500 hover:bg-yellow-400 disabled:bg-yellow-700 disabled:text-slate-500 text-slate-900 px-6 py-2 rounded-lg font-black flex items-center gap-2 shadow-lg transition-transform active:scale-95">
-                  {isOpening ? "..." : <><PackageOpen size={20} /> {lang==='en'?'Open Pack':'開啟卡包'}</>}
+              
+              <button onClick={openPack} disabled={isOpening} className="bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 disabled:from-slate-600 disabled:to-slate-700 disabled:text-slate-400 text-slate-900 px-6 py-2.5 rounded-lg font-black flex items-center gap-2 shadow-lg transition-transform active:scale-95">
+                  {isOpening ? "..." : (
+                      <>
+                        <PackageOpen size={20} /> {lang==='en'?'Open Pack':'購買並開啟卡包'}
+                        {(!isCheatMode && user && !user.isAnonymous) && (
+                            <span className="ml-1 bg-yellow-600 text-yellow-50 px-2 py-0.5 rounded text-xs font-black flex items-center gap-0.5 shadow-inner"><Gem size={12}/> {packCost}</span>
+                        )}
+                      </>
+                  )}
               </button>
             </div>
             
@@ -1507,13 +1524,43 @@ const PackOpenerModal = ({ allCards, onClose, lang }) => {
                 <div className="w-4 h-4 rounded border border-slate-600 peer-checked:bg-red-500 peer-checked:border-red-500 flex items-center justify-center transition-colors">
                     {isCheatMode && <span className="text-white text-[10px] font-black leading-none pb-[1px]">✔</span>}
                 </div>
-                {isCheatMode ? '🔥 作弊模式啟動 (異圖率 5 倍)' : '開啟作弊模式 (風險自負)'}
+                {isCheatMode ? '🔥 沙盒作弊模式 (異圖率大增，但無法獲得代幣與存入圖鑑)' : '開啟沙盒作弊模式 (風險自負)'}
             </label>
         </div>
 
-        <div className="flex-1 flex items-center justify-center min-h-[400px]">
-          {isOpening ? (<div className="animate-bounce"><div className="w-48 h-64 bg-gradient-to-tr from-blue-600 to-purple-600 rounded-xl border-4 border-yellow-400 shadow-2xl flex items-center justify-center animate-pulse"><img src={CARD_BACK_URL} className="w-full h-full object-cover rounded-lg opacity-80" alt="Pack" /></div></div>) : openedCards.length === 0 ? (<div className="text-slate-500 flex flex-col items-center"><PackageOpen size={64} className="mb-4 opacity-20" /></div>) : (<div className="flex flex-col items-center gap-4 md:gap-6 w-full"><div className="flex justify-center gap-2 md:gap-6">{openedCards.slice(0, 3).map((card, index) => renderCard(card, index))}</div><div className="flex justify-center gap-2 md:gap-6">{openedCards.slice(3, 5).map((card, index) => renderCard(card, index + 3))}</div></div>)}
+        {/* 🌟 抽卡動畫展示區 */}
+        <div className="flex-1 flex flex-col items-center justify-center min-h-[400px] relative">
+          
+          {/* 化灰特效橫幅 */}
+          {earnedDust > 0 && openedCards.length > 0 && !isOpening && (
+              <div className="absolute top-0 z-50 animate-in slide-in-from-top-10 fade-in duration-500">
+                  <div className="bg-slate-900/90 backdrop-blur-sm border-2 border-cyan-400 text-cyan-300 px-6 py-2.5 rounded-full font-black flex items-center gap-2 shadow-[0_0_20px_rgba(34,211,238,0.5)]">
+                      <Gem size={20} className="text-cyan-400" />
+                      重複卡片自動化灰：+{earnedDust} 代幣
+                  </div>
+              </div>
+          )}
+
+          {isOpening ? (
+              <div className="animate-bounce">
+                  <div className="w-48 h-64 bg-gradient-to-tr from-blue-600 to-purple-600 rounded-xl border-4 border-yellow-400 shadow-[0_0_50px_rgba(234,179,8,0.6)] flex items-center justify-center animate-pulse relative overflow-hidden">
+                      <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                      <img src={CARD_BACK_URL} className="w-full h-full object-cover rounded-lg opacity-90" alt="Pack" />
+                  </div>
+              </div>
+          ) : openedCards.length === 0 ? (
+              <div className="text-slate-500 flex flex-col items-center">
+                  <PackageOpen size={64} className="mb-4 opacity-20" />
+                  <p className="text-sm font-bold opacity-60">點擊上方按鈕開啟卡包</p>
+              </div>
+          ) : (
+              <div className="flex flex-col items-center gap-4 md:gap-6 w-full">
+                  <div className="flex justify-center gap-2 md:gap-6">{openedCards.slice(0, 3).map((card, index) => renderCard(card, index))}</div>
+                  <div className="flex justify-center gap-2 md:gap-6">{openedCards.slice(3, 5).map((card, index) => renderCard(card, index + 3))}</div>
+              </div>
+          )}
         </div>
+
       </div>
     </div>
   );
@@ -2534,7 +2581,7 @@ const handleExportCardData = () => {
 
       {showDrawTestModal && <DrawTestModal deck={deck} onClose={() => setShowDrawTestModal(false)} lang={lang} />}
       
-      {showPackOpenerModal && <PackOpenerModal allCards={allCards} onClose={() => setShowPackOpenerModal(false)} lang={lang} />}
+      {showPackOpenerModal && <PackOpenerModal allCards={allCards} onClose={() => setShowPackOpenerModal(false)} lang={lang} user={user} userProfile={userProfile} handleClaimDaily={handleClaimDaily} processPackToCollection={processPackToCollection} />}
       
       {showProfileModal && (
         <ProfileModal 
