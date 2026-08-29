@@ -1626,7 +1626,7 @@ export default function App() {
     if (!user || user.isAnonymous || !db) return;
     
     // 建立專屬於使用者的 profile 文件路徑
-    const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile');
+    const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'main');
     
     const unsubscribe = onSnapshot(profileRef, (snap) => {
       if (snap.exists()) {
@@ -1658,7 +1658,7 @@ export default function App() {
     }
     
     try {
-        const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile');
+        const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'main');
         await updateDoc(profileRef, { 
             tokens: increment(50), // 每日登入送 50 代幣
             lastDailyClaim: taipeiDate 
@@ -1674,7 +1674,7 @@ export default function App() {
     // 🛡️ 核心防護：作弊模式或未登入玩家，絕對不寫入資料庫！
     if (isCheatMode || !user || user.isAnonymous || !db) return 0; 
 
-    const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile');
+    const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'main');
     
     try {
         // 使用 runTransaction 確保資料在讀寫過程中不會因為網路延遲而算錯
