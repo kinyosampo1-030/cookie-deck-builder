@@ -1609,6 +1609,105 @@ export default function App() {
   const [allCards, setAllCards] = useState([]);
   const [deck, setDeck] = useState({ main: [], extra: [] });
   const [deckName, setDeckName] = useState("我的餅乾牌組");
+  const [userProfile, setUserProfile] = useState({ tokens: 0, collection: {}, lastDailyClaim: null });
+
+  useEffect(() => {
+    if (!user || user.isAnonymous || !db) return;
+    
+    const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile');
+    const unsubscribe = onSnapshot(profileRef, (snap) => {
+      if (snap.exists()) {
+        setUserProfile(snap.data());
+      } else {
+        // 若是新註冊玩家，自動初始化玩家檔案
+        setDoc(profileRef, { tokens: 0, collection: {}, lastDailyClaim: null }, { merge: true });
+      }
+    });
+    
+    return () => unsubscribe();
+  }, [user, db]);
+
+  const handleClaimDaily = async () => {
+    if (!user || user.isAnonymous || !db) {
+        setToastMsg("請先登入註冊，才能領取每日獎勵！");
+        return;
+    }
+    
+    // 取得精準的台灣時間 YYYY-MM-DD
+    const taipeiDate = new Intl.DateTimeFormat('en-CA', { 
+        timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' 
+    }).format(new Date());
+    
+    if (userProfile.lastDailyClaim === taipeiDate) {
+        setToastMsg("今日已經領取過囉！請明天再來。");
+        return;
+    }
+    
+    try {
+        const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile');
+        await updateDoc(profileRef, { 
+            tokens: increment(50), // 每日登入送 50 代幣 (剛好可抽一包最新 BS11 系列)
+            lastDailyClaim: taipeiDate 
+        });
+        setToastMsg("🎉 成功領取每日獎勵：獲得 50 代幣！");
+    } catch (err) {
+        console.error("每日領取失敗:", err);
+    }
+  };
+
+  // 🌟 [新增 API 2] 卡包結算與自動分解引擎 (Transaction)
+  // 此函式會在模擬器「開包動畫結束」時被呼叫，並回傳分解獲得的代幣數量給前端顯示
+  const processPackToCollection = async (pulledCards, isCheatMode) => {
+    // 🛡️ 核心防護：作弊模式或未登入玩家，絕對不寫入資料庫！
+    if (isCheatMode || !user || user.isAnonymous || !db) return 0; 
+
+    const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile');
+    
+    try {
+        // 使用 runTransaction 確保資料在讀寫過程中不會因為網路延遲而算錯
+        return await runTransaction(db, async (transaction) => {
+            const profileDoc = await transaction.get(profileRef);
+            if (!profileDoc.exists()) throw new Error("Profile not found");
+            
+            const data = profileDoc.data();
+            let currentCollection = data.collection || {};
+            let newTokens = 0;
+
+            // 逐張結算抽到的卡片
+            pulledCards.forEach(card => {
+                // 🔑 建立複合鍵：讓「正常版」與「異圖版」各自獨立計算上限！
+                // 格式範例：BS1-001_NORMAL 或 BS1-001_ALT_SEC
+                const versionLabel = card.isUpgraded ? `ALT_${card.pulledBadge}` : "NORMAL";
+                const cardKey = `${card.id}_${versionLabel}`;
+                
+                const ownedCount = currentCollection[cardKey] || 0;
+                
+                if (ownedCount < 4) {
+                    // 尚未滿 4 張，存入圖鑑
+                    currentCollection[cardKey] = ownedCount + 1;
+                } else {
+                    // ♻️ 超過 4 張，觸發自動分解匯率
+                    if (card.isUpgraded) newTokens += 50;           // 異圖無條件 50
+                    else if (card.pulledBadge === 'UR') newTokens += 40;
+                    else if (card.pulledBadge === 'SR') newTokens += 20;
+                    else if (card.pulledBadge === 'R') newTokens += 10;
+                    else newTokens += 5;                            // C 卡保底 5
+                }
+            });
+
+            // 一次性將更新後的圖鑑與增加的代幣寫回資料庫
+            transaction.update(profileRef, {
+                collection: currentCollection,
+                tokens: increment(newTokens) // 安全疊加代幣
+            });
+            
+            return newTokens; // 回傳本次分解獲得的總代幣，讓前端做華麗的 +50 特效
+        });
+    } catch (err) {
+        console.error("卡包結算失敗:", err);
+        return 0;
+    }
+  };
   
   // 🌟 全域語言狀態
   const [lang, setLang] = useState('zh'); // 'zh' or 'en'
