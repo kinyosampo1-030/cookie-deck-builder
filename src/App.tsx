@@ -1532,13 +1532,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                         {isRedeeming ? "連線中..." : "確認兌換"}
                     </button>
                 </div>
-                
-                {/* 管理員按鈕：一鍵生成代碼 */}
-                {isAdmin && (
-                    <button onClick={handleAdminCreateCode} className="text-xs bg-slate-700 text-yellow-400 hover:bg-slate-600 px-3 py-2 rounded-lg border border-yellow-600/50 font-bold whitespace-nowrap shadow-sm active:scale-95 transition-colors">
-                        + 發行新兌換碼 (管理員專屬)
-                    </button>
-                )}
+
             </div>
         )}
         
@@ -1951,7 +1945,27 @@ export default function App() {
     skills: [], 
     showExtra: false, showFlip: false, showAncient: false, showDragon: false, showBeast: false, showSoulJam: false, showArena: false, showAltArt: false // 🌟 新增 showAltArt
   });
-  
+
+  const handleAdminCreateCode = async () => {
+      const code = prompt("請輸入要建立的自訂兌換碼\n(例如: MIDAY2026，建議大寫英文與數字):");
+      if (!code) return;
+      const reward = prompt(`兌換碼「${code.toUpperCase()}」要送多少餅乾幣？\n(例如: 100):`);
+      if (!reward || isNaN(reward)) return;
+      const max = prompt("請輸入最大兌換次數限制\n(填 0 代表無限次，適合放在 YouTube 資訊欄):", "0");
+
+      try {
+          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'redeem_codes', code.toUpperCase().trim()), {
+              reward: Number(reward),
+              claimedBy: [],
+              isActive: true,
+              maxUses: Number(max) > 0 ? Number(max) : null,
+              createdAt: new Date().toISOString()
+          });
+          alert(`✅ 兌換碼建立成功！\n代碼：${code.toUpperCase()}\n獎勵：${reward} 餅乾幣`);
+      } catch (e) {
+          alert("建立失敗: " + e.message);
+      }
+  };
   const [toastMsg, setToastMsg] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -3311,15 +3325,19 @@ const handleExportCardData = () => {
             </div>
         </div>
 
-        {isAdmin && (
+{isAdmin && (
             <div className="p-2 bg-slate-800 border-b border-slate-700">
                 <div className="text-xs font-bold text-yellow-500 uppercase tracking-widest mb-2 px-2 flex items-center gap-1">
                     <UserCog size={12} /> 管理員操作
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                    <div className="col-span-2 text-center text-xs text-slate-500 italic">
-                        目前管理功能整合於上方操作列
-                    </div>
+                    <button 
+                        onClick={handleAdminCreateCode}
+                        className="col-span-2 bg-slate-700 hover:bg-yellow-600 text-yellow-400 hover:text-white py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border border-yellow-600/50 shadow-sm active:scale-95"
+                    >
+                        <Plus size={14} /> 
+                        <span>發行新兌換碼 (發送餅乾幣)</span>
+                    </button>
                 </div>
             </div>
         )}
