@@ -1568,70 +1568,86 @@ const CollectionModal = ({ allCards, onClose, lang, userProfile }) => {
   const [selectedSeries, setSelectedSeries] = useState("BS11");
   const availableSeries = useMemo(() => Array.from(new Set(allCards.filter(c => !c.series.startsWith('ST') && c.series !== 'P').map(c => c.series))).sort(), [allCards]);
 
-  const seriesCards = useMemo(() => allCards.filter(c => c.series === selectedSeries), [allCards, selectedSeries]);
+  // 🌟 核心修改：將卡片展開！如果一張卡有 2 張異圖，就把它變成 3 個獨立的展示格
+  const expandedSeriesCards = useMemo(() => {
+      const expanded = [];
+      const baseCards = allCards.filter(c => c.series === selectedSeries);
+      
+      baseCards.forEach(card => {
+          // 1. 放入普通版 (對應後台的 _NORMAL 標籤)
+          expanded.push({
+              ...card,
+              collectionKey: `${card.id}_NORMAL`,
+              displayUrl: card.imageUrl,
+              displayBadge: null,
+              isAltSlot: false
+          });
 
+          // 2. 如果這張卡有異圖，把每一個異圖都獨立抽出來變成一個新格子
+          if (card.altArts && card.altArts.length > 0) {
+              card.altArts.forEach(alt => {
+                  const altLabel = alt.label ? alt.label.toUpperCase() : 'ALT';
+                  expanded.push({
+                      ...card,
+                      collectionKey: `${card.id}_ALT_${altLabel}`,
+                      displayUrl: alt.url,
+                      displayBadge: altLabel,
+                      isAltSlot: true
+                  });
+              });
+          }
+      });
+      return expanded;
+  }, [allCards, selectedSeries]);
+
+  // 🌟 進度條改為計算「所有卡片 + 所有異圖」的總收集率
   const collectionStats = useMemo(() => {
-      if (!userProfile?.collection) return { owned: 0, total: seriesCards.length, percentage: 0 };
+      if (!userProfile?.collection) return { owned: 0, total: expandedSeriesCards.length, percentage: 0 };
       let ownedUnique = 0;
-      seriesCards.forEach(card => {
-          const keys = Object.keys(userProfile.collection).filter(k => k.startsWith(card.id + '_'));
-          const totalCount = keys.reduce((sum, k) => sum + userProfile.collection[k], 0);
-          if (totalCount > 0) ownedUnique++;
+      expandedSeriesCards.forEach(slot => {
+          if ((userProfile.collection[slot.collectionKey] || 0) > 0) {
+              ownedUnique++;
+          }
       });
       return {
           owned: ownedUnique,
-          total: seriesCards.length,
-          percentage: seriesCards.length ? Math.round((ownedUnique / seriesCards.length) * 100) : 0
+          total: expandedSeriesCards.length,
+          percentage: expandedSeriesCards.length ? Math.round((ownedUnique / expandedSeriesCards.length) * 100) : 0
       };
-  }, [seriesCards, userProfile]);
+  }, [expandedSeriesCards, userProfile]);
 
-  const renderCollectionCard = (card) => {
-      const collection = userProfile?.collection || {};
-      const keys = Object.keys(collection).filter(k => k.startsWith(card.id + '_') && collection[k] > 0);
-      const isOwned = keys.length > 0;
-      const totalOwnedCount = keys.reduce((sum, k) => sum + collection[k], 0);
+  const renderCollectionCard = (slot) => {
+      // 透過精準的 collectionKey (例如 BS1-001_NORMAL 或 BS1-001_ALT_SEC) 來核對是否擁有
+      const ownedCount = userProfile?.collection?.[slot.collectionKey] || 0;
+      const isOwned = ownedCount > 0;
       
-      let displayUrl = card.imageUrl;
-      let displayBadge = null;
-      let isAlt = false;
-
-      const altKeys = keys.filter(k => k.includes('_ALT_'));
-      if (altKeys.length > 0) {
-          isAlt = true;
-          const badgeMatch = altKeys[0].match(/_ALT_(.+)$/);
-          displayBadge = badgeMatch ? badgeMatch[1] : 'ALT';
-          
-          if (card.altArts && card.altArts.length > 0) {
-              const matchedAlt = card.altArts.find(a => a.label === displayBadge);
-              if (matchedAlt) displayUrl = matchedAlt.url;
-              else displayUrl = card.altArts[0].url;
-          }
-      }
-
       return (
-          <div key={card.id} className="relative aspect-[3/4] flex-shrink-0 perspective-1000 group">
-              <div className={`w-full h-full rounded-lg overflow-hidden border-2 transition-all duration-300 ${isOwned ? (isAlt ? 'border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.5)]' : 'border-slate-300 shadow-md') : 'border-slate-200/50 opacity-40 grayscale'} bg-slate-100`}>
-                  {displayUrl ? (
-                      <img src={displayUrl} className="w-full h-full object-cover" alt={card.name} />
+          <div key={slot.collectionKey} className="relative aspect-[3/4] flex-shrink-0 perspective-1000 group">
+              <div className={`w-full h-full rounded-lg overflow-hidden border-2 transition-all duration-300 ${isOwned ? (slot.isAltSlot ? 'border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.5)]' : 'border-slate-300 shadow-md') : 'border-slate-200/50 opacity-40 grayscale'} bg-slate-100`}>
+                  {slot.displayUrl ? (
+                      <img src={slot.displayUrl} className="w-full h-full object-cover" alt={slot.name} />
                   ) : (
-                      <div className={`w-full h-full p-2 flex flex-col justify-between ${getCardColorStyles(card.color)}`}>
-                          <span className="font-bold text-[10px] leading-tight line-clamp-3">{cName(card, lang)}</span>
+                      <div className={`w-full h-full p-2 flex flex-col justify-between ${getCardColorStyles(slot.color)}`}>
+                          <span className="font-bold text-[10px] leading-tight line-clamp-3">{cName(slot, lang)}</span>
                       </div>
                   )}
                   
                   {isOwned && (
                       <div className="absolute -top-2 -right-2 bg-slate-800 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center shadow-md border-2 border-white z-10">
-                          {totalOwnedCount}
+                          {ownedCount}
                       </div>
                   )}
 
-                  {(isOwned && isAlt && displayBadge) && (
-                      <div className="absolute bottom-1 left-1 bg-gradient-to-r from-amber-500 to-yellow-600 text-white text-[9px] px-1.5 py-0.5 rounded font-black shadow-lg border border-yellow-300">
-                          {displayBadge}
+                  {/* 異圖無論是否擁有，都顯示標籤，未擁有時用灰色標籤提示玩家這裡有個異圖坑 */}
+                  {slot.isAltSlot && (
+                      <div className={`absolute bottom-1 left-1 text-[9px] px-1.5 py-0.5 rounded font-black shadow-lg border ${isOwned ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-white border-yellow-300' : 'bg-slate-600 text-slate-300 border-slate-400'}`}>
+                          {slot.displayBadge}
                       </div>
                   )}
               </div>
-              <div className="text-center mt-1 text-[10px] font-mono font-bold text-slate-500">{card.id}</div>
+              <div className="text-center mt-1 text-[10px] font-mono font-bold text-slate-500">
+                  {slot.id}
+              </div>
           </div>
       );
   };
@@ -1679,14 +1695,15 @@ const CollectionModal = ({ allCards, onClose, lang, userProfile }) => {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
-            {seriesCards.length === 0 ? (
+            {expandedSeriesCards.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-slate-400">
                     <Database size={48} className="mb-3 opacity-20" />
                     <p>該系列目前沒有卡片資料</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 md:gap-4 pb-12">
-                    {seriesCards.map(renderCollectionCard)}
+                    {/* 這裡改為渲染展開後的卡片 */}
+                    {expandedSeriesCards.map(renderCollectionCard)}
                 </div>
             )}
         </div>
@@ -3246,13 +3263,18 @@ const handleExportCardData = () => {
                     <span>{lang==='en'?'Draw Test':'手牌測試'}</span>
                     <span className="text-[10px] opacity-75 font-normal">First Draw</span>
                 </button>
-                <button 
+<button 
                     onClick={() => setShowPackOpenerModal(true)}
-                    className="bg-slate-600 hover:bg-yellow-600 text-white py-2 rounded-lg text-xs font-bold flex flex-col items-center gap-1 transition-colors"
+                    className="relative bg-gradient-to-b from-orange-400 to-orange-600 hover:from-orange-500 hover:to-orange-700 text-white py-2 rounded-lg text-xs font-bold flex flex-col items-center gap-1 transition-transform active:scale-95 shadow-lg shadow-orange-500/40 border border-orange-400"
                 >
-                    <PackageOpen size={16} /> 
-                    <span>{lang==='en'?'Pack Opener':'開卡包'}</span>
-                    <span className="text-[10px] opacity-75 font-normal">Pack Opener</span>
+                    {/* 🌟 右上角的 NEW 動態提示標籤 */}
+                    <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-black animate-pulse shadow-md border border-red-300">
+                        NEW
+                    </span>
+                    
+                    <PackageOpen size={16} className="text-orange-100" /> 
+                    <span className="tracking-wider">{lang==='en'?'Pack Opener':'開卡包商城'}</span>
+                    <span className="text-[10px] text-orange-200 font-normal">Pack Opener</span>
                 </button>
             </div>
         </div>
