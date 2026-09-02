@@ -70,7 +70,7 @@ const CARD_TYPES = { COOKIE: "餅乾卡", ITEM: "道具卡", TRAP: "陷阱卡", 
 const CARD_COLORS = { RED: "紅色", YELLOW: "黃色", GREEN: "綠色", BLUE: "藍色", PURPLE: "紫色", BLACK: "黑色", COLORLESS: "無色" };
 const CARD_LEVELS = { LV1: "LV.1", LV2: "LV.2", LV3: "LV.3", LV5: "LV.5" };
 // 包含 BS10
-const CARD_SERIES_OPTIONS = ["ST", "BS1", "BS2", "BS3", "BS4", "BS5", "BS6", "BS7", "BS8", "BS9", "BS10", "BS11", "P"];
+const CARD_SERIES_OPTIONS = ["ST", "BS1", "BS2", "BS3", "BS4", "BS5", "BS6", "BS7", "BS8", "BS9", "BS10", "BS11", "BS12", "P"];
 
 const CARD_RARITIES = { C: "C (Common)", R: "R (Rare)", SR: "SR (Super Rare)", UR: "UR (Ultra Rare)", EXR: "EXR (Extra Rare)" };
 
@@ -982,7 +982,7 @@ const AddCardModal = ({ onClose, onAdd, isProcessing, initialData }) => {
   });
   const [previewUrl, setPreviewUrl] = useState(null);
   
-  const editorSeriesOptions = useMemo(() => { const stSeries = Array.from({ length: 15 }, (_, i) => `ST${i + 1}`); const bsSeries = ["BS1", "BS2", "BS3", "BS4", "BS5", "BS6", "BS7", "BS8", "BS9", "BS10", "BS11", "P"]; const other = ["P"]; return [...stSeries, ...bsSeries, ...other]; }, []);
+  const editorSeriesOptions = useMemo(() => { const stSeries = Array.from({ length: 15 }, (_, i) => `ST${i + 1}`); const bsSeries = ["BS1", "BS2", "BS3", "BS4", "BS5", "BS6", "BS7", "BS8", "BS9", "BS10", "BS11", "BS12", "P"]; const other = ["P"]; return [...stSeries, ...bsSeries, ...other]; }, []);
   
   useEffect(() => {
     if (initialData) {
@@ -1284,7 +1284,7 @@ const DrawTestModal = ({ deck, onClose, lang }) => {
 };
 
 const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleClaimDaily, processPackToCollection, isAdmin }) => {
-  const [selectedSeries, setSelectedSeries] = useState("BS11");
+  const [selectedSeries, setSelectedSeries] = useState("BS12");
   const [openedCards, setOpenedCards] = useState([]);
   const [flippedIndices, setFlippedIndices] = useState({});
   const [isOpening, setIsOpening] = useState(false); 
@@ -1302,10 +1302,10 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
   const [isRedeeming, setIsRedeeming] = useState(false);
 
   const packCost = useMemo(() => {
-      if (selectedSeries === "ALL" || selectedSeries === "BS11") return 50;
-      if (["BS6", "BS7", "BS8", "BS9", "BS10"].includes(selectedSeries)) return 40;
-      return 25; 
-  }, [selectedSeries]);
+    if (selectedSeries === "ALL" || selectedSeries === "BS11" || selectedSeries === "BS12") return 50; // 🌟 加入 BS12
+    if (["BS6", "BS7", "BS8", "BS9", "BS10"].includes(selectedSeries)) return 40;
+    return 25; 
+}, [selectedSeries]);
 
   const closeButtonText = useMemo(() => {
       const normalTexts = ["謝謝提醒，我不會再欺負錢包君了🥺", "再抽我就剁手手！😋", "夢醒了，我還是臉很黑。💩"];
@@ -1509,10 +1509,12 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
         <div className="flex flex-col items-center gap-3 mb-8">
             <div className="flex flex-wrap gap-4 justify-center items-center">
               <select className="bg-slate-700 text-white border border-slate-600 rounded-lg px-4 py-2.5 outline-none font-bold shadow-sm focus:ring-2 focus:ring-blue-500" value={selectedSeries} onChange={(e) => setSelectedSeries(e.target.value)} disabled={isOpening}>
-                <option value="BS11">BS11 (50餅乾幣)</option>
-                {availableSeries.filter(s => s !== 'BS11').map(s => (<option key={s} value={s} disabled className="text-slate-400">{s} (異圖建檔中，暫未開放)</option>))}
-                <option value="ALL" disabled className="text-slate-400">{lang==='en'?'All (Coming Soon)':'全部卡池 (暫未開放)'}</option>
-              </select>
+            <option value="BS12">BS12 (50餅乾幣)</option>
+            <option value="BS11">BS11 (50餅乾幣)</option>
+            {/* 🌟 過濾掉 BS11 和 BS12，讓其他舊系列顯示為未開放 */}
+            {availableSeries.filter(s => s !== 'BS11' && s !== 'BS12').map(s => (<option key={s} value={s} disabled className="text-slate-400">{s} (異圖建檔中，暫未開放)</option>))}
+            <option value="ALL" disabled className="text-slate-400">{lang==='en'?'All (Coming Soon)':'全部卡池 (暫未開放)'}</option>
+          </select>
               
               <button onClick={openPack} disabled={isOpening} className="bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 disabled:from-slate-600 disabled:to-slate-700 disabled:text-slate-400 text-slate-900 px-6 py-2.5 rounded-lg font-black flex items-center gap-2 shadow-lg transition-transform active:scale-95">
                   {isOpening ? "..." : (<><PackageOpen size={20} /> {lang==='en'?'Open Pack':'購買並開啟卡包'} {(!isCheatMode && user && !user.isAnonymous) && (<span className="ml-1 bg-yellow-600 text-yellow-50 px-2 py-0.5 rounded text-xs font-black flex items-center gap-0.5 shadow-inner"><Gem size={12}/> {packCost}</span>)}</>)}
@@ -1626,14 +1628,24 @@ const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard
                className="relative aspect-[3/4] flex-shrink-0 perspective-1000 group cursor-pointer hover:scale-105 transition-transform"
           >
               <div className={`w-full h-full rounded-lg overflow-hidden border-2 transition-all duration-300 ${isOwned ? cardGlowStyle : 'border-slate-200/50 opacity-40 grayscale'} bg-slate-100`}>
-                  {slot.displayUrl ? (<img src={slot.displayUrl} className="w-full h-full object-cover" alt={slot.name} />) : (<div className={`w-full h-full p-2 flex flex-col justify-between ${getCardColorStyles(slot.color)}`}><span className="font-bold text-[10px] leading-tight line-clamp-3">{cName(slot, lang)}</span></div>)}
+                  {slot.displayUrl ? (
+                      <img src={slot.displayUrl} className="w-full h-full object-cover" alt={slot.name} />
+                  ) : (
+                      <div className={`w-full h-full p-2 flex flex-col justify-between ${getCardColorStyles(slot.color)}`}>
+                          <span className="font-bold text-[10px] md:text-xs leading-tight line-clamp-3">{cName(slot, lang)}</span>
+                      </div>
+                  )}
                   
                   {isOwned && (<div className={badgeStyle}>{ownedCount}</div>)}
                   {isMaxed && (<div className="absolute inset-0 bg-gradient-to-tr from-yellow-400/20 to-transparent pointer-events-none"></div>)}
                   
-                  {slot.isAltSlot && (<div className={`absolute bottom-1 left-1 text-[9px] px-1.5 py-0.5 rounded font-black shadow-lg border ${isOwned ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-white border-yellow-300' : 'bg-slate-600 text-slate-300 border-slate-400'}`}>{slot.displayBadge}</div>)}
+                  {slot.isAltSlot && (
+                      <div className={`absolute bottom-1 left-1 text-[9px] md:text-[10px] px-1.5 py-0.5 rounded font-black shadow-lg border ${isOwned ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-white border-yellow-300' : 'bg-slate-600 text-slate-300 border-slate-400'}`}>
+                          {slot.displayBadge}
+                      </div>
+                  )}
               </div>
-              <div className="text-center mt-1 text-[10px] font-mono font-bold text-slate-500">{slot.id}</div>
+              <div className="text-center mt-1.5 text-[10px] md:text-xs font-mono font-bold text-slate-500">{slot.id}</div>
           </div>
       );
   };
@@ -1677,7 +1689,7 @@ const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard
             {expandedSeriesCards.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-slate-400"><Database size={48} className="mb-3 opacity-20" /><p>該系列目前沒有卡片資料</p></div>
             ) : (
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 md:gap-4 pb-12">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 md:gap-5 pb-12">
                     {expandedSeriesCards.map(renderCollectionCard)}
                 </div>
             )}
@@ -2857,7 +2869,7 @@ const handleExportCardData = () => {
                             Cookierun: Braverse Deck Builder
                         </h1>
                         <p className="text-xs md:text-sm text-slate-500 font-bold ml-1 mt-1">
-                            {lang === 'en' ? 'New Features: ' : '新功能：'}<span className="text-blue-600 font-black">{lang === 'en' ? 'Community' : 'BS11異圖'}</span> {lang === 'en' ? ' & ' : '與 '} <span className="text-emerald-600 font-black">{lang === 'en' ? 'Mobile App' : '開包模擬器'}</span>
+                            {lang === 'en' ? 'New Features: ' : '新功能：'}<span className="text-blue-600 font-black">{lang === 'en' ? 'Community' : 'BS12全卡表'}</span> {lang === 'en' ? ' & ' : '與 '} <span className="text-emerald-600 font-black">{lang === 'en' ? 'Mobile App' : '圖鑑系統'}</span>
                         </p>
                     </div>
                     
