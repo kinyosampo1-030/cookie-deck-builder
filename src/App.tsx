@@ -1301,11 +1301,13 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
   const [redeemCode, setRedeemCode] = useState("");
   const [isRedeeming, setIsRedeeming] = useState(false);
 
+  // 🌟 1. 更新卡包價格
   const packCost = useMemo(() => {
-    if (selectedSeries === "ALL" || selectedSeries === "BS11" || selectedSeries === "BS12") return 50; // 🌟 加入 BS12
-    if (["BS6", "BS7", "BS8", "BS9", "BS10"].includes(selectedSeries)) return 40;
-    return 25; 
-}, [selectedSeries]);
+      if (selectedSeries === "PREMIUM_ALT") return 200; // 全明星異圖包 200 幣
+      if (selectedSeries === "ALL" || selectedSeries === "BS11" || selectedSeries === "BS12") return 50;
+      if (["BS6", "BS7", "BS8", "BS9", "BS10"].includes(selectedSeries)) return 40;
+      return 25; 
+  }, [selectedSeries]);
 
   const closeButtonText = useMemo(() => {
       const normalTexts = ["謝謝提醒，我不會再欺負錢包君了🥺", "再抽我就剁手手！😋", "夢醒了，我還是臉很黑。💩"];
@@ -1341,11 +1343,19 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
   };
 
   const openPack = async () => {
+    const isPremium = selectedSeries === "PREMIUM_ALT";
     let pool = allCards.filter(c => !c.series.startsWith('ST') && c.series !== 'P');
-    if (selectedSeries !== "ALL") pool = pool.filter(c => c.series === selectedSeries);
-    const cookieCards = pool.filter(c => c.type === CARD_TYPES.COOKIE); 
-    const otherCards = pool.filter(c => c.type !== CARD_TYPES.COOKIE);
-    if (otherCards.length < 1 || cookieCards.length < 4) return alert("Not enough cards for this series.");
+    
+    // 🌟 2. 卡池過濾邏輯：尊榮包只抽有異圖的卡
+    if (isPremium) {
+        pool = pool.filter(c => c.altArts && c.altArts.length > 0);
+        if (pool.length < 1) return alert("目前資料庫沒有建立任何異圖卡片！");
+    } else {
+        if (selectedSeries !== "ALL") pool = pool.filter(c => c.series === selectedSeries);
+        const cookieCards = pool.filter(c => c.type === CARD_TYPES.COOKIE); 
+        const otherCards = pool.filter(c => c.type !== CARD_TYPES.COOKIE);
+        if (otherCards.length < 1 || cookieCards.length < 4) return alert("Not enough cards for this series.");
+    }
     
     const isValidPlayer = user && !user.isAnonymous;
     if (!isCheatMode && isValidPlayer) {
@@ -1362,43 +1372,73 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
     setIsOpening(true); setOpenedCards([]); setFlippedIndices({}); setEarnedDust(0);
     
     setTimeout(async () => {
-        const selectedOther = fisherYatesShuffle(otherCards)[0]; 
-        const selectedIDs = new Set([selectedOther.id]);
-        const selectedCookies = [];
-        const targetRarity = (() => { 
-            const r = Math.random() * 100; 
-            if (r < 6) return 'UR'; if (r < 22) return 'SR'; if (r < 48) return 'R'; return 'C';                   
-        })();
-        
-        let targetPool = cookieCards.filter(c => (c.rarity || 'C') === targetRarity); 
-        if (targetPool.length === 0) targetPool = cookieCards; 
-        const rareCard = targetPool[Math.floor(Math.random() * targetPool.length)]; 
-        if (rareCard) { selectedCookies.push(rareCard); selectedIDs.add(rareCard.id); }
-        
-        let commonPool = cookieCards.filter(c => (c.rarity || 'C') === 'C' && !selectedIDs.has(c.id)); 
-        if (commonPool.length < 3) commonPool = cookieCards.filter(c => !selectedIDs.has(c.id));
-        selectedCookies.push(...fisherYatesShuffle(commonPool).slice(0, 3));
-        while (selectedCookies.length < 4) selectedCookies.push(cookieCards[Math.floor(Math.random() * cookieCards.length)]);
-        
-        const UPGRADE_CHANCE = isCheatMode ? 0.75 : 0.15; 
-        const rawOpenedCards = [...selectedCookies, selectedOther];
+        let rawOpenedCards = [];
         let currentPackStats = { R: 0, SR: 0, UR: 0, ALT: 0 };
 
+        // 🌟 3. 抽卡數量分支
+        if (isPremium) {
+            // 尊榮包：從異圖池隨機抽 1 張
+            const premiumCard = pool[Math.floor(Math.random() * pool.length)];
+            rawOpenedCards = [premiumCard];
+        } else {
+            // 一般卡包：4 餅乾 + 1 其他
+            const cookieCards = pool.filter(c => c.type === CARD_TYPES.COOKIE); 
+            const otherCards = pool.filter(c => c.type !== CARD_TYPES.COOKIE);
+            const selectedOther = fisherYatesShuffle(otherCards)[0]; 
+            const selectedIDs = new Set([selectedOther.id]);
+            const selectedCookies = [];
+            const targetRarity = (() => { 
+                const r = Math.random() * 100; 
+                if (r < 6) return 'UR'; if (r < 22) return 'SR'; if (r < 48) return 'R'; return 'C';                   
+            })();
+            
+            let targetPool = cookieCards.filter(c => (c.rarity || 'C') === targetRarity); 
+            if (targetPool.length === 0) targetPool = cookieCards; 
+            const rareCard = targetPool[Math.floor(Math.random() * targetPool.length)]; 
+            if (rareCard) { selectedCookies.push(rareCard); selectedIDs.add(rareCard.id); }
+            
+            let commonPool = cookieCards.filter(c => (c.rarity || 'C') === 'C' && !selectedIDs.has(c.id)); 
+            if (commonPool.length < 3) commonPool = cookieCards.filter(c => !selectedIDs.has(c.id));
+            selectedCookies.push(...fisherYatesShuffle(commonPool).slice(0, 3));
+            while (selectedCookies.length < 4) selectedCookies.push(cookieCards[Math.floor(Math.random() * cookieCards.length)]);
+            rawOpenedCards = [...selectedCookies, selectedOther];
+        }
+
+        const UPGRADE_CHANCE = isCheatMode ? 0.75 : 0.15; 
+        
         const finalizedCards = rawOpenedCards.map(card => {
             let finalImg = card.imageUrl; let finalBadge = card.rarity || 'C'; let isUpgraded = false;
-            if (card.altArts && card.altArts.length > 0) {
-                if (Math.random() < UPGRADE_CHANCE) {
-                    isUpgraded = true; const altRoll = Math.random() * 100;
-                    let targetLabel = 'SEC';
-                    if (altRoll < 1.0) targetLabel = 'GXR'; else if (altRoll < 5.0) targetLabel = 'EXR'; else if (altRoll < 15.0) targetLabel = 'SUR'; else if (altRoll < 40.0) targetLabel = 'SSR'; else targetLabel = 'SEC';     
-                    const matchedAlts = card.altArts.filter(alt => alt.label?.toUpperCase() === targetLabel);
-                    if (matchedAlts.length > 0) {
-                        const selectedAlt = matchedAlts[Math.floor(Math.random() * matchedAlts.length)];
-                        finalImg = selectedAlt.url; finalBadge = selectedAlt.label;
-                    } else {
-                        const defaultAlt = card.altArts[Math.floor(Math.random() * card.altArts.length)];
-                        finalImg = defaultAlt.url; finalBadge = defaultAlt.label;
-                    }
+            
+            // 尊榮包 100% 觸發升級，一般包靠機率
+            const shouldUpgrade = isPremium || (card.altArts && card.altArts.length > 0 && Math.random() < UPGRADE_CHANCE);
+
+            if (shouldUpgrade) {
+                isUpgraded = true; 
+                const altRoll = Math.random() * 100;
+                let targetLabel = 'SEC';
+                
+                // 🌟 4. 尊榮包兩倍機率引擎
+                if (isPremium) {
+                    if (altRoll < 2.0) targetLabel = 'GXR';         // 2% (原 1%)
+                    else if (altRoll < 10.0) targetLabel = 'EXR';   // 8% (原 4%)
+                    else if (altRoll < 30.0) targetLabel = 'SUR';   // 20% (原 10%)
+                    else if (altRoll < 50.0) targetLabel = 'SSR';   // 50% (原 25%)
+                    else targetLabel = 'SEC';                       // 20%
+                } else {
+                    if (altRoll < 1.0) targetLabel = 'GXR'; 
+                    else if (altRoll < 5.0) targetLabel = 'EXR'; 
+                    else if (altRoll < 15.0) targetLabel = 'SUR'; 
+                    else if (altRoll < 40.0) targetLabel = 'SSR'; 
+                    else targetLabel = 'SEC';     
+                }
+                
+                const matchedAlts = card.altArts.filter(alt => alt.label?.toUpperCase() === targetLabel);
+                if (matchedAlts.length > 0) {
+                    const selectedAlt = matchedAlts[Math.floor(Math.random() * matchedAlts.length)];
+                    finalImg = selectedAlt.url; finalBadge = selectedAlt.label;
+                } else {
+                    const defaultAlt = card.altArts[Math.floor(Math.random() * card.altArts.length)];
+                    finalImg = defaultAlt.url; finalBadge = defaultAlt.label;
                 }
             }
             if (isUpgraded) currentPackStats.ALT += 1; else if (finalBadge === 'UR') currentPackStats.UR += 1; else if (finalBadge === 'SR') currentPackStats.SR += 1; else if (finalBadge === 'R') currentPackStats.R += 1;
@@ -1412,7 +1452,10 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
         }
         setPackCount(prev => prev + 1);
         setSessionStats(prev => ({ R: prev.R + currentPackStats.R, SR: prev.SR + currentPackStats.SR, UR: prev.UR + currentPackStats.UR, ALT: prev.ALT + currentPackStats.ALT, DUST: prev.DUST + dust }));
-        setOpenedCards(fisherYatesShuffle(finalizedCards)); setIsOpening(false); 
+        
+        // 單抽不用打亂順序，一般包維持洗牌
+        setOpenedCards(isPremium ? finalizedCards : fisherYatesShuffle(finalizedCards)); 
+        setIsOpening(false); 
     }, 1200); 
   };
   
@@ -1449,7 +1492,6 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                           <div><span className="block text-slate-400 text-xs font-bold mb-1">獲得 UR</span><span className="text-2xl font-black text-purple-400">{sessionStats.UR}</span></div>
                           {(!usedCheat && !isGuest) && (
                               <div className="col-span-2 mt-2 pt-3 border-t border-slate-700/50 bg-pink-950/20 -mx-2 px-2 rounded">
-                                  {/* 🌟 結算區：改為餅乾粉末視覺 */}
                                   <span className="block text-pink-400 text-xs font-bold mb-1">✨ 獲得餅乾粉末總計</span>
                                   <span className="text-2xl font-black text-pink-300 flex items-center gap-1"><Sparkles size={18}/> +{sessionStats.DUST} <span className="text-sm text-pink-600 font-normal">粉末</span></span>
                               </div>
@@ -1508,13 +1550,14 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
         
         <div className="flex flex-col items-center gap-3 mb-8">
             <div className="flex flex-wrap gap-4 justify-center items-center">
+              
+              {/* 🌟 5. 新增：尊榮包選項與下拉選單 */}
               <select className="bg-slate-700 text-white border border-slate-600 rounded-lg px-4 py-2.5 outline-none font-bold shadow-sm focus:ring-2 focus:ring-blue-500" value={selectedSeries} onChange={(e) => setSelectedSeries(e.target.value)} disabled={isOpening}>
-            <option value="BS12">BS12 (50餅乾幣)</option>
-            <option value="BS11">BS11 (50餅乾幣)</option>
-            {/* 🌟 過濾掉 BS11 和 BS12，讓其他舊系列顯示為未開放 */}
-            {availableSeries.filter(s => s !== 'BS11' && s !== 'BS12').map(s => (<option key={s} value={s} disabled className="text-slate-400">{s} (異圖建檔中，暫未開放)</option>))}
-            <option value="ALL" disabled className="text-slate-400">{lang==='en'?'All (Coming Soon)':'全部卡池 (暫未開放)'}</option>
-          </select>
+                <option value="PREMIUM_ALT" className="text-amber-400 font-black">🌟 全餅乾異圖包 (200餅乾幣)</option>
+                <option value="BS12">BS12 (50餅乾幣)</option>
+                <option value="BS11">BS11 (50餅乾幣)</option>
+                {availableSeries.filter(s => s !== 'BS11' && s !== 'BS12').map(s => (<option key={s} value={s} disabled className="text-slate-400">{s} (異圖建檔中，暫未開放)</option>))}
+              </select>
               
               <button onClick={openPack} disabled={isOpening} className="bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 disabled:from-slate-600 disabled:to-slate-700 disabled:text-slate-400 text-slate-900 px-6 py-2.5 rounded-lg font-black flex items-center gap-2 shadow-lg transition-transform active:scale-95">
                   {isOpening ? "..." : (<><PackageOpen size={20} /> {lang==='en'?'Open Pack':'購買並開啟卡包'} {(!isCheatMode && user && !user.isAnonymous) && (<span className="ml-1 bg-yellow-600 text-yellow-50 px-2 py-0.5 rounded text-xs font-black flex items-center gap-0.5 shadow-inner"><Gem size={12}/> {packCost}</span>)}</>)}
@@ -1529,7 +1572,6 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
 
         <div className="flex-1 flex flex-col items-center justify-center min-h-[400px] relative">
           
-          {/* 🌟 抽卡特效區：改為粉紅色粉末視覺 */}
           {earnedDust > 0 && openedCards.length > 0 && !isOpening && (
               <div className="absolute top-0 z-50 animate-in slide-in-from-top-10 fade-in duration-500">
                   <div className="bg-slate-900/90 backdrop-blur-sm border-2 border-pink-400 text-pink-300 px-6 py-2.5 rounded-full font-black flex items-center gap-2 shadow-[0_0_20px_rgba(244,114,182,0.5)]">
@@ -1553,8 +1595,17 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
               </div>
           ) : (
               <div className="flex flex-col items-center gap-4 md:gap-6 w-full">
-                  <div className="flex justify-center gap-2 md:gap-6">{openedCards.slice(0, 3).map((card, index) => renderCard(card, index))}</div>
-                  <div className="flex justify-center gap-2 md:gap-6">{openedCards.slice(3, 5).map((card, index) => renderCard(card, index + 3))}</div>
+                  {/* 🌟 6. 單抽大圖展示邏輯 */}
+                  {openedCards.length === 1 ? (
+                      <div className="flex justify-center scale-125 md:scale-150 my-10 animate-in zoom-in duration-700">
+                          {renderCard(openedCards[0], 0)}
+                      </div>
+                  ) : (
+                      <>
+                          <div className="flex justify-center gap-2 md:gap-6">{openedCards.slice(0, 3).map((card, index) => renderCard(card, index))}</div>
+                          <div className="flex justify-center gap-2 md:gap-6">{openedCards.slice(3, 5).map((card, index) => renderCard(card, index + 3))}</div>
+                      </>
+                  )}
               </div>
           )}
         </div>
