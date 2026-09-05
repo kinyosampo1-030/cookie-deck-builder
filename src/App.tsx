@@ -456,7 +456,7 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin, lang, us
       // 指向資料庫中該份牌組的路徑
       const deckRef = doc(db, "artifacts", appId, "public", "data", "community_decks", deckId);
       await deleteDoc(deckRef);
-      alert("牌組已成功從社群廣場移除。");
+      alert("牌組已成功從牌組廣場移除。");
       // 刪除後不需要重新整理，Firestore 的 onSnapshot 會自動更新畫面
     } catch (error) {
       console.error("刪除失敗:", error);
@@ -468,7 +468,7 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin, lang, us
         <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4" onClick={onClose}>
             <div className="bg-slate-100 rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
                 <div className="bg-white p-4 border-b flex justify-between items-center shrink-0">
-                    <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2"><Globe className="text-blue-500" /> {lang==='en'?'Community':'牌組社群廣場'}</h2>
+                    <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2"><Globe className="text-blue-500" /> {lang==='en'?'Community':'牌組廣場'}</h2>
                     <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24}/></button>
                 </div>
                 <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex gap-2 overflow-x-auto shrink-0 shadow-inner">
@@ -1324,7 +1324,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
       "BS11": {
           name: "BS11 擴充包",
           desc: "暗黑魔女餅乾之戰",
-          img: "https://static.wixstatic.com/media/2295bf_37b8bd6f2bc74554a4b85f917593f817~mv2.jpg", // 暫時代替
+          img: "https://static.wixstatic.com/media/2295bf_ed378e318f5e4a699badf33a8b2fe6fa~mv2.jpg", // 暫時代替
           color: "from-emerald-500 to-teal-600",
           glow: "shadow-[0_0_30px_rgba(20,184,166,0.3)]"
       }
@@ -1547,7 +1547,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
         
         {/* 頂部控制列 */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 text-white border-b border-slate-700 pb-4">
-            <h2 className="text-2xl font-black flex items-center gap-2"><PackageOpen className="text-yellow-400" /> {lang==='en'?'Pack Opener':'卡包商城與模擬器'}</h2>
+            <h2 className="text-2xl font-black flex items-center gap-2"><PackageOpen className="text-yellow-400" /> {lang==='en'?'Pack Opener':'卡包商城(每周分享牌組獲得50點!)'}</h2>
             
             <div className="flex items-center gap-3">
                 {(user && !user.isAnonymous && userProfile) ? (
@@ -1614,18 +1614,20 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                   </div>
               </div>
           ) : openedCards.length === 0 ? (
-              // 🌟 核心修改：這裡原本是空空的圖示，現在換成「卡包大圖 + 介紹 + 購買按鈕」
               <div className="flex flex-col items-center animate-in fade-in zoom-in duration-300 max-w-md w-full">
                   <div className={`w-40 h-56 mb-6 rounded-2xl relative flex flex-col items-center justify-center bg-gradient-to-br border-4 border-white/10 ${currentPackInfo.color} ${currentPackInfo.glow} overflow-hidden shadow-2xl transition-all hover:scale-105 hover:-translate-y-2 cursor-pointer`} onClick={openPack}>
                       {currentPackInfo.img ? (
-                          <img src={currentPackInfo.img} alt={currentPackInfo.name} className="w-full h-full object-cover opacity-90 mix-blend-overlay" />
+                          // 🌟 移除了混色與透明度，讓您的卡盒原色 100% 清晰呈現
+                          <img src={currentPackInfo.img} alt={currentPackInfo.name} className="w-full h-full object-cover" />
                       ) : (
-                          <PackageOpen size={64} className="text-white/50 mb-2 drop-shadow-md" />
+                          // 🌟 把浮水印移到這裡：只有當您「沒有設定圖片」時，才會顯示預設的文字與圖示
+                          <>
+                              <PackageOpen size={64} className="text-white/50 mb-2 drop-shadow-md" />
+                              <div className="absolute inset-0 bg-black/20 flex items-center justify-center pointer-events-none">
+                                 <span className="text-white/80 font-black text-2xl rotate-[-15deg] drop-shadow-lg tracking-widest">{selectedSeries}</span>
+                              </div>
+                          </>
                       )}
-                      {/* 如果沒有真實圖片，放個浮水印當底 */}
-                      <div className="absolute inset-0 bg-black/20 flex items-center justify-center pointer-events-none">
-                         <span className="text-white/80 font-black text-2xl rotate-[-15deg] drop-shadow-lg tracking-widest">{selectedSeries}</span>
-                      </div>
                   </div>
                   
                   <h3 className="text-2xl font-black text-white mb-2 text-center drop-shadow-md">{currentPackInfo.name}</h3>
@@ -1985,7 +1987,16 @@ export default function App() {
     
     return () => unsubscribe();
   }, [user, db]);
-
+  
+  const getTaipeiMonday = () => {
+      const now = new Date();
+      const taipeiTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+      const day = taipeiTime.getDay();
+      const diff = taipeiTime.getDate() - day + (day === 0 ? -6 : 1); // 星期天(0)的話往前推6天
+      const monday = new Date(taipeiTime.setDate(diff));
+      return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
+  };
+  
   // 🌟 [新增 API 1] 領取每日登入獎勵 (嚴格綁定台灣時間)
   const handleClaimDaily = async () => {
     if (!user || user.isAnonymous || !db) {
@@ -2397,11 +2408,28 @@ export default function App() {
               commentCount: 0,
               copyCount: 0,
               coverId: deckToPublish.coverId || null,
-              pArts: deckToPublish.pArts || {}, // 🌟 關鍵：包裝異圖偏好
+              pArts: deckToPublish.pArts || {}, 
               createdAt: new Date().toISOString()
           };
+          // 寫入社群牌組資料庫
           await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'community_decks'), publicData);
-          alert("發布成功！大家可以在社群廣場看到你的牌組了。");
+          
+          // 🌟 [核心機制] 派發每週分享獎勵
+          let rewardMsg = "";
+          if (user && !user.isAnonymous && userProfile) {
+              const currentMonday = getTaipeiMonday();
+              // 檢查這週是否已經領過
+              if (userProfile.lastWeeklyShare !== currentMonday) {
+                  const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'main');
+                  await updateDoc(profileRef, { 
+                      tokens: increment(50), // 贈送 50 餅乾幣
+                      lastWeeklyShare: currentMonday // 記錄本週已領取
+                  });
+                  rewardMsg = "\n\n🎉 恭喜完成【每週分享任務】！已派發 50 餅乾幣獎勵至您的帳號。";
+              }
+          }
+
+          alert("發布成功！大家可以在社群廣場看到你的牌組了。" + rewardMsg);
           setShowStorageModal(false);
           setShowCommunityModal(true);
       } catch (e) {
@@ -3000,7 +3028,7 @@ const handleExportCardData = () => {
                             className="relative bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-500/40 transition-all hover:-translate-y-0.5 active:scale-95 border border-blue-400"
                         >
                             <Globe size={20} className="animate-pulse" /> 
-                            <span className="tracking-wide">{lang==='en'?'Community':'社群廣場'}</span>
+                            <span className="tracking-wide">{lang==='en'?'Community':'牌組廣場'}</span>
                             <span className="absolute -top-2.5 -right-2 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-bounce shadow-md">HOT</span>
                         </button>
 
@@ -3493,7 +3521,7 @@ const handleExportCardData = () => {
                     </span>
                     
                     <PackageOpen size={16} className="text-orange-100" /> 
-                    <span className="tracking-wider">{lang==='en'?'Pack Opener':'開卡包商城'}</span>
+                    <span className="tracking-wider">{lang==='en'?'Pack Opener':'卡包商城'}</span>
                     <span className="text-[10px] text-orange-200 font-normal">Pack Opener</span>
                 </button>
             </div>
