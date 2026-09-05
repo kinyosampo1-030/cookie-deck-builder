@@ -1302,13 +1302,44 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
   
   const [isCheatMode, setIsCheatMode] = useState(false);
   const [usedCheat, setUsedCheat] = useState(false); 
-
   const [redeemCode, setRedeemCode] = useState("");
   const [isRedeeming, setIsRedeeming] = useState(false);
 
-  // 🌟 1. 更新卡包價格
+  // 🌟 新增：各卡包的專屬展示資訊 (您可以隨時把 img 替換成真實的卡盒圖片網址)
+  const PACK_INFO = {
+      "PREMIUM_ALT": {
+          name: "🌟 全明星異圖包",
+          desc: "100% 必中1張異圖！異圖機率*2倍！",
+          img: "https://static.wixstatic.com/media/2295bf_99c31fa099644a62b708546e61280b5a~mv2.jpg", // 暫時用金光閃閃的圖片代替
+          color: "from-amber-400 to-yellow-600",
+          glow: "shadow-[0_0_50px_rgba(251,191,36,0.5)]"
+      },
+      "BS12": {
+          name: "BS12 擴充包",
+          desc: "偶像雲集的音樂派對",
+          img: "https://static.wixstatic.com/media/2295bf_37b8bd6f2bc74554a4b85f917593f817~mv2.jpg", // 暫時代替
+          color: "from-blue-500 to-indigo-600",
+          glow: "shadow-[0_0_30px_rgba(99,102,241,0.3)]"
+      },
+      "BS11": {
+          name: "BS11 擴充包",
+          desc: "暗黑魔女餅乾之戰",
+          img: "https://static.wixstatic.com/media/2295bf_37b8bd6f2bc74554a4b85f917593f817~mv2.jpg", // 暫時代替
+          color: "from-emerald-500 to-teal-600",
+          glow: "shadow-[0_0_30px_rgba(20,184,166,0.3)]"
+      }
+  };
+
+  const currentPackInfo = PACK_INFO[selectedSeries] || {
+      name: `${selectedSeries} 擴充包`,
+      desc: "系列卡包，內含五張卡片",
+      img: null,
+      color: "from-slate-500 to-slate-700",
+      glow: "shadow-lg"
+  };
+
   const packCost = useMemo(() => {
-      if (selectedSeries === "PREMIUM_ALT") return 200; // 全明星異圖包 200 幣
+      if (selectedSeries === "PREMIUM_ALT") return 200; 
       if (selectedSeries === "ALL" || selectedSeries === "BS11" || selectedSeries === "BS12") return 50;
       if (["BS6", "BS7", "BS8", "BS9", "BS10"].includes(selectedSeries)) return 40;
       return 25; 
@@ -1351,7 +1382,6 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
     const isPremium = selectedSeries === "PREMIUM_ALT";
     let pool = allCards.filter(c => !c.series.startsWith('ST') && c.series !== 'P');
     
-    // 🌟 2. 卡池過濾邏輯：尊榮包只抽有異圖的卡
     if (isPremium) {
         pool = pool.filter(c => c.altArts && c.altArts.length > 0);
         if (pool.length < 1) return alert("目前資料庫沒有建立任何異圖卡片！");
@@ -1380,13 +1410,10 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
         let rawOpenedCards = [];
         let currentPackStats = { R: 0, SR: 0, UR: 0, ALT: 0 };
 
-        // 🌟 3. 抽卡數量分支
         if (isPremium) {
-            // 尊榮包：從異圖池隨機抽 1 張
             const premiumCard = pool[Math.floor(Math.random() * pool.length)];
             rawOpenedCards = [premiumCard];
         } else {
-            // 一般卡包：4 餅乾 + 1 其他
             const cookieCards = pool.filter(c => c.type === CARD_TYPES.COOKIE); 
             const otherCards = pool.filter(c => c.type !== CARD_TYPES.COOKIE);
             const selectedOther = fisherYatesShuffle(otherCards)[0]; 
@@ -1413,8 +1440,6 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
         
         const finalizedCards = rawOpenedCards.map(card => {
             let finalImg = card.imageUrl; let finalBadge = card.rarity || 'C'; let isUpgraded = false;
-            
-            // 尊榮包 100% 觸發升級，一般包靠機率
             const shouldUpgrade = isPremium || (card.altArts && card.altArts.length > 0 && Math.random() < UPGRADE_CHANCE);
 
             if (shouldUpgrade) {
@@ -1422,13 +1447,12 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                 const altRoll = Math.random() * 100;
                 let targetLabel = 'SEC';
                 
-                // 🌟 4. 尊榮包兩倍機率引擎
                 if (isPremium) {
-                    if (altRoll < 2.0) targetLabel = 'GXR';         // 2% (原 1%)
-                    else if (altRoll < 10.0) targetLabel = 'EXR';   // 8% (原 4%)
-                    else if (altRoll < 30.0) targetLabel = 'SUR';   // 20% (原 10%)
-                    else if (altRoll < 50.0) targetLabel = 'SSR';   // 50% (原 25%)
-                    else targetLabel = 'SEC';                       // 20%
+                    if (altRoll < 2.0) targetLabel = 'GXR';         
+                    else if (altRoll < 10.0) targetLabel = 'EXR';   
+                    else if (altRoll < 30.0) targetLabel = 'SUR';   
+                    else if (altRoll < 50.0) targetLabel = 'SSR';   
+                    else targetLabel = 'SEC';                       
                 } else {
                     if (altRoll < 1.0) targetLabel = 'GXR'; 
                     else if (altRoll < 5.0) targetLabel = 'EXR'; 
@@ -1458,7 +1482,6 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
         setPackCount(prev => prev + 1);
         setSessionStats(prev => ({ R: prev.R + currentPackStats.R, SR: prev.SR + currentPackStats.SR, UR: prev.UR + currentPackStats.UR, ALT: prev.ALT + currentPackStats.ALT, DUST: prev.DUST + dust }));
         
-        // 單抽不用打亂順序，一般包維持洗牌
         setOpenedCards(isPremium ? finalizedCards : fisherYatesShuffle(finalizedCards)); 
         setIsOpening(false); 
     }, 1200); 
@@ -1522,6 +1545,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
     <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4 transition-colors duration-700" onClick={handleCloseModal}>
       <div className={`rounded-xl w-full max-w-5xl p-6 min-h-[600px] flex flex-col transition-all duration-700 ${modalGlowClass}`} onClick={e => e.stopPropagation()}>
         
+        {/* 頂部控制列 */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 text-white border-b border-slate-700 pb-4">
             <h2 className="text-2xl font-black flex items-center gap-2"><PackageOpen className="text-yellow-400" /> {lang==='en'?'Pack Opener':'卡包商城與模擬器'}</h2>
             
@@ -1553,20 +1577,15 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
             </div>
         )}
         
+        {/* 🌟 重新排版：把「開卡包」按鈕移走，這裡只保留「卡池選擇」與「作弊模式」 */}
         <div className="flex flex-col items-center gap-3 mb-8">
             <div className="flex flex-wrap gap-4 justify-center items-center">
-              
-              {/* 🌟 5. 新增：尊榮包選項與下拉選單 */}
-              <select className="bg-slate-700 text-white border border-slate-600 rounded-lg px-4 py-2.5 outline-none font-bold shadow-sm focus:ring-2 focus:ring-blue-500" value={selectedSeries} onChange={(e) => setSelectedSeries(e.target.value)} disabled={isOpening}>
+              <select className="bg-slate-700 text-white border border-slate-600 rounded-lg px-6 py-2.5 outline-none font-bold shadow-sm focus:ring-2 focus:ring-blue-500 text-center" value={selectedSeries} onChange={(e) => setSelectedSeries(e.target.value)} disabled={isOpening}>
                 <option value="PREMIUM_ALT" className="text-amber-400 font-black">🌟 全餅乾異圖包 (200餅乾幣)</option>
-                <option value="BS12">BS12 (50餅乾幣)</option>
-                <option value="BS11">BS11 (50餅乾幣)</option>
+                <option value="BS12">BS12 擴充包 (50餅乾幣)</option>
+                <option value="BS11">BS11 擴充包 (50餅乾幣)</option>
                 {availableSeries.filter(s => s !== 'BS11' && s !== 'BS12').map(s => (<option key={s} value={s} disabled className="text-slate-400">{s} (異圖建檔中，暫未開放)</option>))}
               </select>
-              
-              <button onClick={openPack} disabled={isOpening} className="bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 disabled:from-slate-600 disabled:to-slate-700 disabled:text-slate-400 text-slate-900 px-6 py-2.5 rounded-lg font-black flex items-center gap-2 shadow-lg transition-transform active:scale-95">
-                  {isOpening ? "..." : (<><PackageOpen size={20} /> {lang==='en'?'Open Pack':'購買並開啟卡包'} {(!isCheatMode && user && !user.isAnonymous) && (<span className="ml-1 bg-yellow-600 text-yellow-50 px-2 py-0.5 rounded text-xs font-black flex items-center gap-0.5 shadow-inner"><Gem size={12}/> {packCost}</span>)}</>)}
-              </button>
             </div>
             <label className="flex items-center gap-2 cursor-pointer text-slate-500 hover:text-red-400 transition-colors text-xs font-bold mt-1 select-none">
                 <input type="checkbox" className="hidden peer" checked={isCheatMode} onChange={(e) => setIsCheatMode(e.target.checked)} disabled={isOpening} />
@@ -1575,6 +1594,7 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
             </label>
         </div>
 
+        {/* 中央顯示區塊 */}
         <div className="flex-1 flex flex-col items-center justify-center min-h-[400px] relative">
           
           {earnedDust > 0 && openedCards.length > 0 && !isOpening && (
@@ -1594,13 +1614,34 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                   </div>
               </div>
           ) : openedCards.length === 0 ? (
-              <div className="text-slate-500 flex flex-col items-center">
-                  <PackageOpen size={64} className="mb-4 opacity-20" />
-                  <p className="text-sm font-bold opacity-60">點擊上方按鈕開啟卡包</p>
+              // 🌟 核心修改：這裡原本是空空的圖示，現在換成「卡包大圖 + 介紹 + 購買按鈕」
+              <div className="flex flex-col items-center animate-in fade-in zoom-in duration-300 max-w-md w-full">
+                  <div className={`w-40 h-56 mb-6 rounded-2xl relative flex flex-col items-center justify-center bg-gradient-to-br border-4 border-white/10 ${currentPackInfo.color} ${currentPackInfo.glow} overflow-hidden shadow-2xl transition-all hover:scale-105 hover:-translate-y-2 cursor-pointer`} onClick={openPack}>
+                      {currentPackInfo.img ? (
+                          <img src={currentPackInfo.img} alt={currentPackInfo.name} className="w-full h-full object-cover opacity-90 mix-blend-overlay" />
+                      ) : (
+                          <PackageOpen size={64} className="text-white/50 mb-2 drop-shadow-md" />
+                      )}
+                      {/* 如果沒有真實圖片，放個浮水印當底 */}
+                      <div className="absolute inset-0 bg-black/20 flex items-center justify-center pointer-events-none">
+                         <span className="text-white/80 font-black text-2xl rotate-[-15deg] drop-shadow-lg tracking-widest">{selectedSeries}</span>
+                      </div>
+                  </div>
+                  
+                  <h3 className="text-2xl font-black text-white mb-2 text-center drop-shadow-md">{currentPackInfo.name}</h3>
+                  <p className="text-slate-400 text-sm mb-8 text-center px-4 leading-relaxed font-bold">{currentPackInfo.desc}</p>
+                  
+                  <button onClick={openPack} disabled={isOpening} className="w-full max-w-xs bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 text-slate-900 py-3.5 rounded-xl font-black flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(250,204,21,0.4)] transition-all active:scale-95 text-lg">
+                      <PackageOpen size={22} /> {lang==='en'?'Open Pack':'購買並開啟卡包'} 
+                      {(!isCheatMode && user && !user.isAnonymous) && (
+                          <span className="ml-2 bg-yellow-600 text-yellow-50 px-2 py-0.5 rounded text-sm font-black flex items-center gap-1 shadow-inner">
+                              <Gem size={14}/> {packCost}
+                          </span>
+                      )}
+                  </button>
               </div>
           ) : (
               <div className="flex flex-col items-center gap-4 md:gap-6 w-full">
-                  {/* 🌟 6. 單抽大圖展示邏輯 */}
                   {openedCards.length === 1 ? (
                       <div className="flex justify-center scale-125 md:scale-150 my-10 animate-in zoom-in duration-700">
                           {renderCard(openedCards[0], 0)}
@@ -1611,6 +1652,12 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
                           <div className="flex justify-center gap-2 md:gap-6">{openedCards.slice(3, 5).map((card, index) => renderCard(card, index + 3))}</div>
                       </>
                   )}
+                  {/* 開完卡包後，底部加上一個「再來一包」的快捷按鈕 */}
+                  <div className="mt-8 animate-in fade-in slide-in-from-bottom-5 duration-500">
+                      <button onClick={openPack} className="bg-slate-700 hover:bg-slate-600 text-white px-6 py-2.5 rounded-full font-bold flex items-center gap-2 transition-transform active:scale-95 shadow-lg border border-slate-500">
+                         <Repeat size={18}/> 再買一包 ({packCost} 幣)
+                      </button>
+                  </div>
               </div>
           )}
         </div>
@@ -1618,7 +1665,6 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
     </div>
   );
 };
-
 const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard, handleSetAvatar }) => {
   const [selectedSeries, setSelectedSeries] = useState("BS11");
   const [selectedCard, setSelectedCard] = useState(null); 
