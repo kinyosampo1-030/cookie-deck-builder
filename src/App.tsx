@@ -379,28 +379,32 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user, lang, u
                                 const isAuthor = c.userId === deckData.authorId;
                                 return (
                                 <div key={c.id} className={`text-sm border-b border-slate-100 pb-3 last:border-0 ${isAuthor ? 'bg-blue-50/50 p-2 rounded-lg border-blue-100' : ''}`}>
-                                    {/* 🌟 修正後的留言版大頭貼區塊 */}
-                                    <div className="flex justify-between items-start mb-1">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded-full overflow-hidden border border-slate-300 bg-slate-800 shrink-0 mt-0.5 flex items-center justify-center">
+                                    
+                                    {/* 🌟 這是您貼上的放大版大頭貼區塊 */}
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden border-2 border-yellow-400 bg-slate-800 shrink-0 flex items-center justify-center shadow-sm">
                                                 {c.userAvatar ? (
                                                     <img src={c.userAvatar} alt="Avatar" className="w-full h-full object-cover scale-[1.3] object-top" />
                                                 ) : (
-                                                    <UserCog size={14} className="text-slate-400"/>
+                                                    <UserCog size={18} className="text-slate-400"/>
                                                 )}
                                             </div>
-                                            <div className="flex items-center gap-1.5">
-                                                <span className={`font-bold ${isAuthor ? 'text-blue-700' : 'text-slate-800'}`}>{c.userName}</span>
-                                                {isAuthor && <span className="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full font-bold tracking-wider">Author</span>}
+                                            <div className="flex flex-col justify-center">
+                                                <div className="flex items-center gap-1.5 mb-1">
+                                                    <span className={`font-bold text-sm ${isAuthor ? 'text-blue-700' : 'text-slate-800'}`}>{c.userName}</span>
+                                                    {isAuthor && <span className="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full font-bold tracking-wider leading-none">Author</span>}
+                                                </div>
+                                                <span className="text-[10px] text-slate-400 font-mono leading-none">{new Date(c.createdAt).toLocaleString()}</span>
                                             </div>
                                         </div>
-                                        <span className="text-[10px] text-slate-400 font-mono pt-1">{new Date(c.createdAt).toLocaleString()}</span>
                                     </div>
+                                    
+                                    {/* 🚨 剛剛被遺漏的「留言內容」在這裡，請務必保留！ */}
                                     <p className={`break-words leading-relaxed mt-1 ${isAuthor ? 'text-blue-900' : 'text-slate-600'}`}>{c.content}</p>
                                 </div>
                             )})}
                         </div>
-
                         <form onSubmit={handleAddComment} className="p-3 border-t bg-slate-50 flex gap-2">
                             <input className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all" placeholder={user && !user.isAnonymous ? "..." : (lang==='en'?'Please login...':'請先登入...')} value={newComment} onChange={e => setNewComment(e.target.value)} disabled={!user || user.isAnonymous || isSending} />
                             <button type="submit" disabled={!user || user.isAnonymous || isSending} className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"><Send size={18}/></button>
@@ -493,18 +497,19 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin, lang, us
                                     </div>
                                     <div className="p-4 flex-1 flex flex-col">
                                         <h3 className="font-bold text-lg text-slate-800 line-clamp-1 mb-1 group-hover:text-blue-600">{d.name}</h3>
-                                        <div className="text-xs text-slate-400 mb-4 flex items-center gap-2">
-                                            {/* 🌟 牌組作者大頭貼 */}
-                                            <div className="w-5 h-5 rounded-full overflow-hidden border border-slate-300 bg-slate-800 shrink-0 flex items-center justify-center">
+                                        <div className="text-xs text-slate-400 mb-4 flex items-center gap-2.5">
+                                            {/* 🌟 牌組作者大頭貼 (放大版) */}
+                                            <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden border-2 border-yellow-400 bg-slate-800 shrink-0 flex items-center justify-center shadow-[0_0_8px_rgba(234,179,8,0.4)]">
                                                 {d.authorAvatar ? (
                                                     <img src={d.authorAvatar} alt="Avatar" className="w-full h-full object-cover scale-[1.3] object-top" />
                                                 ) : (
-                                                    <UserCog size={12} className="text-slate-400"/>
+                                                    <UserCog size={18} className="text-slate-400"/>
                                                 )}
                                             </div>
-                                            <span className="font-bold text-slate-500">{d.authorName}</span>
-                                            <span>•</span>
-                                            <span>{new Date(d.createdAt).toLocaleDateString()}</span>
+                                            <div className="flex flex-col justify-center">
+                                                <span className="font-bold text-slate-600 text-sm md:text-base leading-none mb-1">{d.authorName}</span>
+                                                <span className="text-[10px] leading-none">{new Date(d.createdAt).toLocaleDateString()}</span>
+                                            </div>
                                         </div>
                                         <div className="mt-auto flex justify-between items-center text-sm text-slate-500">
                                             <span className="flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded font-bold text-xs"><Layers size={12}/> {d.m?.length || 0}</span>
@@ -2927,10 +2932,11 @@ const handleExportCardData = () => {
                     <div className="flex flex-wrap items-center gap-2 md:gap-4">
                         <button 
                             onClick={() => setLang(l => l === 'zh' ? 'en' : 'zh')} 
-                            className="bg-slate-800 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-xs md:text-sm font-bold flex items-center gap-1.5 shadow-md transition-all hover:bg-slate-700 active:scale-95 border border-slate-600"
+                            className="bg-slate-800 text-white px-3 py-1.5 md:px-3 md:py-2 rounded-xl text-xs md:text-sm font-bold flex items-center gap-1.5 shadow-md transition-all hover:bg-slate-700 active:scale-95 border border-slate-600"
+                            title={lang === 'zh' ? 'Switch to English' : '切換為繁體中文'}
                         >
                             <Languages size={16} className="text-yellow-400" />
-                            <span>{lang === 'zh' ? 'Switch to English' : '切換為繁體中文'}</span>
+                            <span>文/A</span>
                         </button>
 
                         {deferredPrompt && (
