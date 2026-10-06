@@ -417,14 +417,19 @@ const DeckDetailView = ({ deckData, allCards, onClose, onLoadDeck, user, lang, u
 };
 
 const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin, lang, userProfile }) => {
+    // 🌟 新增分頁狀態：預設打開為 'tournament'
+    const [activeTab, setActiveTab] = useState("tournament"); 
+    
     const [decks, setDecks] = useState([]);
+    const [tournamentDecks, setTournamentDecks] = useState([]); // 🌟 賽事牌組狀態
     const [loading, setLoading] = useState(true);
     const [filterColor, setFilterColor] = useState("ALL");
     const [sortBy, setSortBy] = useState("latest");
     const [selectedDeck, setSelectedDeck] = useState(null);
 
+    // 載入一般社群牌組
     useEffect(() => {
-        if (!db) return;
+        if (!db || activeTab !== 'community') return;
         const fetchDecks = async () => {
             setLoading(true);
             try {
@@ -441,7 +446,27 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin, lang, us
             } catch (e) { console.error(e); } finally { setLoading(false); }
         };
         fetchDecks();
-    }, [filterColor, sortBy]);
+    }, [filterColor, sortBy, activeTab]);
+
+    // 🌟 載入賽事上位牌組
+    useEffect(() => {
+        if (!db || activeTab !== 'tournament') return;
+        const fetchTourneys = async () => {
+            setLoading(true);
+            try {
+                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tournament_decks'), orderBy('tournamentDate', 'desc'));
+                const snap = await getDocs(q);
+                let loaded = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                // 若日期相同，則依名次排列 (冠軍在前)
+                loaded.sort((a, b) => {
+                    if (a.tournamentDate === b.tournamentDate) return (a.rank || 99) - (b.rank || 99);
+                    return new Date(b.tournamentDate) - new Date(a.tournamentDate);
+                });
+                setTournamentDecks(loaded);
+            } catch(e) { console.error(e); } finally { setLoading(false); }
+        };
+        fetchTourneys();
+    }, [activeTab]);
     
     const getCoverImage = (deck) => {
         if (deck.coverId) { const card = allCards.find(c => c.id === deck.coverId); if (card && card.imageUrl) return card.imageUrl; }
@@ -450,91 +475,146 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin, lang, us
     };
 
     const handleDeleteCommunityDeck = async (deckId, deckName) => {
-    if (!confirm(`確定要刪除「${deckName}」這份牌組嗎？此動作無法復原。`)) return;
+        if (!confirm(`確定要刪除「${deckName}」這份牌組嗎？`)) return;
+        try {
+            await deleteDoc(doc(db, "artifacts", appId, "public", "data", "community_decks", deckId));
+            alert("牌組已成功從社群廣場移除。");
+        } catch (error) { alert("刪除失敗。"); }
+    };
 
-    try {
-      // 指向資料庫中該份牌組的路徑
-      const deckRef = doc(db, "artifacts", appId, "public", "data", "community_decks", deckId);
-      await deleteDoc(deckRef);
-      alert("牌組已成功從牌組廣場移除。");
-      // 刪除後不需要重新整理，Firestore 的 onSnapshot 會自動更新畫面
-    } catch (error) {
-      console.error("刪除失敗:", error);
-      alert("刪除失敗：您並沒有權限刪除此牌組，或請聯絡管理員。");
-    }
-  };
+    const handleDeleteTournamentDeck = async (deckId, deckName) => {
+        if (!confirm(`確定要刪除賽事牌組「${deckName}」嗎？`)) return;
+        try {
+            await deleteDoc(doc(db, "artifacts", appId, "public", "data", "tournament_decks", deckId));
+            setTournamentDecks(prev => prev.filter(d => d.id !== deckId));
+        } catch (error) { console.error(error); }
+    };
+
+    // 🌟 賽事名次徽章產生器
+    const getRankBadge = (rank) => {
+        if (rank === 1) return <div className="absolute top-2 left-2 bg-gradient-to-r from-yellow-300 to-yellow-500 text-yellow-900 px-3 py-1 rounded shadow-md border-2 border-yellow-200 font-black text-xs z-10 flex items-center gap-1"><Crown size={14}/> 冠軍</div>;
+        if (rank === 2) return <div className="absolute top-2 left-2 bg-gradient-to-r from-slate-300 to-slate-400 text-slate-800 px-3 py-1 rounded shadow-md border-2 border-slate-100 font-black text-xs z-10">🥈 亞軍</div>;
+        if (rank === 3) return <div className="absolute top-2 left-2 bg-gradient-to-r from-amber-600 to-orange-700 text-amber-50 px-3 py-1 rounded shadow-md border-2 border-amber-500 font-black text-xs z-10">🥉 季軍</div>;
+        if (rank <= 8) return <div className="absolute top-2 left-2 bg-blue-600 text-white px-3 py-1 rounded shadow border-2 border-blue-400 font-black text-xs z-10">🏅 {rank}強</div>;
+        return <div className="absolute top-2 left-2 bg-slate-700 text-white px-3 py-1 rounded shadow border-2 border-slate-500 font-black text-xs z-10">🎖️ 參賽</div>;
+    };
 
     return (
         <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4" onClick={onClose}>
             <div className="bg-slate-100 rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                
                 <div className="bg-white p-4 border-b flex justify-between items-center shrink-0">
-                    <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2"><Globe className="text-blue-500" /> {lang==='en'?'Community':'牌組廣場'}</h2>
+                    <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2"><Globe className="text-blue-500" /> {lang==='en'?'Deck Hub':'牌組廣場'}</h2>
                     <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><X size={24}/></button>
                 </div>
-                <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex gap-2 overflow-x-auto shrink-0 shadow-inner">
-                    <button onClick={() => setSortBy('latest')} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${sortBy === 'latest' ? 'bg-white text-blue-700 shadow border border-blue-200' : 'text-slate-500 hover:bg-slate-200 border border-transparent'}`}><Clock size={16}/> {lang==='en'?'Latest':'最新發布'}</button>
-                    <button onClick={() => setSortBy('likes')} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${sortBy === 'likes' ? 'bg-white text-pink-700 shadow border border-pink-200' : 'text-slate-500 hover:bg-slate-200 border border-transparent'}`}><Flame size={16}/> {lang==='en'?'Most Liked':'最多按讚'}</button>
-                    <button onClick={() => setSortBy('copies')} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${sortBy === 'copies' ? 'bg-white text-emerald-700 shadow border border-emerald-200' : 'text-slate-500 hover:bg-slate-200 border border-transparent'}`}><Copy size={16}/> {lang==='en'?'Most Copied':'最多複製'}</button>
+
+                {/* 🌟 雙分頁切換器 */}
+                <div className="bg-slate-100 p-3 flex justify-center gap-3 border-b border-slate-200 shrink-0 shadow-inner">
+                    <button onClick={() => setActiveTab('tournament')} className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm md:text-base font-black transition-all ${activeTab === 'tournament' ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-amber-950 shadow-lg scale-105 border border-yellow-300' : 'bg-white text-slate-500 hover:bg-slate-200 border border-slate-200 shadow-sm'}`}><Crown size={20}/> {lang==='en'?'Tournament':'賽事上位牌組'}</button>
+                    <button onClick={() => setActiveTab('community')} className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm md:text-base font-black transition-all ${activeTab === 'community' ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-lg scale-105 border border-blue-400' : 'bg-white text-slate-500 hover:bg-slate-200 border border-slate-200 shadow-sm'}`}><Globe size={20}/> {lang==='en'?'Community':'玩家社群分享'}</button>
                 </div>
-                <div className="bg-white p-3 border-b flex gap-2 overflow-x-auto shrink-0">
-                    <button onClick={() => setFilterColor("ALL")} className={`px-4 py-1 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filterColor === "ALL" ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>{lang==='en'?'ALL':'全部'}</button>
-                    {Object.values(CARD_COLORS).map(c => (
-                         <button key={c} onClick={() => setFilterColor(c)} className={`px-4 py-1 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filterColor === c ? "ring-2 ring-offset-1 ring-slate-400" : "opacity-60 hover:opacity-100"}`} style={{backgroundColor: c === '紅色' ? '#fee2e2' : c === '黃色' ? '#fef9c3' : c === '綠色' ? '#d1fae5' : c === '藍色' ? '#dbeafe' : c === '紫色' ? '#f3e8ff' : c === '黑色' ? '#1e293b' : '#f1f5f9', color: c === '黑色' ? '#ffffff' : '#334155'}}>{t(c, lang)}</button>
-                    ))}
-                </div>
-                <div className="flex-1 overflow-y-auto p-4">
-                    {loading ? (<div className="flex justify-center items-center h-full"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>) : decks.length === 0 ? (<div className="flex flex-col items-center justify-center h-full text-slate-400"><Box size={64} className="mb-4 opacity-20"/><p>No decks found.</p></div>) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {decks.map(d => (
-                                <div key={d.id} onClick={() => setSelectedDeck(d)} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer overflow-hidden flex flex-col group h-full relative">
-                                    {sortBy === 'likes' && d.likes > 0 && <div className="absolute top-2 right-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[10px] font-black px-2 py-1 rounded shadow-md z-10 flex items-center gap-1"><Flame size={12}/> HOT</div>}
-                                    <div className="h-32 bg-slate-200 overflow-hidden relative">
-                                        <img src={getCoverImage(d)} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt="Deck Cover" />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                                        <div className="absolute bottom-2 left-2 flex gap-1">
-                                             {d.colors && d.colors.map(c => <div key={c} className="w-3 h-3 rounded-full border border-white shadow-sm" style={{backgroundColor: c === '紅色' ? '#ef4444' : c === '黃色' ? '#eab308' : c === '綠色' ? '#10b981' : c === '藍色' ? '#3b82f6' : c === '紫色' ? '#a855f7' : c === '黑色' ? '#1e293b' : '#94a3b8'}}></div>)}
-                                        </div>
-                                    </div>
-                                    <div className="p-4 flex-1 flex flex-col">
-                                        <h3 className="font-bold text-lg text-slate-800 line-clamp-1 mb-1 group-hover:text-blue-600">{d.name}</h3>
-                                        <div className="text-xs text-slate-400 mb-4 flex items-center gap-2.5">
-                                            {/* 🌟 牌組作者大頭貼 (放大版) */}
-                                            <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden border-2 border-yellow-400 bg-slate-800 shrink-0 flex items-center justify-center shadow-[0_0_8px_rgba(234,179,8,0.4)]">
-                                                {d.authorAvatar ? (
-                                                    <img src={d.authorAvatar} alt="Avatar" className="w-full h-full object-cover scale-[1.3] object-top" />
-                                                ) : (
-                                                    <UserCog size={18} className="text-slate-400"/>
-                                                )}
-                                            </div>
-                                            <div className="flex flex-col justify-center">
-                                                <span className="font-bold text-slate-600 text-sm md:text-base leading-none mb-1">{d.authorName}</span>
-                                                <span className="text-[10px] leading-none">{new Date(d.createdAt).toLocaleDateString()}</span>
-                                            </div>
-                                        </div>
-                                        <div className="mt-auto flex justify-between items-center text-sm text-slate-500">
-                                            <span className="flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded font-bold text-xs"><Layers size={12}/> {d.m?.length || 0}</span>
-                                            <div className="flex gap-3 items-center">
-                                                {(isAdmin || (user && d.authorId === user.uid)) && (
-        <button 
-            onClick={(e) => {
-                e.stopPropagation(); // 防止點到卡片背後的開啟事件
-                handleDeleteCommunityDeck(d.id, d.name);
-            }} 
-            className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-full transition-colors z-10"
-            title="刪除牌組"
-        >
-            <Trash2 size={14}/>
-        </button>
-    )}
-                                                <span className="flex items-center gap-1 font-bold text-pink-600"><Heart size={14} className={d.likes > 0 ? "fill-pink-600" : ""}/> {d.likes || 0}</span>
-                                                <span className="flex items-center gap-1 text-slate-400"><MessageCircle size={14}/> {d.commentCount || 0}</span>
-                                                <span className="flex items-center gap-1 text-emerald-600 font-bold"><Copy size={14}/> {d.copyCount || 0}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+
+                {/* 只有在切換到社群時才顯示篩選器 */}
+                {activeTab === 'community' && (
+                    <>
+                        <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex gap-2 overflow-x-auto shrink-0 shadow-inner">
+                            <button onClick={() => setSortBy('latest')} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${sortBy === 'latest' ? 'bg-white text-blue-700 shadow border border-blue-200' : 'text-slate-500 hover:bg-slate-200 border border-transparent'}`}><Clock size={16}/> {lang==='en'?'Latest':'最新發布'}</button>
+                            <button onClick={() => setSortBy('likes')} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${sortBy === 'likes' ? 'bg-white text-pink-700 shadow border border-pink-200' : 'text-slate-500 hover:bg-slate-200 border border-transparent'}`}><Flame size={16}/> {lang==='en'?'Most Liked':'最多按讚'}</button>
+                            <button onClick={() => setSortBy('copies')} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${sortBy === 'copies' ? 'bg-white text-emerald-700 shadow border border-emerald-200' : 'text-slate-500 hover:bg-slate-200 border border-transparent'}`}><Copy size={16}/> {lang==='en'?'Most Copied':'最多複製'}</button>
+                        </div>
+                        <div className="bg-white p-3 border-b flex gap-2 overflow-x-auto shrink-0">
+                            <button onClick={() => setFilterColor("ALL")} className={`px-4 py-1 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filterColor === "ALL" ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>{lang==='en'?'ALL':'全部'}</button>
+                            {Object.values(CARD_COLORS).map(c => (
+                                 <button key={c} onClick={() => setFilterColor(c)} className={`px-4 py-1 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filterColor === c ? "ring-2 ring-offset-1 ring-slate-400" : "opacity-60 hover:opacity-100"}`} style={{backgroundColor: c === '紅色' ? '#fee2e2' : c === '黃色' ? '#fef9c3' : c === '綠色' ? '#d1fae5' : c === '藍色' ? '#dbeafe' : c === '紫色' ? '#f3e8ff' : c === '黑色' ? '#1e293b' : '#f1f5f9', color: c === '黑色' ? '#ffffff' : '#334155'}}>{t(c, lang)}</button>
                             ))}
                         </div>
+                    </>
+                )}
+
+                <div className="flex-1 overflow-y-auto p-4">
+                    {loading ? (<div className="flex justify-center items-center h-full"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>) : (
+                        
+                        activeTab === 'tournament' ? (
+                            // 🌟 賽事上位牌組的渲染區塊
+                            tournamentDecks.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-full text-slate-400"><Crown size={64} className="mb-4 opacity-20"/><p>目前還沒有任何賽事上位牌組</p></div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                                    {tournamentDecks.map(d => (
+                                        <div key={d.id} onClick={() => setSelectedDeck(d)} className="bg-white rounded-xl border-2 border-amber-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer overflow-hidden flex flex-col group h-full relative">
+                                            {getRankBadge(d.rank)}
+                                            <div className="h-32 bg-slate-200 overflow-hidden relative border-b-2 border-amber-200">
+                                                <img src={getCoverImage(d)} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt="Deck Cover" />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                                                <div className="absolute bottom-2 right-2 flex gap-1">
+                                                     {d.colors && d.colors.map(c => <div key={`t-${c}`} className="w-3 h-3 rounded-full border border-white shadow-sm" style={{backgroundColor: c === '紅色' ? '#ef4444' : c === '黃色' ? '#eab308' : c === '綠色' ? '#10b981' : c === '藍色' ? '#3b82f6' : c === '紫色' ? '#a855f7' : c === '黑色' ? '#1e293b' : '#94a3b8'}}></div>)}
+                                                </div>
+                                            </div>
+                                            <div className="p-4 flex-1 flex flex-col bg-gradient-to-b from-amber-50/30 to-white">
+                                                <h3 className="font-bold text-lg text-slate-800 line-clamp-1 mb-2 group-hover:text-amber-600">{d.name}</h3>
+                                                <div className="text-sm text-slate-600 mb-4 flex flex-col gap-1.5">
+                                                    <span className="font-bold text-amber-800 flex items-center gap-1.5"><UserCog size={16}/> {d.playerName}</span>
+                                                    <span className="text-xs text-slate-500 flex items-center gap-1.5 font-mono bg-slate-100 w-max px-2 py-0.5 rounded border border-slate-200"><Clock size={12}/> {d.tournamentDate}</span>
+                                                </div>
+                                                <div className="mt-auto flex justify-between items-center pt-3 border-t border-amber-100">
+                                                    <span className="flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-1 rounded font-black text-xs"><Layers size={14}/> {d.m?.length || 0}</span>
+                                                    {isAdmin && (
+                                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTournamentDeck(d.id, d.name); }} className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-full transition-colors z-10 shadow-sm border border-transparent hover:border-red-200" title="刪除賽事牌組"><Trash2 size={16}/></button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )
+                        ) : (
+                            // 🌟 玩家社群分享的渲染區塊 (原版)
+                            decks.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-full text-slate-400"><Box size={64} className="mb-4 opacity-20"/><p>No decks found.</p></div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                    {decks.map(d => (
+                                        <div key={d.id} onClick={() => setSelectedDeck(d)} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer overflow-hidden flex flex-col group h-full relative">
+                                            {sortBy === 'likes' && d.likes > 0 && <div className="absolute top-2 right-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[10px] font-black px-2 py-1 rounded shadow-md z-10 flex items-center gap-1"><Flame size={12}/> HOT</div>}
+                                            <div className="h-32 bg-slate-200 overflow-hidden relative">
+                                                <img src={getCoverImage(d)} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt="Deck Cover" />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                                                <div className="absolute bottom-2 left-2 flex gap-1">
+                                                     {d.colors && d.colors.map(c => <div key={c} className="w-3 h-3 rounded-full border border-white shadow-sm" style={{backgroundColor: c === '紅色' ? '#ef4444' : c === '黃色' ? '#eab308' : c === '綠色' ? '#10b981' : c === '藍色' ? '#3b82f6' : c === '紫色' ? '#a855f7' : c === '黑色' ? '#1e293b' : '#94a3b8'}}></div>)}
+                                                </div>
+                                            </div>
+                                            <div className="p-4 flex-1 flex flex-col">
+                                                <h3 className="font-bold text-lg text-slate-800 line-clamp-1 mb-2 group-hover:text-blue-600">{d.name}</h3>
+                                                <div className="text-xs text-slate-400 mb-4 flex items-center gap-2.5">
+                                                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden border-2 border-yellow-400 bg-slate-800 shrink-0 flex items-center justify-center shadow-[0_0_8px_rgba(234,179,8,0.4)]">
+                                                        {d.authorAvatar ? (
+                                                            <img src={d.authorAvatar} alt="Avatar" className="w-full h-full object-cover scale-[1.3] object-top" />
+                                                        ) : (
+                                                            <UserCog size={18} className="text-slate-400"/>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex flex-col justify-center">
+                                                        <span className="font-bold text-slate-600 text-sm md:text-base leading-none mb-1">{d.authorName}</span>
+                                                        <span className="text-[10px] leading-none">{new Date(d.createdAt).toLocaleDateString()}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="mt-auto flex justify-between items-center text-sm text-slate-500 pt-3 border-t border-slate-100">
+                                                    <span className="flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded font-bold text-xs"><Layers size={12}/> {d.m?.length || 0}</span>
+                                                    <div className="flex gap-3 items-center">
+                                                        {(isAdmin || (user && d.authorId === user.uid)) && (
+                                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteCommunityDeck(d.id, d.name); }} className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-full transition-colors z-10" title="刪除牌組"><Trash2 size={14}/></button>
+                                                        )}
+                                                        <span className="flex items-center gap-1 font-bold text-pink-600"><Heart size={14} className={d.likes > 0 ? "fill-pink-600" : ""}/> {d.likes || 0}</span>
+                                                        <span className="flex items-center gap-1 text-slate-400"><MessageCircle size={14}/> {d.commentCount || 0}</span>
+                                                        <span className="flex items-center gap-1 text-emerald-600 font-bold"><Copy size={14}/> {d.copyCount || 0}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )
+                        )
                     )}
                 </div>
             </div>
@@ -543,7 +623,7 @@ const CommunityModal = ({ allCards, onClose, onLoadDeck, user, isAdmin, lang, us
     );
 };
 
-const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onClose, onLoadDeck, onPublish, lang, preferredArts }) => {
+const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onClose, onLoadDeck, onPublish, lang, preferredArts, isAdmin }) => {
   const [decks, setDecks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saveName, setSaveName] = useState(currentDeckName);
@@ -581,7 +661,6 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
     if (!saveName.trim()) return alert(lang==='en'?"Enter Name":"請輸入牌組名稱");
     setIsSaving(true);
     try {
-        // 🌟 儲存時，只過濾出「這副牌組有用到」的異圖設定，避免佔用無謂空間
         const deckPArts = {};
         [...(currentDeck?.main || []), ...(currentDeck?.extra || [])].forEach(c => {
            if (preferredArts && preferredArts[c.id]) deckPArts[c.id] = preferredArts[c.id];
@@ -615,12 +694,49 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
       await onPublish(deck);
   };
 
+  // 🌟 管理員專用：發布至「賽事上位牌組」
+  const handlePublishTournament = async (e, deckObj) => {
+      e.stopPropagation();
+      if (!isAdmin) return;
+      const tDate = prompt("請輸入賽事日期 (例如: 2026-10-06):", new Date().toISOString().slice(0,10));
+      if (!tDate) return;
+      const tPlayer = prompt("請輸入餅乾玩家名稱:", deckObj.authorName || "選手");
+      if (!tPlayer) return;
+      const tRankStr = prompt("請輸入名次 (數字, 例如: 1=冠軍, 2=亞軍, 4=四強, 8=八強):", "1");
+      if (!tRankStr) return;
+      const tRank = parseInt(tRankStr, 10);
+
+      try {
+          const cardIds = [...(deckObj.m || [])];
+          const cards = cardIds.map(id => allCards.find(c => c.id === id)).filter(Boolean);
+          const colors = [...new Set(cards.map(c => c.color).filter(Boolean))];
+
+          const tData = {
+              name: deckObj.name,
+              m: deckObj.m,
+              e: deckObj.e,
+              colors: colors,
+              coverId: deckObj.coverId || null,
+              pArts: deckObj.pArts || {},
+              tournamentDate: tDate,
+              playerName: tPlayer,
+              rank: tRank,
+              createdAt: new Date().toISOString()
+          };
+
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tournament_decks'), tData);
+          alert("🏆 賽事上位牌組發布成功！");
+      } catch (err) {
+          alert("發布失敗: " + err.message);
+      }
+  };
+
   const handleLoadDeckClick = (savedDeck) => {
      if (currentDeck?.main?.length > 0 && !confirm(lang==='en'?"Overwrite current deck?":"目前的牌組將被覆蓋，確定要載入嗎？")) return;
      const mainCards = []; const extraCards = [];
      (savedDeck.m || []).forEach(id => { const c = allCards.find(card => card.id === id); if (c) mainCards.push(c); });
      (savedDeck.e || []).forEach(id => { const c = allCards.find(card => card.id === id); if (c) extraCards.push(c); });
-     onLoadDeck({ main: mainCards, extra: extraCards }, savedDeck.name, savedDeck.pArts); // 🌟 載入時丟出 pArts
+     onLoadDeck({ main: mainCards, extra: extraCards }, savedDeck.name, savedDeck.pArts); 
      onClose();
   };
 
@@ -641,7 +757,16 @@ const DeckStorageModal = ({ userId, currentDeck, currentDeckName, allCards, onCl
                  <div className="space-y-2">{decks.map(d => (
                          <div key={d.id} onClick={() => handleLoadDeckClick(d)} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md cursor-pointer transition-all flex justify-between items-center group">
                              <div><div className="font-bold text-slate-800 text-sm md:text-base">{d.name}</div><div className="text-[10px] md:text-xs text-slate-400 mt-1 flex gap-2"><span>{d.updatedAt ? new Date(d.updatedAt).toLocaleDateString() : ''}</span><span>·</span><span>{d.m ? d.m.length : 0}</span></div></div>
-                             <div className="flex gap-1"><button onClick={(e) => handlePublish(e, d)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded transition-all"><Globe size={16}/></button><button onClick={(e) => handleDelete(e, d.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={16}/></button></div>
+                             <div className="flex gap-1">
+                                 {/* 🌟 管理員專屬按鈕 */}
+                                 {isAdmin && (
+                                     <button onClick={(e) => handlePublishTournament(e, d)} className="p-2 text-amber-500 hover:text-amber-700 hover:bg-amber-100 rounded transition-all" title="發布為賽事上位牌組">
+                                         <Crown size={16}/>
+                                     </button>
+                                 )}
+                                 <button onClick={(e) => handlePublish(e, d)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded transition-all" title="發布至一般社群"><Globe size={16}/></button>
+                                 <button onClick={(e) => handleDelete(e, d.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={16}/></button>
+                             </div>
                          </div>
                      ))}</div>
              )}
@@ -2938,7 +3063,7 @@ const handleExportCardData = () => {
         />
       )}
       
-      {showStorageModal && (
+{showStorageModal && (
         <DeckStorageModal 
             userId={user.uid}
             currentDeck={deck}
@@ -2948,7 +3073,8 @@ const handleExportCardData = () => {
             onLoadDeck={handleLoadDeckFromStorage}
             onPublish={handlePublishDeck}
             lang={lang}
-            preferredArts={preferredArts} /* 🌟 加在這裡 */
+            preferredArts={preferredArts} 
+            isAdmin={isAdmin} 
         />
       )}
       
