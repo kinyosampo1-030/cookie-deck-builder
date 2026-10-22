@@ -95,7 +95,7 @@ const getCardColorStyles = (color) => {
     case CARD_COLORS.GREEN: return "bg-emerald-50 border-emerald-500 text-emerald-900";
     case CARD_COLORS.BLUE: return "bg-blue-50 border-blue-500 text-blue-900";
     case CARD_COLORS.PURPLE: return "bg-purple-50 border-purple-500 text-purple-900";
-    case CARD_COLORS.BLACK: return "bg-slate-800 border-slate-900 text-slate-50";
+    case CARD_COLORS.BLACK: return "bg-slate-200 border-slate-800 text-slate-900";
     case CARD_COLORS.COLORLESS: return "bg-slate-100 border-slate-400 text-slate-800";
     default: return "bg-gray-100 border-gray-400 text-gray-800";
   }
@@ -2021,7 +2021,7 @@ const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard
         <div className={`flex-1 min-w-0 ${compact ? "" : ""}`}>
           <div className={`flex justify-between items-start ${compact ? "flex-col justify-center" : "mb-1"}`}>
             {/* 🌟 根據語言顯示名稱 */}
-            <h3 className={`font-bold leading-tight ${compact ? `line-clamp-2 w-full text-slate-800 text-sm ${card.isForbidden || card.isLimitOne ? 'text-red-700' : ''}` : "text-lg md:text-xl line-clamp-1 leading-snug"}`}>{cName(card, lang)}</h3>
+            <h3 className={`font-bold leading-tight ${compact ? `line-clamp-2 w-full text-sm ${card.isForbidden || card.isLimitOne ? 'text-red-700' : ''}` : "text-lg md:text-xl line-clamp-1 leading-snug"}`}>{cName(card, lang)}</h3>
             <div className={`flex items-center gap-1 ${compact ? "w-full mt-0.5" : ""}`}>
               {!compact && (<button onClick={(e) => { e.stopPropagation(); onView(card); }} className="p-1 text-current opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white/50 rounded-full transition-all"><Eye size={16} /></button>)}
               <span className={`font-mono font-black ${compact ? "text-xs text-slate-500" : "text-xs md:text-xl bg-white/80 px-2 rounded border border-current/20 shadow-sm"}`}>{card.id}</span>
