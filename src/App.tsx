@@ -1856,11 +1856,14 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
     </div>
   );
 };
+
 const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard, handleSetAvatar, user }) => {
   const [selectedSeries, setSelectedSeries] = useState("BS11");
   const [selectedCard, setSelectedCard] = useState(null); 
   const [isCrafting, setIsCrafting] = useState(false);
-  const [isClaiming, setIsClaiming] = useState(false); // 🌟 新增領取狀態
+  const [isClaiming, setIsClaiming] = useState(false); 
+  // 🌟 新增：成就區塊的收合狀態 (預設為 false，節省版面)
+  const [showAchievements, setShowAchievements] = useState(false);
 
   // 🌟 成就里程碑設定檔 (Config)
   const MILESTONES = useMemo(() => [
@@ -1872,7 +1875,7 @@ const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard
       { percent: 100, reward: 600, title: "超凡入聖" }
   ], []);
 
-  const availableSeries = useMemo(() => Array.from(new Set(allCards.filter(c => !c.series.startsWith('ST') && c.series !== 'P').map(c => c.series))).sort(), [allCards]);
+const availableSeries = useMemo(() => Array.from(new Set(allCards.filter(c => !c.series.startsWith('ST') && c.series !== 'P').map(c => c.series))).sort(), [allCards]);
 
   const expandedSeriesCards = useMemo(() => {
       const expanded = [];
@@ -1896,7 +1899,6 @@ const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard
       return { owned: ownedUnique, total: expandedSeriesCards.length, percentage: expandedSeriesCards.length ? Math.floor((ownedUnique / expandedSeriesCards.length) * 100) : 0 };
   }, [expandedSeriesCards, userProfile]);
 
-  // 🌟 [新增 API] 領取里程碑成就獎勵
   const handleClaimMilestone = async (percent, reward) => {
       if (!user || user.isAnonymous || !db) {
           alert("請先登入註冊才能領取成就獎勵喔！");
@@ -2008,13 +2010,16 @@ const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard
                 </div>
             </div>
             
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                <div className="flex flex-wrap gap-2 w-full md:w-auto">
+            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                
+                {/* 🌟 優化 1：系列按鈕改為橫向隱形捲動 (去除 flex-wrap) */}
+                <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 shrink-0" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                     {availableSeries.map(s => (
-                        <button key={s} onClick={() => setSelectedSeries(s)} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${selectedSeries === s ? 'bg-blue-600 text-white shadow-lg scale-105' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>{s}</button>
+                        <button key={s} onClick={() => setSelectedSeries(s)} className={`shrink-0 px-4 py-2 rounded-lg text-sm font-bold transition-all ${selectedSeries === s ? 'bg-blue-600 text-white shadow-lg scale-105' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>{s}</button>
                     ))}
                 </div>
-                <div className="w-full md:w-64 flex flex-col gap-1.5">
+                
+                <div className="w-full md:w-64 flex flex-col gap-1.5 shrink-0">
                     <div className="flex justify-between text-xs font-bold text-slate-300">
                         <span>{lang==='en'?'Completion':'收集進度'}</span>
                         <span className="text-yellow-400">{collectionStats.owned} / {collectionStats.total} ({collectionStats.percentage}%)</span>
@@ -2023,39 +2028,46 @@ const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard
                 </div>
             </div>
 
-            {/* 🌟 新增：系列收集里程碑成就卡片區 */}
-            <div className="mt-5 border-t border-slate-700 pt-4">
-                <div className="text-[10px] md:text-xs font-bold text-slate-400 mb-3 flex items-center gap-1.5 uppercase tracking-wider">
-                    <Crown size={14} className="text-yellow-500" /> {selectedSeries} 專屬收集成就
-                </div>
-                <div className="flex gap-3 overflow-x-auto pb-2 scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                    {MILESTONES.map(m => {
-                        const achievementId = `${selectedSeries}_${m.percent}`;
-                        // 檢查資料庫的 claimedAchievements 陣列裡有沒有這個成就 ID
-                        const isClaimed = (userProfile?.claimedAchievements || []).includes(achievementId);
-                        // 當前收集率達標，且還沒領過，才能領取
-                        const canClaim = collectionStats.percentage >= m.percent && !isClaimed;
-                        
-                        return (
-                            <div key={m.percent} className={`shrink-0 w-32 md:w-36 rounded-xl p-3 border-2 flex flex-col gap-2 transition-all duration-300 ${isClaimed ? 'bg-slate-800/50 border-emerald-500/30 opacity-70' : canClaim ? 'bg-slate-800 border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.2)] hover:-translate-y-1' : 'bg-slate-800/50 border-slate-700 grayscale-[30%]'}`}>
-                                <div className="flex justify-between items-start">
-                                    <span className={`text-xs font-black ${isClaimed ? 'text-emerald-500' : canClaim ? 'text-yellow-400' : 'text-slate-400'}`}>{m.title}</span>
-                                    <span className={`text-[10px] font-black ${collectionStats.percentage >= m.percent ? 'text-emerald-400' : 'text-slate-500'}`}>{m.percent}%</span>
+            {/* 🌟 優化 2：系列收集里程碑成就卡片區 (加入下拉收合功能) */}
+            <div className="mt-4 border-t border-slate-700 pt-3">
+                <button 
+                    onClick={() => setShowAchievements(!showAchievements)}
+                    className="w-full flex justify-between items-center text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider hover:text-slate-300 transition-colors cursor-pointer outline-none"
+                >
+                    <span className="flex items-center gap-1.5">
+                        <Crown size={14} className="text-yellow-500" /> {selectedSeries} 專屬收集成就
+                    </span>
+                    {showAchievements ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+
+                <div className={`transition-all duration-300 ease-in-out overflow-hidden origin-top ${showAchievements ? 'max-h-[200px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
+                    <div className="flex gap-3 overflow-x-auto pb-2 scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                        {MILESTONES.map(m => {
+                            const achievementId = `${selectedSeries}_${m.percent}`;
+                            const isClaimed = (userProfile?.claimedAchievements || []).includes(achievementId);
+                            const canClaim = collectionStats.percentage >= m.percent && !isClaimed;
+                            
+                            return (
+                                <div key={m.percent} className={`shrink-0 w-32 md:w-36 rounded-xl p-3 border-2 flex flex-col gap-2 transition-all duration-300 ${isClaimed ? 'bg-slate-800/50 border-emerald-500/30 opacity-70' : canClaim ? 'bg-slate-800 border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.2)] hover:-translate-y-1' : 'bg-slate-800/50 border-slate-700 grayscale-[30%]'}`}>
+                                    <div className="flex justify-between items-start">
+                                        <span className={`text-xs font-black ${isClaimed ? 'text-emerald-500' : canClaim ? 'text-yellow-400' : 'text-slate-400'}`}>{m.title}</span>
+                                        <span className={`text-[10px] font-black ${collectionStats.percentage >= m.percent ? 'text-emerald-400' : 'text-slate-500'}`}>{m.percent}%</span>
+                                    </div>
+                                    <div className="flex items-center gap-1 text-sm font-black text-white my-1">
+                                        <Gem size={14} className={isClaimed ? "text-slate-500" : "text-cyan-400"} /> 
+                                        <span className={isClaimed ? "text-slate-500 line-through" : ""}>+{m.reward}</span>
+                                    </div>
+                                    <button 
+                                        onClick={() => handleClaimMilestone(m.percent, m.reward)}
+                                        disabled={!canClaim || isClaiming}
+                                        className={`w-full py-1.5 rounded-lg text-xs font-bold transition-all ${isClaimed ? 'bg-transparent text-emerald-500 border border-emerald-500/50 cursor-default' : canClaim ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-amber-950 shadow-md active:scale-95' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`}
+                                    >
+                                        {isClaimed ? '✅ 已領取' : canClaim ? '🎁 點擊領取' : '未達成'}
+                                    </button>
                                 </div>
-                                <div className="flex items-center gap-1 text-sm font-black text-white my-1">
-                                    <Gem size={14} className={isClaimed ? "text-slate-500" : "text-cyan-400"} /> 
-                                    <span className={isClaimed ? "text-slate-500 line-through" : ""}>+{m.reward}</span>
-                                </div>
-                                <button 
-                                    onClick={() => handleClaimMilestone(m.percent, m.reward)}
-                                    disabled={!canClaim || isClaiming}
-                                    className={`w-full py-1.5 rounded-lg text-xs font-bold transition-all ${isClaimed ? 'bg-transparent text-emerald-500 border border-emerald-500/50 cursor-default' : canClaim ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-amber-950 shadow-md active:scale-95' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`}
-                                >
-                                    {isClaimed ? '✅ 已領取' : canClaim ? '🎁 點擊領取' : '未達成'}
-                                </button>
-                            </div>
-                        );
-                    })}
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
         </div>
