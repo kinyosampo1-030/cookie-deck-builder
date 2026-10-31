@@ -1856,10 +1856,21 @@ const PackOpenerModal = ({ allCards, onClose, lang, user, userProfile, handleCla
     </div>
   );
 };
-const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard, handleSetAvatar }) => {
+const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard, handleSetAvatar, user }) => {
   const [selectedSeries, setSelectedSeries] = useState("BS11");
   const [selectedCard, setSelectedCard] = useState(null); 
   const [isCrafting, setIsCrafting] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false); // 🌟 新增領取狀態
+
+  // 🌟 成就里程碑設定檔 (Config)
+  const MILESTONES = useMemo(() => [
+      { percent: 20, reward: 100, title: "初來乍到" },
+      { percent: 40, reward: 200, title: "漸入佳境" },
+      { percent: 60, reward: 300, title: "得心應手" },
+      { percent: 80, reward: 400, title: "近在咫尺" },
+      { percent: 90, reward: 500, title: "只欠東風" },
+      { percent: 100, reward: 600, title: "超凡入聖" }
+  ], []);
 
   const availableSeries = useMemo(() => Array.from(new Set(allCards.filter(c => !c.series.startsWith('ST') && c.series !== 'P').map(c => c.series))).sort(), [allCards]);
 
@@ -1882,8 +1893,42 @@ const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard
       if (!userProfile?.collection) return { owned: 0, total: expandedSeriesCards.length, percentage: 0 };
       let ownedUnique = 0;
       expandedSeriesCards.forEach(slot => { if ((userProfile.collection[slot.collectionKey] || 0) > 0) ownedUnique++; });
-      return { owned: ownedUnique, total: expandedSeriesCards.length, percentage: expandedSeriesCards.length ? Math.round((ownedUnique / expandedSeriesCards.length) * 100) : 0 };
+      return { owned: ownedUnique, total: expandedSeriesCards.length, percentage: expandedSeriesCards.length ? Math.floor((ownedUnique / expandedSeriesCards.length) * 100) : 0 };
   }, [expandedSeriesCards, userProfile]);
+
+  // 🌟 [新增 API] 領取里程碑成就獎勵
+  const handleClaimMilestone = async (percent, reward) => {
+      if (!user || user.isAnonymous || !db) {
+          alert("請先登入註冊才能領取成就獎勵喔！");
+          return;
+      }
+      setIsClaiming(true);
+      try {
+          const achievementId = `${selectedSeries}_${percent}`;
+          const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'main');
+          
+          await runTransaction(db, async (transaction) => {
+              const docSnap = await transaction.get(profileRef);
+              if (!docSnap.exists()) throw new Error("找不到玩家檔案");
+              const data = docSnap.data();
+              const claimed = data.claimedAchievements || [];
+              
+              if (claimed.includes(achievementId)) {
+                  throw new Error("這項成就已經領取過囉！");
+              }
+              
+              transaction.update(profileRef, {
+                  tokens: increment(reward),
+                  claimedAchievements: [...claimed, achievementId]
+              });
+          });
+          alert(`🎉 恭喜達成【${selectedSeries} 收集進度 ${percent}%】！\n獲得 ${reward} 餅乾幣！`);
+      } catch (err) {
+          alert("領取失敗：" + err.message);
+      } finally {
+          setIsClaiming(false);
+      }
+  };
 
   const getCraftCost = (slot) => {
       if (slot.isAltSlot) {
@@ -1947,6 +1992,7 @@ const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard
     <div className="fixed inset-0 bg-slate-900/95 z-[90] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in" onClick={onClose}>
       <div className="bg-slate-50 rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden border border-slate-700 relative" onClick={e => e.stopPropagation()}>
         
+        {/* 頂部標頭與進度條 */}
         <div className="bg-slate-800 p-4 md:p-6 shrink-0 border-b border-slate-700">
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-black text-white flex items-center gap-2">
@@ -1976,8 +2022,45 @@ const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard
                     <div className="h-2.5 w-full bg-slate-700 rounded-full overflow-hidden shadow-inner"><div className="h-full bg-gradient-to-r from-yellow-500 to-amber-400 transition-all duration-1000 ease-out relative" style={{ width: `${collectionStats.percentage}%` }}><div className="absolute inset-0 bg-white/20 animate-pulse"></div></div></div>
                 </div>
             </div>
+
+            {/* 🌟 新增：系列收集里程碑成就卡片區 */}
+            <div className="mt-5 border-t border-slate-700 pt-4">
+                <div className="text-[10px] md:text-xs font-bold text-slate-400 mb-3 flex items-center gap-1.5 uppercase tracking-wider">
+                    <Crown size={14} className="text-yellow-500" /> {selectedSeries} 專屬收集成就
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-2 scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                    {MILESTONES.map(m => {
+                        const achievementId = `${selectedSeries}_${m.percent}`;
+                        // 檢查資料庫的 claimedAchievements 陣列裡有沒有這個成就 ID
+                        const isClaimed = (userProfile?.claimedAchievements || []).includes(achievementId);
+                        // 當前收集率達標，且還沒領過，才能領取
+                        const canClaim = collectionStats.percentage >= m.percent && !isClaimed;
+                        
+                        return (
+                            <div key={m.percent} className={`shrink-0 w-32 md:w-36 rounded-xl p-3 border-2 flex flex-col gap-2 transition-all duration-300 ${isClaimed ? 'bg-slate-800/50 border-emerald-500/30 opacity-70' : canClaim ? 'bg-slate-800 border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.2)] hover:-translate-y-1' : 'bg-slate-800/50 border-slate-700 grayscale-[30%]'}`}>
+                                <div className="flex justify-between items-start">
+                                    <span className={`text-xs font-black ${isClaimed ? 'text-emerald-500' : canClaim ? 'text-yellow-400' : 'text-slate-400'}`}>{m.title}</span>
+                                    <span className={`text-[10px] font-black ${collectionStats.percentage >= m.percent ? 'text-emerald-400' : 'text-slate-500'}`}>{m.percent}%</span>
+                                </div>
+                                <div className="flex items-center gap-1 text-sm font-black text-white my-1">
+                                    <Gem size={14} className={isClaimed ? "text-slate-500" : "text-cyan-400"} /> 
+                                    <span className={isClaimed ? "text-slate-500 line-through" : ""}>+{m.reward}</span>
+                                </div>
+                                <button 
+                                    onClick={() => handleClaimMilestone(m.percent, m.reward)}
+                                    disabled={!canClaim || isClaiming}
+                                    className={`w-full py-1.5 rounded-lg text-xs font-bold transition-all ${isClaimed ? 'bg-transparent text-emerald-500 border border-emerald-500/50 cursor-default' : canClaim ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-amber-950 shadow-md active:scale-95' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`}
+                                >
+                                    {isClaimed ? '✅ 已領取' : canClaim ? '🎁 點擊領取' : '未達成'}
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
         </div>
 
+        {/* 底部卡片陣列 */}
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
             {expandedSeriesCards.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-slate-400"><Database size={48} className="mb-3 opacity-20" /><p>該系列目前沒有卡片資料</p></div>
@@ -1998,21 +2081,17 @@ const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard
                     <h3 className="text-xl font-black text-white mb-4 flex items-center gap-2">卡片詳細資訊</h3>
                     
                     <div className={`w-40 h-56 mb-4 rounded-xl overflow-hidden border-4 shadow-xl relative ${selectedCard.isMaxed ? 'border-yellow-400 shadow-[0_0_30px_rgba(234,179,8,0.4)]' : 'border-slate-600'}`}>
-                        {selectedCard.displayUrl ? (<img src={selectedCard.displayUrl} className="w-full h-full object-cover" alt="target" />) : (<div className={`w-full h-full p-2 ${getCardColorStyles(selectedCard.color)}`}></div>)}
+                        {selectedCard.displayUrl ? (<img src={selectedCard.displayUrl} className="w-full h-full object-cover" alt="target" />) : (<div className={`w-full h-full p-2 flex flex-col justify-between ${getCardColorStyles(selectedCard.color)}`}></div>)}
                         {selectedCard.isAltSlot && (<div className="absolute bottom-1 left-1 text-[10px] bg-gradient-to-r from-amber-500 to-yellow-600 text-white px-1.5 py-0.5 rounded font-black border border-yellow-300">{selectedCard.displayBadge}</div>)}
                     </div>
                     
-                    {/* 🌟 補上卡片名稱顯示，讓介面更完整 */}
                     <div className="text-slate-300 text-sm mb-6 bg-slate-900/50 p-3 rounded-lg w-full border border-slate-700 flex flex-col gap-1">
                         <span className="text-yellow-400 font-bold text-lg">{cName(selectedCard, lang)}</span>
                         <span className="text-slate-400 font-mono text-xs">{selectedCard.id}</span>
                         <span className="mt-2 block border-t border-slate-700 pt-2">目前擁有: <span className={selectedCard.isMaxed ? 'text-yellow-400 font-black' : 'text-white font-bold'}>{selectedCard.ownedCount} / 4</span></span>
                     </div>
                     
-                    {/* 🌟 修正：確保所有的按鈕都被完整包覆在一個 div 容器中 */}
                     <div className="flex flex-col gap-3 w-full">
-                        
-                        {/* 🌟 設定頭像按鈕 */}
                         {selectedCard.ownedCount > 0 && (
                             <button 
                                 onClick={() => { handleSetAvatar(selectedCard.displayUrl); setSelectedCard(null); }} 
@@ -2022,7 +2101,6 @@ const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard
                             </button>
                         )}
 
-                        {/* 🌟 合成按鈕區塊 */}
                         <div className="flex gap-3 w-full">
                             <button onClick={() => setSelectedCard(null)} disabled={isCrafting} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2.5 rounded-xl font-bold transition-colors">取消關閉</button>
                             
@@ -2045,12 +2123,10 @@ const CollectionModal = ({ allCards, onClose, lang, userProfile, handleCraftCard
                                 </button>
                             )}
                         </div>
-                        
                     </div>
                 </div>
             </div>
         )}
-
       </div>
     </div>
   );
@@ -3158,7 +3234,7 @@ const handleExportCardData = () => {
       
       {showPackOpenerModal && <PackOpenerModal allCards={allCards} onClose={() => setShowPackOpenerModal(false)} lang={lang} user={user} userProfile={userProfile} handleClaimDaily={handleClaimDaily} processPackToCollection={processPackToCollection} />}
 
-      {showCollectionModal && <CollectionModal allCards={allCards} onClose={() => setShowCollectionModal(false)} lang={lang} userProfile={userProfile} handleCraftCard={handleCraftCard} handleSetAvatar={handleSetAvatar} />}
+      {showCollectionModal && <CollectionModal allCards={allCards} onClose={() => setShowCollectionModal(false)} lang={lang} userProfile={userProfile} handleCraftCard={handleCraftCard} handleSetAvatar={handleSetAvatar} user={user} />}
       
       {showProfileModal && (
         <ProfileModal 
